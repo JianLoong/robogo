@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  gobot-dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: gobot-dev
+    volumes:
+      - .:/workspace
+      - go-cache:/go
+      - go-mod-cache:/go/pkg/mod
+    working_dir: /workspace
+    environment:
+      - GO111MODULE=on
+      - GOPRIVATE=*
+      - CGO_ENABLED=1
+    ports:
+      - "8080:8080"  # For future web UI
+      - "3000:3000"  # For future API
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    networks:
+      - gobot-network
+
+  # Optional: Add a test database for future features
+  test-db:
+    image: postgres:15-alpine
+    container_name: gobot-test-db
+    environment:
+      POSTGRES_DB: gobot_test
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gobot-network
+
+volumes:
+  go-cache:
+  go-mod-cache:
+  postgres-data:
+
+networks:
+  gobot-network:
+    driver: bridge 

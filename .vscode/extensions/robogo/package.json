@@ -1,0 +1,63 @@
+{
+  "name": "robogo",
+  "displayName": "Robogo",
+  "description": "Robogo test automation framework support",
+  "version": "0.1.0",
+  "publisher": "robogo",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onLanguage:robogo"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "robogo",
+        "aliases": ["Robogo", "robogo"],
+        "extensions": [".robogo"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "robogo",
+        "scopeName": "source.robogo",
+        "path": "./syntaxes/robogo.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Robogo Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/robogo-dark.json"
+      }
+    ],
+    "configuration": {
+      "title": "Robogo",
+      "properties": {
+        "robogo.executablePath": {
+          "type": "string",
+          "default": "robogo",
+          "description": "Path to the Robogo executable"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "@types/node": "^16.0.0",
+    "typescript": "^4.5.0"
+  }
+} 
