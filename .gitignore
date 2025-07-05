@@ -100,4 +100,7 @@ junit-output.xml
 .vscode/extensions/*/.vscode-test/
 .vscode/extensions/*/dist/
 .vscode/extensions/*/coverage/
-.vscode/extensions/*/package-lock.json 
+.vscode/extensions/*/package-lock.json
+
+# Negation rule to ensure cmd/robogo/main.go is always tracked by git
+!cmd/robogo/main.go 
