@@ -6,51 +6,62 @@ description: "Test file to demonstrate variable assignment and usage"
 
 steps:
   # Get current timestamp and store in variable
-  - action: get_time
+  - name: "Get current timestamp"
+    action: get_time
     args: ["2006-01-02 15:04:05"]
     result: timestamp
   
   # Log the timestamp
-  - action: log
+  - name: "Log timestamp"
+    action: log
     args: ["Current timestamp: ${timestamp}"]
   
   # Get a random number
-  - action: get_random
+  - name: "Get random number"
+    action: get_random
     args: [100]
     result: random_number
   
   # Log the random number
-  - action: log
+  - name: "Log random number"
+    action: log
     args: ["Random number: ${random_number}"]
   
   # Concatenate strings and store result
-  - action: concat
+  - name: "Concatenate greeting"
+    action: concat
     args: ["Hello", " ", "World", " ", "from", " ", "Robogo"]
     result: greeting
   
   # Log the concatenated string
-  - action: log
+  - name: "Log greeting"
+    action: log
     args: ["Greeting: ${greeting}"]
   
   # Get length of the greeting
-  - action: length
+  - name: "Get greeting length"
+    action: length
     args: ["${greeting}"]
     result: greeting_length
   
   # Log the length
-  - action: log
+  - name: "Log greeting length"
+    action: log
     args: ["Greeting length: ${greeting_length}"]
   
   # Use variables in assertions
-  - action: assert
+  - name: "Assert greeting length"
+    action: assert
     args: ["${greeting_length}", "23", "Greeting should be 23 characters long"]
   
   # Sleep using a variable
-  - action: sleep
+  - name: "Wait 1 second"
+    action: sleep
     args: [1]
   
   # Final log with multiple variables
-  - action: log
+  - name: "Log final summary"
+    action: log
     args: ["Test completed at ${timestamp} with random number ${random_number}"]
 
 # Comments should be highlighted

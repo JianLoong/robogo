@@ -6,68 +6,84 @@ description: "A comprehensive sample test case demonstrating Robogo features"
 
 steps:
   # Basic logging
-  - action: log
+  - name: "Start test case"
+    action: log
     args: ["Starting sample test case"]
   
   # Get current timestamp and store in variable
-  - action: get_time
+  - name: "Get start time"
+    action: get_time
     args: ["iso"]
     result: start_time
   
   # Log the timestamp using variable substitution
-  - action: log
+  - name: "Log start time"
+    action: log
     args: ["Test started at: ${start_time}"]
   
   # Sleep for a short duration
-  - action: sleep
+  - name: "Wait 0.5 seconds"
+    action: sleep
     args: [0.5]
   
   # Basic assertion
-  - action: assert
+  - name: "Basic assertion"
+    action: assert
     args: [true, true, "Basic assertion test"]
   
   # String operations with variables
-  - action: concat
+  - name: "Create greeting"
+    action: concat
     args: ["Hello", " ", "from", " ", "Robogo"]
     result: greeting
   
-  - action: log
+  - name: "Log greeting"
+    action: log
     args: ["Greeting: ${greeting}"]
   
   # Get length of the greeting
-  - action: length
+  - name: "Get greeting length"
+    action: length
     args: ["${greeting}"]
     result: greeting_length
   
-  - action: log
+  - name: "Log greeting length"
+    action: log
     args: ["Greeting length: ${greeting_length}"]
   
   # Assert using variables
-  - action: assert
+  - name: "Assert greeting length"
+    action: assert
     args: ["${greeting_length}", "17", "Greeting should be 17 characters"]
   
   # Get a random number
-  - action: get_random
+  - name: "Get random number"
+    action: get_random
     args: [100]
     result: random_value
   
-  - action: log
+  - name: "Log random number"
+    action: log
     args: ["Random number: ${random_value}"]
   
   # Different time formats
-  - action: get_time
+  - name: "Get current date"
+    action: get_time
     args: ["date"]
     result: current_date
   
-  - action: get_time
+  - name: "Get current time"
+    action: get_time
     args: ["time"]
     result: current_time
   
-  - action: log
+  - name: "Log current date and time"
+    action: log
     args: ["Current date: ${current_date}, time: ${current_time}"]
   
   # Final log with multiple variables
-  - action: log
+  - name: "Log completion"
+    action: log
     args: ["Sample test completed successfully at ${current_time} on ${current_date}"]
 
 # This file demonstrates:

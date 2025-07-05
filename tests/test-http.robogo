@@ -30,7 +30,8 @@ steps:
     args: ["GET", "https://httpbin.org/headers", {"User-Agent": "Robogo-Test/1.0", "Accept": "application/json"}]
     result: headers_response
   
-  - action: log
+  - name: "Log headers response"
+    action: log
     args: ["Headers Response: ${headers_response}"]
   
   # Test HTTP PUT request
@@ -39,7 +40,8 @@ steps:
     args: ["PUT", "https://httpbin.org/put", '{"updated": true}', {"Content-Type": "application/json"}]
     result: put_response
   
-  - action: log
+  - name: "Log PUT response"
+    action: log
     args: ["PUT Response: ${put_response}"]
   
   # Test HTTP DELETE request
@@ -48,7 +50,8 @@ steps:
     args: ["DELETE", "https://httpbin.org/delete"]
     result: delete_response
   
-  - action: log
+  - name: "Log DELETE response"
+    action: log
     args: ["DELETE Response: ${delete_response}"]
   
   # Test HTTP request with client certificate (file paths)
@@ -57,7 +60,8 @@ steps:
     args: ["GET", "https://api.example.com/secure", "", "", {"cert": "/path/to/client.crt", "key": "/path/to/client.key"}]
     result: cert_response
   
-  - action: log
+  - name: "Log certificate response"
+    action: log
     args: ["Certificate Response: ${cert_response}"]
   
   # Test HTTP request with client certificate (PEM content)
@@ -66,7 +70,8 @@ steps:
     args: ["GET", "https://api.example.com/secure", "", "", {"cert": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----", "key": "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----"}]
     result: pem_cert_response
   
-  - action: log
+  - name: "Log PEM certificate response"
+    action: log
     args: ["PEM Certificate Response: ${pem_cert_response}"]
   
   # Test HTTP request with custom CA certificate (file path)
@@ -75,7 +80,8 @@ steps:
     args: ["GET", "https://internal.example.com/api", "", "", {"ca": "/path/to/custom-ca.crt"}]
     result: ca_response
   
-  - action: log
+  - name: "Log custom CA response"
+    action: log
     args: ["Custom CA Response: ${ca_response}"]
   
   # Test HTTP request with custom CA certificate (PEM content)
@@ -84,7 +90,8 @@ steps:
     args: ["GET", "https://internal.example.com/api", "", "", {"ca": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"}]
     result: pem_ca_response
   
-  - action: log
+  - name: "Log PEM CA response"
+    action: log
     args: ["PEM CA Response: ${pem_ca_response}"]
   
   # Test HTTP request with both client cert and custom CA (mixed file paths and PEM)
@@ -93,7 +100,8 @@ steps:
     args: ["POST", "https://secure.example.com/data", '{"secure": true}', {"Content-Type": "application/json"}, {"cert": "/path/to/client.crt", "key": "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----", "ca": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"}]
     result: mixed_cert_response
   
-  - action: log
+  - name: "Log mixed certificate response"
+    action: log
     args: ["Mixed Certificate Response: ${mixed_cert_response}"]
   
   # Test error handling (404)
