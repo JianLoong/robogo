@@ -142,6 +142,16 @@ data_management:
       action: log
       args: ["Setting up test database for TDM test"]
     
+    - name: "Get timestamp for table isolation"
+      action: get_time
+      args: ["unix_ms"]
+      result: setup_timestamp
+    
+    - name: "Create unique table prefix"
+      action: variable
+      args: ["set", "table_prefix", "tdm_${setup_timestamp}"]
+      result: prefix_result
+    
       # Build connection string with secrets
     - name: "Build connection string"
       action: concat
@@ -157,12 +167,12 @@ data_management:
     
     - name: "Create test tables"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS tdm_test_users (id SERIAL PRIMARY KEY, username VARCHAR(50), email VARCHAR(100), role VARCHAR(20))"]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS ${table_prefix}_test_users (id SERIAL PRIMARY KEY, username VARCHAR(50), email VARCHAR(100), role VARCHAR(20))"]
       continue_on_failure: true
     
     - name: "Insert test data"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO tdm_test_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.admin_user.email}", "${dev_users.admin_user.role}"]]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO ${table_prefix}_test_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.admin_user.email}", "${dev_users.admin_user.role}"]]
       continue_on_failure: true
 
   # TDM Teardown - runs after test execution
@@ -173,22 +183,22 @@ data_management:
     
     - name: "Delete test users"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DELETE FROM tdm_test_users WHERE username IN ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.test_user.username}", "${dev_users.guest_user.username}"]]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DELETE FROM ${table_prefix}_test_users WHERE username IN ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.test_user.username}", "${dev_users.guest_user.username}"]]
       continue_on_failure: true
     
     - name: "Drop test tables"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS tdm_test_users"]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS ${table_prefix}_test_users"]
       continue_on_failure: true
     
     - name: "Drop TDM tables"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS tdm_users"]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS ${table_prefix}_users"]
       continue_on_failure: true
     
     - name: "Drop TDM products table"
       action: postgres
-      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS tdm_products"]
+      args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "DROP TABLE IF EXISTS ${table_prefix}_products"]
       continue_on_failure: true
     
     - name: "Close database connection"
@@ -205,8 +215,8 @@ variables:
     max_retries: 3
     db_host: "192.168.0.174"
     db_port: "5432"
-    db_name: "postgres"
-    db_user: "postgres"
+    db_name: "robogo_testdb"
+    db_user: "robogo_testuser"
   secrets:
     db_password:
       file: "secret.txt"
@@ -246,44 +256,44 @@ steps:
   # Create TDM test tables
   - name: "Create TDM users table"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS tdm_users (id SERIAL PRIMARY KEY, username VARCHAR(100), email VARCHAR(100), role VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS ${table_prefix}_users (id SERIAL PRIMARY KEY, username VARCHAR(100), email VARCHAR(100), role VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
     result: create_users_table_result
 
   - name: "Create TDM products table"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS tdm_products (id SERIAL PRIMARY KEY, product_id VARCHAR(50), name VARCHAR(200), price DECIMAL(10,2), category VARCHAR(100), in_stock BOOLEAN, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "CREATE TABLE IF NOT EXISTS ${table_prefix}_products (id SERIAL PRIMARY KEY, product_id VARCHAR(50), name VARCHAR(200), price DECIMAL(10,2), category VARCHAR(100), in_stock BOOLEAN, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
     result: create_products_table_result
 
   # Insert TDM test data
   - name: "Insert admin user"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO tdm_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.admin_user.email}", "${dev_users.admin_user.role}"]]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO ${table_prefix}_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.admin_user.username}", "${dev_users.admin_user.email}", "${dev_users.admin_user.role}"]]
     result: insert_admin_result
 
   - name: "Insert test user"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO tdm_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.test_user.username}", "${dev_users.test_user.email}", "${dev_users.test_user.role}"]]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO ${table_prefix}_users (username, email, role) VALUES ($1, $2, $3)", ["${dev_users.test_user.username}", "${dev_users.test_user.email}", "${dev_users.test_user.role}"]]
     result: insert_test_user_result
 
   - name: "Insert product 1"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO tdm_products (product_id, name, price, category, in_stock) VALUES ($1, $2, $3, $4, $5)", ["${dev_products.product_1.id}", "${dev_products.product_1.name}", "${dev_products.product_1.price}", "${dev_products.product_1.category}", "${dev_products.product_1.in_stock}"]]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO ${table_prefix}_products (product_id, name, price, category, in_stock) VALUES ($1, $2, $3, $4, $5)", ["${dev_products.product_1.id}", "${dev_products.product_1.name}", "${dev_products.product_1.price}", "${dev_products.product_1.category}", "${dev_products.product_1.in_stock}"]]
     result: insert_product1_result
 
   - name: "Insert product 2"
     action: postgres
-    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO tdm_products (product_id, name, price, category, in_stock) VALUES ($1, $2, $3, $4, $5)", ["${dev_products.product_2.id}", "${dev_products.product_2.name}", "${dev_products.product_2.price}", "${dev_products.product_2.category}", "${dev_products.product_2.in_stock}"]]
+    args: ["execute", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "INSERT INTO ${table_prefix}_products (product_id, name, price, category, in_stock) VALUES ($1, $2, $3, $4, $5)", ["${dev_products.product_2.id}", "${dev_products.product_2.name}", "${dev_products.product_2.price}", "${dev_products.product_2.category}", "${dev_products.product_2.in_stock}"]]
     result: insert_product2_result
 
   # Query TDM test data
   - name: "Query all users"
     action: postgres
-    args: ["query", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "SELECT username, email, role FROM tdm_users ORDER BY username"]
+    args: ["query", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "SELECT username, email, role FROM ${table_prefix}_users ORDER BY username"]
     result: query_users_result
 
   - name: "Query all products"
     action: postgres
-    args: ["query", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "SELECT product_id, name, price, category, in_stock FROM tdm_products ORDER BY product_id"]
+    args: ["query", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable", "SELECT product_id, name, price, category, in_stock FROM ${table_prefix}_products ORDER BY product_id"]
     result: query_products_result
 
   - name: "Log query results"

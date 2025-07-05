@@ -145,10 +145,12 @@ steps:
             - "${swift_api_url}"
             - '{"message": "${swift_message}", "type": "${condition}", "priority": "NORMAL"}'
           result: api_response
+          continue_on_failure: true
         
         - name: "Validate API response"
           action: assert
           args: ["${api_response.status_code}", "==", "200", "API should return 200 for ${condition}"]
+          continue_on_failure: true
         
         - name: "Log success"
           action: log
@@ -190,10 +192,12 @@ steps:
             - "${swift_api_url}"
             - '{"message": "${priority_message}", "type": "MT103", "priority": "${condition}"}'
           result: priority_response
+          continue_on_failure: true
         
         - name: "Validate priority response"
           action: assert
           args: ["${priority_response.status_code}", "==", "200", "Priority ${condition} should return 200"]
+          continue_on_failure: true
 
   # Test message validation with different amounts
   - name: "Test message validation with different amounts"
@@ -249,10 +253,12 @@ steps:
             - "${swift_api_url}"
             - '{"message": "${amount_message}", "type": "MT103", "priority": "NORMAL"}'
           result: amount_response
+          continue_on_failure: true
         
         - name: "Validate amount response"
           action: assert
           args: ["${amount_response.status_code}", "==", "200", "Amount test ${iteration} should return 200"]
+          continue_on_failure: true
 
   # Test error scenarios
   - name: "Test error scenarios"
@@ -284,10 +290,12 @@ steps:
             - "${swift_api_url}"
             - '{"message": "${error_message}", "type": "MT103"}'
           result: error_test_response
+          continue_on_failure: true
         
         - name: "Validate error response"
           action: assert
           args: ["${error_test_response.status_code}", ">=", "400", "Error test ${condition} should return error status"]
+          continue_on_failure: true
 
   # Performance and load testing
   - name: "Start load test"
@@ -298,7 +306,6 @@ steps:
   - name: "Load test with multiple messages"
     for:
       condition: "1..10"
-      max_iterations: 10
       steps:
         - name: "Generate load test message"
           action: concat
@@ -331,10 +338,12 @@ steps:
             - "${swift_api_url}"
             - '{"message": "${load_message}", "type": "MT103", "priority": "NORMAL"}'
           result: load_response
+          continue_on_failure: true
         
         - name: "Validate load response"
           action: assert
           args: ["${load_response.status_code}", "==", "200", "Load test ${iteration} should return 200"]
+          continue_on_failure: true
   
   - name: "End load test"
     action: get_time

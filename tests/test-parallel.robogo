@@ -1,0 +1,135 @@
+# Test Parallel Execution Features
+# This file demonstrates the new parallelism capabilities in Robogo
+
+testcase: "Parallel Execution Test"
+description: "Test parallel execution features including parallel steps and HTTP requests"
+
+# Enable parallelism for this test case
+parallel:
+  enabled: true
+  max_concurrency: 4
+  test_cases: true
+  steps: true
+  http_requests: true
+
+variables:
+  vars:
+    base_url: "https://httpbin.org"
+    test_data: "Hello from Robogo"
+
+steps:
+  # These steps can run in parallel (independent operations)
+  - name: "Get current time"
+    action: get_time
+    args: ["iso"]
+    result: start_time
+  
+  - name: "Generate random number"
+    action: get_random
+    args: [1000]
+    result: random_number
+  
+  - name: "Log parallel test start"
+    action: log
+    args: ["🚀 Starting parallel execution test"]
+  
+  - name: "Sleep for a bit"
+    action: sleep
+    args: [0.5]
+  
+  # These steps can also run in parallel (independent HTTP requests)
+  - name: "HTTP request 1"
+    action: http_get
+    args: ["${base_url}/status/200"]
+    result: response1
+  
+  - name: "HTTP request 2"
+    action: http_get
+    args: ["${base_url}/headers"]
+    result: response2
+  
+  - name: "HTTP request 3"
+    action: http_get
+    args: ["${base_url}/user-agent"]
+    result: response3
+  
+  # This step depends on previous results, so it runs sequentially
+  - name: "Validate all responses"
+    action: assert
+    args: ["${response1.status_code}", "==", "200", "First request should succeed"]
+  
+  - name: "Validate second response"
+    action: assert
+    args: ["${response2.status_code}", "==", "200", "Second request should succeed"]
+  
+  - name: "Validate third response"
+    action: assert
+    args: ["${response3.status_code}", "==", "200", "Third request should succeed"]
+  
+  # Test parallel HTTP batch requests
+  - name: "Parallel batch HTTP requests"
+    action: http_batch
+    args: 
+      - "GET"
+      - ["${base_url}/status/200", "${base_url}/headers", "${base_url}/user-agent"]
+      - {"concurrency": 3}
+    result: batch_response
+  
+  - name: "Validate batch response"
+    action: assert
+    args: ["${batch_response}", "contains", "200", "Batch requests should succeed"]
+  
+  # Test string operations in parallel
+  - name: "Concatenate strings 1"
+    action: concat
+    args: ["Parallel", " ", "execution", " ", "test"]
+    result: message1
+  
+  - name: "Concatenate strings 2"
+    action: concat
+    args: ["Hello", " ", "from", " ", "Robogo"]
+    result: message2
+  
+  - name: "Get string lengths"
+    action: length
+    args: ["${message1}"]
+    result: length1
+  
+  - name: "Get second string length"
+    action: length
+    args: ["${message2}"]
+    result: length2
+  
+  # Final validation and summary
+  - name: "Get end time"
+    action: get_time
+    args: ["iso"]
+    result: end_time
+  
+  - name: "Log test summary"
+    action: log
+    args: ["📊 Parallel test completed successfully"]
+  
+  - name: "Log timing information"
+    action: log
+    args: ["⏱️ Test duration: ${start_time} to ${end_time}"]
+  
+  - name: "Log random number"
+    action: log
+    args: ["🎲 Random number generated: ${random_number}"]
+  
+  - name: "Log string operations"
+    action: log
+    args: ["📝 Message 1 (${length1} chars): ${message1}"]
+  
+  - name: "Log second message"
+    action: log
+    args: ["📝 Message 2 (${length2} chars): ${message2}"]
+
+# This test demonstrates:
+# 1. Parallel step execution within a test case
+# 2. Independent operations running concurrently
+# 3. Parallel HTTP requests with concurrency control
+# 4. Batch HTTP operations
+# 5. Proper dependency handling (sequential execution when needed)
+# 6. Variable management in parallel context 

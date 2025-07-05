@@ -16,6 +16,9 @@ type TestCase struct {
 	// TDM Fields
 	DataManagement *DataManagement `yaml:"data_management,omitempty"`
 	Environments   []Environment   `yaml:"environments,omitempty"`
+
+	// Parallelism Fields
+	Parallel *ParallelConfig `yaml:"parallel,omitempty"`
 }
 
 // DataManagement represents test data management configuration
@@ -139,14 +142,15 @@ type LoopBlock struct {
 
 // TestResult represents the result of running a test case
 type TestResult struct {
-	TestCase     TestCase
-	Status       string
-	Duration     time.Duration
-	TotalSteps   int
-	PassedSteps  int
-	FailedSteps  int
-	StepResults  []StepResult
-	ErrorMessage string
+	TestCase       *TestCase
+	Status         string
+	Duration       time.Duration
+	TotalSteps     int
+	PassedSteps    int
+	FailedSteps    int
+	StepResults    []StepResult
+	ErrorMessage   string
+	CapturedOutput string // New field to store captured console output
 
 	// TDM Results
 	DataResults *DataResults `yaml:"data_results,omitempty"`
@@ -186,4 +190,23 @@ type StepResult struct {
 	Output    string
 	Error     string
 	Timestamp time.Time
+}
+
+// ParallelConfig represents parallelism configuration
+type ParallelConfig struct {
+	Enabled        bool `yaml:"enabled,omitempty"`             // Enable parallel execution
+	MaxConcurrency int  `yaml:"max_concurrency,omitempty"`     // Maximum concurrent operations
+	TestCases      bool `yaml:"test_cases,omitempty"`          // Enable parallel test case execution
+	Steps          bool `yaml:"steps,omitempty"`               // Enable parallel step execution
+	HTTPRequests   bool `yaml:"http_requests,omitempty"`       // Enable parallel HTTP requests
+	DatabaseOps    bool `yaml:"database_operations,omitempty"` // Enable parallel database operations
+	DataValidation bool `yaml:"data_validation,omitempty"`     // Enable parallel data validation
+	FileOperations bool `yaml:"file_operations,omitempty"`     // Enable parallel file operations
+}
+
+// LoadTestingConfig represents load testing configuration
+type LoadTestingConfig struct {
+	Enabled    bool `yaml:"enabled,omitempty"`     // Enable load testing
+	MaxWorkers int  `yaml:"max_workers,omitempty"` // Maximum worker goroutines
+	RateLimit  int  `yaml:"rate_limit,omitempty"`  // Requests per second limit
 }

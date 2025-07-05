@@ -20,6 +20,7 @@ var actionFuncs = map[string]ActionFunc{
 	"http":       HTTPAction,
 	"http_get":   HTTPGetAction,
 	"http_post":  HTTPPostAction,
+	"http_batch": HTTPBatchAction,
 	"control":    ControlFlowAction,
 	"postgres":   PostgresAction,
 	"variable":   VariableAction,

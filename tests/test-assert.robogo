@@ -5,77 +5,153 @@ steps:
   # Numeric assertions
   - name: "Assert equal numbers"
     action: assert
-    args: [1, "==", 1]
+    args:
+      - 1
+      - "=="
+      - 1
+      - "Basic numeric equality should work"
 
   - name: "Assert not equal numbers"
     action: assert
-    args: [1, "!=", 2]
+    args:
+      - 1
+      - "!="
+      - 2
+      - "Different numbers should not be equal"
 
   - name: "Assert greater"
     action: assert
-    args: [2, ">", 1]
+    args:
+      - 2
+      - ">"
+      - 1
+      - "2 should be greater than 1"
 
   - name: "Assert less"
     action: assert
-    args: [1, "<", 2]
+    args:
+      - 1
+      - "<"
+      - 2
+      - "1 should be less than 2"
 
   - name: "Assert greater or equal"
     action: assert
-    args: [2, ">=", 2]
+    args:
+      - 2
+      - ">="
+      - 2
+      - "2 should be greater than or equal to 2"
 
   - name: "Assert less or equal"
     action: assert
-    args: [2, "<=", 2]
+    args:
+      - 2
+      - "<="
+      - 2
+      - "2 should be less than or equal to 2"
 
   # Modulo assertions (new)
   - name: "Assert modulo equals"
     action: assert
-    args: [5, "%", 2, "==", 1]
+    args:
+      - 5
+      - "%"
+      - 2
+      - "=="
+      - 1
+      - "5 modulo 2 should equal 1"
 
   - name: "Assert modulo not equals"
     action: assert
-    args: [6, "%", 4, "!=", 3]
+    args:
+      - 6
+      - "%"
+      - 4
+      - "!="
+      - 3
+      - "6 modulo 4 should not equal 3"
 
   # String assertions
   - name: "Assert string equal"
     action: assert
-    args: ["foo", "==", "foo"]
+    args:
+      - "foo"
+      - "=="
+      - "foo"
+      - "Identical strings should be equal"
 
   - name: "Assert string not equal"
     action: assert
-    args: ["foo", "!=", "bar"]
+    args:
+      - "foo"
+      - "!="
+      - "bar"
+      - "Different strings should not be equal"
 
   - name: "Assert contains"
     action: assert
-    args: ["hello world", "contains", "world"]
+    args:
+      - "hello world"
+      - "contains"
+      - "world"
+      - "String should contain substring"
 
   - name: "Assert not contains"
     action: assert
-    args: ["hello", "not_contains", "world"]
+    args:
+      - "hello"
+      - "not_contains"
+      - "world"
+      - "String should not contain substring"
 
   - name: "Assert starts with"
     action: assert
-    args: ["foobar", "starts_with", "foo"]
+    args:
+      - "foobar"
+      - "starts_with"
+      - "foo"
+      - "String should start with prefix"
 
   - name: "Assert ends with"
     action: assert
-    args: ["foobar", "ends_with", "bar"]
+    args:
+      - "foobar"
+      - "ends_with"
+      - "bar"
+      - "String should end with suffix"
 
   # Regex assertions (new)
   - name: "Assert matches regex"
     action: assert
-    args: ["abc123", "matches", "[a-z]+[0-9]+"]
+    args:
+      - "abc123"
+      - "matches"
+      - "[a-z]+[0-9]+"
+      - "String should match alphanumeric pattern"
 
   - name: "Assert not matches regex"
     action: assert
-    args: ["abc123", "not_matches", "xyz"]
+    args:
+      - "abc123"
+      - "not_matches"
+      - "xyz"
+      - "String should not match pattern"
 
   - name: "Assert not empty string"
     action: assert
-    args: ["not empty", "not_empty", ""]
+    args:
+      - "not empty"
+      - "not_empty"
+      - ""
+      - "Non-empty string should not be empty"
 
-
+  # Edge case - type mismatch (should fail)
   - name: "Type mismatch"
     action: assert
-    args: [1, "==", "one"]
+    args:
+      - 1
+      - "=="
+      - "one"
+      - "Numeric 1 should not equal string 'one'"
     continue_on_failure: true 

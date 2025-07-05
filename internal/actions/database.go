@@ -30,6 +30,16 @@ type QueryResult struct {
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// BatchQueryResult represents the result of a batch database operation
+type BatchQueryResult struct {
+	ConnectionString string                 `json:"connection_string"`
+	Query            string                 `json:"query"`
+	Result           *QueryResult           `json:"result,omitempty"`
+	Error            string                 `json:"error,omitempty"`
+	Index            int                    `json:"index"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+}
+
 // Global database manager instance
 var dbManager = &DatabaseManager{
 	connections: make(map[string]*sql.DB),
@@ -89,6 +99,8 @@ func PostgresAction(args []interface{}, silent bool) (string, error) {
 		return testConnection(connectionString)
 	case "close":
 		return closeConnection(connectionString)
+	case "batch":
+		return executeBatchOperations(connectionString, args[2:], silent)
 	default:
 		return "", fmt.Errorf("unknown postgres operation: %s", operation)
 	}
@@ -192,6 +204,261 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	}
 
 	return string(jsonResult), nil
+}
+
+// executeBatchOperations executes multiple database operations in parallel
+//
+// Parameters:
+//   - connectionString: Database connection string
+//   - args: Array of operations to execute in parallel
+//   - silent: Whether to suppress output
+//
+// Returns: JSON array of results for all operations
+//
+// Examples:
+//   - Batch queries: ["batch", [{"query": "SELECT * FROM users"}, {"query": "SELECT * FROM orders"}]]
+//   - Mixed operations: ["batch", [{"operation": "query", "query": "SELECT COUNT(*) FROM users"}, {"operation": "execute", "query": "INSERT INTO logs (message) VALUES ($1)", "params": ["test"]}]]
+//   - With concurrency: ["batch", [{"query": "SELECT * FROM table1"}, {"query": "SELECT * FROM table2"}], {"concurrency": 5}]
+//
+// Use Cases:
+//   - Parallel data validation
+//   - Batch data setup and teardown
+//   - Performance testing with multiple queries
+//   - Concurrent data operations
+func executeBatchOperations(connectionString string, args []interface{}, silent bool) (string, error) {
+	if len(args) < 1 {
+		return "", fmt.Errorf("batch operation requires at least one operation to execute")
+	}
+
+	// Parse operations
+	var operations []map[string]interface{}
+	var maxConcurrency int = 10 // Default concurrency limit
+
+	// Extract operations and options
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case []interface{}:
+			// This is the operations array
+			for _, op := range v {
+				if opMap, ok := op.(map[string]interface{}); ok {
+					operations = append(operations, opMap)
+				} else {
+					return "", fmt.Errorf("invalid operation format: expected map")
+				}
+			}
+		case map[string]interface{}:
+			// Check if this is options or a single operation
+			if concurrency, ok := v["concurrency"]; ok {
+				if concurrencyInt, ok := concurrency.(int); ok {
+					maxConcurrency = concurrencyInt
+				}
+			} else {
+				// Single operation
+				operations = append(operations, v)
+			}
+		default:
+			return "", fmt.Errorf("invalid argument type: expected array or map")
+		}
+	}
+
+	if len(operations) == 0 {
+		return "", fmt.Errorf("no operations provided for batch execution")
+	}
+
+	// Execute operations in parallel
+	results := make([]BatchQueryResult, len(operations))
+	semaphore := make(chan struct{}, maxConcurrency)
+
+	var wg sync.WaitGroup
+	for i, operation := range operations {
+		wg.Add(1)
+		go func(index int, op map[string]interface{}) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Execute the operation
+			result := executeSingleBatchOperation(connectionString, op, index)
+			results[index] = result
+		}(i, operation)
+	}
+
+	wg.Wait()
+
+	// Convert results to JSON
+	jsonResult, err := json.Marshal(results)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal batch results: %w", err)
+	}
+
+	if !silent {
+		fmt.Printf("🗄️  Batch database operations completed: %d operations, %d concurrent\n", len(operations), maxConcurrency)
+	}
+
+	return string(jsonResult), nil
+}
+
+// executeSingleBatchOperation executes a single operation within a batch
+func executeSingleBatchOperation(connectionString string, operation map[string]interface{}, index int) BatchQueryResult {
+	result := BatchQueryResult{
+		ConnectionString: connectionString,
+		Index:            index,
+		Metadata:         make(map[string]interface{}),
+	}
+
+	// Extract operation details
+	opType, ok := operation["operation"].(string)
+	if !ok {
+		// Default to query if operation type not specified
+		opType = "query"
+	}
+
+	query, ok := operation["query"].(string)
+	if !ok {
+		result.Error = "missing query in operation"
+		return result
+	}
+
+	result.Query = query
+
+	// Extract parameters if provided
+	var params []interface{}
+	if paramsInterface, ok := operation["params"]; ok {
+		if paramsArray, ok := paramsInterface.([]interface{}); ok {
+			params = paramsArray
+		}
+	}
+
+	// Execute based on operation type
+	switch strings.ToLower(opType) {
+	case "query", "select":
+		queryResult, err := executeQueryInternal(connectionString, query, params)
+		if err != nil {
+			result.Error = err.Error()
+		} else {
+			result.Result = queryResult
+		}
+	case "execute", "insert", "update", "delete":
+		queryResult, err := executeStatementInternal(connectionString, query, params)
+		if err != nil {
+			result.Error = err.Error()
+		} else {
+			result.Result = queryResult
+		}
+	default:
+		result.Error = fmt.Sprintf("unknown operation type: %s", opType)
+	}
+
+	return result
+}
+
+// executeQueryInternal is an internal version of executeQuery that returns QueryResult
+func executeQueryInternal(connectionString, query string, params []interface{}) (*QueryResult, error) {
+	// Get or create database connection
+	db, err := getConnection(connectionString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
+	}
+
+	startTime := time.Now()
+
+	// Execute query
+	rows, err := db.Query(query, params...)
+	if err != nil {
+		return nil, fmt.Errorf("query execution failed: %w", err)
+	}
+	defer rows.Close()
+
+	duration := time.Since(startTime)
+
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get column names: %w", err)
+	}
+
+	// Prepare result container
+	var resultRows [][]interface{}
+
+	// Process rows
+	for rows.Next() {
+		// Create a slice of interface{} to hold the values
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		// Scan the row into the values slice
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Convert values to strings for JSON serialization
+		rowData := make([]interface{}, len(columns))
+		for i, val := range values {
+			if val == nil {
+				rowData[i] = nil
+			} else {
+				rowData[i] = fmt.Sprintf("%v", val)
+			}
+		}
+
+		resultRows = append(resultRows, rowData)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// Create result object
+	result := &QueryResult{
+		Query:    query,
+		Columns:  columns,
+		Rows:     resultRows,
+		Duration: duration,
+		Metadata: map[string]interface{}{
+			"row_count": len(resultRows),
+		},
+	}
+
+	return result, nil
+}
+
+// executeStatementInternal is an internal version of executeStatement that returns QueryResult
+func executeStatementInternal(connectionString, query string, params []interface{}) (*QueryResult, error) {
+	// Get or create database connection
+	db, err := getConnection(connectionString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
+	}
+
+	startTime := time.Now()
+
+	// Execute statement
+	result, err := db.Exec(query, params...)
+	if err != nil {
+		return nil, fmt.Errorf("statement execution failed: %w", err)
+	}
+
+	duration := time.Since(startTime)
+
+	// Get affected rows and last insert ID
+	rowsAffected, _ := result.RowsAffected()
+	lastInsertID, _ := result.LastInsertId()
+
+	// Create result object
+	queryResult := &QueryResult{
+		Query:        query,
+		RowsAffected: rowsAffected,
+		LastInsertID: lastInsertID,
+		Duration:     duration,
+		Metadata:     make(map[string]interface{}),
+	}
+
+	return queryResult, nil
 }
 
 // executeStatement executes INSERT, UPDATE, DELETE statements

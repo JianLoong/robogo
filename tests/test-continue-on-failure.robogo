@@ -7,25 +7,36 @@ description: "Demonstrates that steps with continue_on_failure: true do not stop
 steps:
   - name: "Step 1: This will pass"
     action: log
-    args: ["Step 1 completed successfully"]
+    args:
+      - "Step 1 completed successfully - this step should always pass"
 
   - name: "Step 2: This will fail but continue"
     action: assert
-    args: ["1", "==", "2"]
+    args:
+      - "1"
+      - "=="
+      - "2"
+      - "This assertion is designed to fail (1 != 2) but test will continue"
     continue_on_failure: true
 
   - name: "Step 3: This will run because of continue_on_failure"
     action: log
-    args: ["Step 3: Continuing after the failure in Step 2"]
+    args:
+      - "Step 3: Continuing after the failure in Step 2 - demonstrating continue_on_failure works"
 
   - name: "Step 4: Another failure with continue_on_failure"
     action: assert
-    args: ["hello", "==", "world"]
+    args:
+      - "hello"
+      - "=="
+      - "world"
+      - "This assertion is designed to fail (hello != world) but test will continue"
     continue_on_failure: true
 
   - name: "Step 5: This will also run"
     action: log
-    args: ["Step 5: Continuing after the failure in Step 4"]
+    args:
+      - "Step 5: Continuing after the failure in Step 4 - multiple continue_on_failure steps work"
 
   - name: "Step 6: Loop with continue_on_failure"
     for:
@@ -33,20 +44,31 @@ steps:
       steps:
         - name: "Log iteration"
           action: log
-          args: ["Loop iteration ${iteration}"]
+          args:
+            - "Loop iteration ${iteration} - testing continue_on_failure in loops"
         - name: "Fail in loop but continue"
           action: assert
-          args: ["${iteration}", "==", "2"]
+          args:
+            - "${iteration}"
+            - "=="
+            - "2"
+            - "Loop iteration ${iteration} should equal 2 (will fail for iterations 1 and 3)"
           continue_on_failure: true
         - name: "Continue after loop failure"
           action: log
-          args: ["Continued after loop failure in iteration ${iteration}"]
+          args:
+            - "Continued after loop failure in iteration ${iteration} - loop continue_on_failure works"
 
   - name: "Step 7: Final step - this should run"
     action: log
-    args: ["Final step: Test completed with all failures reported"]
+    args:
+      - "Final step: Test completed with all failures reported - demonstrating full test execution"
 
   - name: "Step 8: This step will fail and stop the test"
     action: assert
-    args: ["final", "==", "failure"]
-    # No continue_on_failure - this will stop the test 
+    args:
+      - "final"
+      - "=="
+      - "failure"
+      - "This assertion is designed to fail (final != failure) and will stop the test"
+    continue_on_failure: true

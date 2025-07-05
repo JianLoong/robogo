@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -357,4 +358,199 @@ func HTTPPostAction(args []interface{}, silent bool) (string, error) {
 	}
 
 	return HTTPAction([]interface{}{"POST", url, body}, silent)
+}
+
+// HTTPBatchResult represents the result of a batch HTTP operation
+type HTTPBatchResult struct {
+	URL      string       `json:"url"`
+	Response HTTPResponse `json:"response"`
+	Error    string       `json:"error,omitempty"`
+}
+
+// HTTPBatchAction performs multiple HTTP requests in parallel
+//
+// Parameters:
+//   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
+//   - urls: Array of URLs to request
+//   - headers: Request headers (optional)
+//   - body: Request body (optional, for POST/PUT requests)
+//   - options: Additional options including concurrency limit
+//   - silent: Whether to suppress output
+//
+// Returns: JSON array of results with status, headers, body, and timing for each request
+//
+// Examples:
+//   - Parallel GET requests: ["GET", ["https://api1.com", "https://api2.com"], {"Authorization": "Bearer ${token}"}]
+//   - Parallel POST requests: ["POST", ["https://api1.com/users", "https://api2.com/users"], {}, {"name": "John"}]
+//   - With concurrency limit: ["GET", ["url1", "url2", "url3"], {}, {}, {"concurrency": 5}]
+//
+// Use Cases:
+//   - Load testing multiple endpoints
+//   - Batch API operations
+//   - Performance testing
+//   - Health checks across multiple services
+func HTTPBatchAction(args []interface{}, silent bool) (string, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("http_batch action requires at least 2 arguments: method and urls")
+	}
+
+	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
+
+	// Parse URLs
+	var urls []string
+	switch v := args[1].(type) {
+	case []interface{}:
+		for _, url := range v {
+			urls = append(urls, fmt.Sprintf("%v", url))
+		}
+	case []string:
+		urls = v
+	default:
+		return "", fmt.Errorf("urls must be an array")
+	}
+
+	if len(urls) == 0 {
+		return "", fmt.Errorf("at least one URL is required")
+	}
+
+	// Parse optional arguments
+	var headers map[string]string
+	var body string
+	var timeout time.Duration = 30 * time.Second
+	var maxConcurrency int = 10 // Default concurrency limit
+
+	for i := 2; i < len(args); i++ {
+		switch v := args[i].(type) {
+		case map[string]interface{}:
+			// Check for concurrency limit
+			if c, ok := v["concurrency"]; ok {
+				if concurrency, ok := c.(int); ok {
+					maxConcurrency = concurrency
+				}
+			}
+			// Check for timeout
+			if t, ok := v["timeout"]; ok {
+				if timeoutStr, ok := t.(string); ok {
+					if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
+						timeout = parsedTimeout
+					}
+				}
+			}
+			// Treat other fields as headers
+			if headers == nil {
+				headers = make(map[string]string)
+			}
+			for k, val := range v {
+				if k != "concurrency" && k != "timeout" {
+					headers[k] = fmt.Sprintf("%v", val)
+				}
+			}
+		case string:
+			// This could be body
+			if body == "" && (method == "POST" || method == "PUT" || method == "PATCH") {
+				body = v
+			}
+		}
+	}
+
+	// Create HTTP client
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
+	// Execute requests in parallel
+	results := make([]HTTPBatchResult, len(urls))
+	semaphore := make(chan struct{}, maxConcurrency)
+
+	var wg sync.WaitGroup
+	for i, url := range urls {
+		wg.Add(1)
+		go func(index int, targetURL string) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Create request
+			var req *http.Request
+			var err error
+
+			if body != "" && (method == "POST" || method == "PUT" || method == "PATCH") {
+				req, err = http.NewRequest(method, targetURL, strings.NewReader(body))
+			} else {
+				req, err = http.NewRequest(method, targetURL, nil)
+			}
+
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("failed to create request: %v", err),
+				}
+				return
+			}
+
+			// Add headers
+			for k, v := range headers {
+				req.Header.Set(k, v)
+			}
+
+			// Execute request
+			startTime := time.Now()
+			resp, err := client.Do(req)
+			duration := time.Since(startTime)
+
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("request failed: %v", err),
+				}
+				return
+			}
+			defer resp.Body.Close()
+
+			// Read response body
+			respBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("failed to read response body: %v", err),
+				}
+				return
+			}
+
+			// Build response headers map
+			respHeaders := make(map[string]string)
+			for k, v := range resp.Header {
+				respHeaders[k] = strings.Join(v, ", ")
+			}
+
+			// Create response object
+			response := HTTPResponse{
+				StatusCode: resp.StatusCode,
+				Headers:    respHeaders,
+				Body:       string(respBody),
+				Duration:   duration,
+			}
+
+			results[index] = HTTPBatchResult{
+				URL:      targetURL,
+				Response: response,
+			}
+		}(i, url)
+	}
+
+	wg.Wait()
+
+	// Convert results to JSON
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal batch results: %w", err)
+	}
+
+	if !silent {
+		fmt.Printf("📊 Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
+	}
+
+	return string(resultsJSON), nil
 }

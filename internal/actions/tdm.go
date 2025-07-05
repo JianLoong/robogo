@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/your-org/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/parser"
 )
 
 // TDMManager handles test data management operations including data sets, environments, validation, and data generation.

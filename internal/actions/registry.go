@@ -91,6 +91,12 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Example:     `- action: http_post\n  args: ["https://api.example.com/users", '{"name": "John"}']\n  result: response`,
 	})
 
+	ar.Register(ActionInfo{
+		Name:        "http_batch",
+		Description: "Perform multiple HTTP requests in parallel with concurrency control",
+		Example:     `- action: http_batch\n  args: ["GET", ["https://api1.com", "https://api2.com"], {"concurrency": 5}]\n  result: batch_response`,
+	})
+
 	// Control flow actions
 	ar.Register(ActionInfo{
 		Name:        "control",
@@ -101,8 +107,14 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 	// Database actions
 	ar.Register(ActionInfo{
 		Name:        "postgres",
-		Description: "PostgreSQL database operations (query, execute, connect, close)",
+		Description: "PostgreSQL database operations (query, execute, connect, close, batch)",
 		Example:     `- action: postgres\n  args: ["query", "postgres://user:pass@localhost/db", "SELECT * FROM users"]\n  result: query_result`,
+	})
+
+	ar.Register(ActionInfo{
+		Name:        "postgres_batch",
+		Description: "Parallel PostgreSQL database operations with concurrency control",
+		Example:     `- action: postgres\n  args: ["batch", "postgres://user:pass@localhost/db", [{"query": "SELECT * FROM users"}, {"query": "SELECT * FROM orders"}], {"concurrency": 5}]\n  result: batch_results`,
 	})
 
 	// Variable management actions

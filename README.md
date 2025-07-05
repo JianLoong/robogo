@@ -14,7 +14,9 @@ A modern, git-driven test automation framework written in Go, designed for compr
 - **📊 Multiple Output Formats** - Console, JSON, and Markdown reporting with detailed analytics
 - **⚡ Performance Testing** - Built-in timing, load testing, and retry capabilities
 - **🔍 Comprehensive Validation** - Data validation, format checking, and assertion framework
-- **🛠️ VS Code Integration** - Syntax highlighting, autocomplete, and code snippets
+- **🚀 Parallel Execution** - Concurrent test file execution and parallel step execution with dependency analysis
+- **🔄 Batch Operations** - Parallel HTTP requests and database operations with concurrency control
+- **🛠️ VS Code Integration** - Syntax highlighting, autocomplete, and code snippets with extension support
 
 ## 🚀 Quick Start
 
@@ -292,6 +294,155 @@ Comprehensive HTTP testing with mTLS support:
   result: secure_response
 ```
 
+## 🚀 Parallel Execution
+
+Robogo supports parallel execution at multiple levels for improved performance:
+
+### Test File Parallelism
+
+Run multiple test files concurrently with configurable concurrency limits:
+
+```bash
+# Run multiple test files in parallel
+./robogo.exe run tests/test-http.robogo tests/test-postgres.robogo --parallel
+
+# Limit concurrency to 2 test files at a time
+./robogo.exe run tests/*.robogo --parallel --max-concurrency 2
+```
+
+### Step-Level Parallelism
+
+Execute independent steps within a test case in parallel:
+
+```yaml
+testcase: "Parallel Step Execution"
+description: "Demonstrate parallel step execution with dependency analysis"
+
+parallelism:
+  enabled: true
+  max_concurrency: 4
+  steps: true  # Enable parallel step execution
+
+steps:
+  # Independent steps that can run in parallel
+  - name: "Get current time"
+    action: get_time
+    args: ["unix"]
+    result: timestamp1
+  
+  - name: "Generate random number"
+    action: get_random
+    args: [1000]
+    result: random1
+  
+  - name: "Get another timestamp"
+    action: get_time
+    args: ["unix"]
+    result: timestamp2
+  
+  # Dependent step (waits for timestamp1 and random1)
+  - name: "Use previous results"
+    action: concat
+    args: ["${timestamp1}", "-", "${random1}"]
+    result: combined_result
+    depends_on: ["timestamp1", "random1"]
+```
+
+### Parallel HTTP Batch Operations
+
+Execute multiple HTTP requests concurrently:
+
+```yaml
+testcase: "Parallel HTTP Testing"
+description: "Test multiple API endpoints in parallel"
+
+steps:
+  - name: "Batch HTTP requests"
+    action: http_batch
+    args:
+      requests:
+        - method: "GET"
+          url: "https://api.example.com/users"
+          name: "get_users"
+        - method: "GET"
+          url: "https://api.example.com/products"
+          name: "get_products"
+        - method: "POST"
+          url: "https://api.example.com/orders"
+          body: '{"user_id": 1, "product_id": 2}'
+          name: "create_order"
+      concurrency: 3
+      timeout: "30s"
+    result: batch_results
+  
+  # Access individual results
+  - name: "Check users response"
+    action: assert
+    args: ["${batch_results.get_users.status_code}", "==", "200"]
+  
+  - name: "Check products response"
+    action: assert
+    args: ["${batch_results.get_products.status_code}", "==", "200"]
+```
+
+### Parallel Database Operations
+
+Execute multiple database queries concurrently:
+
+```yaml
+testcase: "Parallel Database Operations"
+description: "Execute multiple database operations in parallel"
+
+steps:
+  - name: "Batch database operations"
+    action: postgres
+    args:
+      - "batch"
+      - "postgres://user:pass@localhost/db"
+      - 
+        - query: "SELECT COUNT(*) FROM users"
+          name: "user_count"
+        - query: "SELECT COUNT(*) FROM products"
+          name: "product_count"
+        - execute: "INSERT INTO logs (message) VALUES ($1)"
+          params: ["Batch operation completed"]
+          name: "insert_log"
+      - concurrency: 3
+    result: db_results
+  
+  # Access individual query results
+  - name: "Check user count"
+    action: assert
+    args: ["${db_results.user_count.rows[0].count}", ">", "0"]
+  
+  - name: "Check product count"
+    action: assert
+    args: ["${db_results.product_count.rows[0].count}", ">", "0"]
+```
+
+### Parallelism Configuration
+
+Configure parallelism behavior in test cases:
+
+```yaml
+testcase: "Configured Parallelism"
+description: "Test with custom parallelism settings"
+
+parallelism:
+  enabled: true
+  max_concurrency: 5
+  steps: true
+  http_batch:
+    concurrency: 3
+    timeout: "60s"
+  database_batch:
+    concurrency: 2
+    timeout: "30s"
+
+steps:
+  # Your test steps here
+```
+
 ## 💾 Database Operations
 
 PostgreSQL integration with secure credential management:
@@ -392,6 +543,7 @@ steps:
 - **`tests/test-http.robogo`** - HTTP API testing examples
 - **`tests/test-postgres.robogo`** - Database operations and queries
 - **`tests/test-secrets.robogo`** - Secret management and security
+- **`tests/test-parallelism.robogo`** - Parallel execution and batch operations
 
 ### Random Generation and Utilities
 - **`tests/test-random-decimals.robogo`** - Enhanced random number generation
@@ -425,6 +577,27 @@ robogo/
 └── .vscode/           # VS Code extension and configuration
 ```
 
+## 🛠️ VS Code Extension
+
+Robogo includes a VS Code extension for enhanced development experience:
+
+### Features
+- **Syntax Highlighting** - YAML syntax highlighting for `.robogo` files
+- **IntelliSense** - Autocomplete for actions, arguments, and variables
+- **Code Snippets** - Pre-built templates for common test patterns
+- **Error Detection** - Real-time validation and error highlighting
+- **Integrated Terminal** - Run tests directly from VS Code
+
+### Installation
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "Robogo"
+4. Install the extension
+5. Open any `.robogo` file to start using the enhanced features
+
+### Extension Configuration
+The extension automatically detects your Robogo installation and provides context-aware suggestions based on your available actions and test structure.
+
 ## 🔧 Development
 
 ### Run Tests
@@ -441,6 +614,12 @@ go test ./...
 
 # Run with specific output format
 ./robogo.exe run test.robogo --output json
+
+# Run tests in parallel
+./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
+
+# Run with parallelism disabled
+./robogo.exe run test.robogo --no-parallel
 ```
 
 ### Build
@@ -525,10 +704,11 @@ Comprehensive documentation available in the [docs/](docs/) directory:
 - [x] **Advanced Control Flow** - If, for, while loops with retry mechanisms
 - [x] **Secret Management** - Secure credential handling with masking
 - [x] **VS Code Integration** - Syntax highlighting and autocomplete
+- [x] **Parallel Execution** - Test file and step-level parallelism with dependency analysis
+- [x] **Batch Operations** - Parallel HTTP requests and database operations
 
 ### Planned Features 🚧
 - [ ] **Plugin System** - Custom action development and extensibility
-- [ ] **Parallel Execution** - Concurrent test execution for performance
 - [ ] **Web Interface** - Browser-based test management and monitoring
 - [ ] **Advanced Reporting** - Detailed analytics, dashboards, and metrics
 - [ ] **Cloud Integration** - AWS, Azure, GCP support and cloud-native testing
@@ -552,4 +732,4 @@ We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.
 
 ---
 
-**Robogo** - Modern test automation for the Go ecosystem, with powerful SWIFT message generation, comprehensive API testing, and advanced Test Data Management capabilities. Built for financial services, API testing, and enterprise automation needs. 
+**Robogo** - Modern test automation for the Go ecosystem, with powerful SWIFT message generation, comprehensive API testing, advanced Test Data Management capabilities, and parallel execution for high-performance testing. Built for financial services, API testing, and enterprise automation needs. 

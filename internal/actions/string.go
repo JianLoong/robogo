@@ -46,10 +46,7 @@ func ConcatAction(args []interface{}, silent bool) (string, error) {
 	}
 
 	var result strings.Builder
-	for i, arg := range args {
-		if i > 0 {
-			result.WriteString(" ")
-		}
+	for _, arg := range args {
 		result.WriteString(fmt.Sprintf("%v", arg))
 	}
 
