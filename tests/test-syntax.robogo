@@ -15,15 +15,15 @@ steps:
   
   - name: "Assert string equality"
     action: assert
-    args: ["hello", "hello", "String comparison should pass"]
+    args: ["hello", "==", "hello", "String comparison should pass"]
   
   - name: "Assert number equality"
     action: assert
-    args: [42, 42, "Number comparison should pass"]
+    args: [42, "==", 42, "Number comparison should pass"]
   
   - name: "Assert boolean equality"
     action: assert
-    args: [true, true, "Boolean comparison should pass"]
+    args: [true, "==", true, "Boolean comparison should pass"]
   
   - name: "Log completion"
     action: log

@@ -141,7 +141,7 @@ Key Features:
 
 // outputConsole outputs results in console format
 func outputConsole(result *parser.TestResult) error {
-	fmt.Printf("\n�� Test Results:\n")
+	fmt.Printf("\n Test Results:\n")
 	fmt.Printf("✅ Status: %s\n", result.Status)
 	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
 	fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
@@ -197,8 +197,6 @@ func outputMarkdown(result *parser.TestResult) error {
 ## Test Case Details
 - **Name:** %s
 - **Description:** %s
-
-## Step Results
 `,
 		result.TestCase.Name,
 		statusIcon,
@@ -210,6 +208,32 @@ func outputMarkdown(result *parser.TestResult) error {
 		result.TestCase.Name,
 		result.TestCase.Description)
 
+	// Add Failed Steps section if any failed
+	if result.FailedSteps > 0 {
+		markdown += "\n## Failed Steps\n"
+		markdown += "| # | Name | Action | Error |\n"
+		markdown += "|---|------|--------|-------|\n"
+		for i, stepResult := range result.StepResults {
+			if stepResult.Status == "FAILED" {
+				stepName := stepResult.Step.Name
+				if stepName == "" {
+					stepName = "(unnamed)"
+				}
+				error := stepResult.Error
+				if len(error) > 60 {
+					error = error[:57] + "..."
+				}
+				markdown += fmt.Sprintf("| %d | %s | %s | %s |\n",
+					i+1,
+					stepName,
+					stepResult.Step.Action,
+					error,
+				)
+			}
+		}
+	}
+
+	markdown += "\n## Step Results\n"
 	// Add markdown table header
 	markdown += "| Step | Name | Action | Status | Duration | Output | Error |\n"
 	markdown += "|------|------|--------|--------|----------|--------|-------|\n"

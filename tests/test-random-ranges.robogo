@@ -1,0 +1,276 @@
+# Test Random Range Support
+# This file demonstrates the enhanced get_random action with range support (min/max values)
+
+testcase: "Random Range Support Test"
+description: "Test the enhanced get_random action that supports ranges (min/max values) and maintains backward compatibility"
+
+steps:
+  # Test backward compatibility - single argument (0 to max)
+  - name: "Test backward compatibility - integer max"
+    action: get_random
+    args: [100]
+    result: backward_int
+  
+  - name: "Log backward compatibility integer"
+    action: log
+    args: ["Backward compatibility integer: ${backward_int}"]
+  
+  - name: "Validate backward compatibility integer"
+    action: assert
+    args: ["${backward_int}", ">=", "0", "Should be >= 0"]
+  
+  - name: "Validate backward compatibility integer max"
+    action: assert
+    args: ["${backward_int}", "<", "100", "Should be < 100"]
+
+  - name: "Test backward compatibility - decimal max"
+    action: get_random
+    args: [100.5]
+    result: backward_decimal
+  
+  - name: "Log backward compatibility decimal"
+    action: log
+    args: ["Backward compatibility decimal: ${backward_decimal}"]
+  
+  - name: "Validate backward compatibility decimal"
+    action: assert
+    args: ["${backward_decimal}", ">=", "0.00", "Should be >= 0"]
+  
+  - name: "Validate backward compatibility decimal max"
+    action: assert
+    args: ["${backward_decimal}", "<", "100.50", "Should be < 100.50"]
+
+  # Test integer ranges
+  - name: "Test integer range - positive numbers"
+    action: get_random
+    args: [10, 100]
+    result: int_range_positive
+  
+  - name: "Log integer range positive"
+    action: log
+    args: ["Integer range (10-100): ${int_range_positive}"]
+  
+  - name: "Validate integer range positive"
+    action: assert
+    args: ["${int_range_positive}", ">=", "10", "Should be >= 10"]
+  
+  - name: "Validate integer range positive max"
+    action: assert
+    args: ["${int_range_positive}", "<=", "100", "Should be <= 100"]
+
+  - name: "Test integer range - negative to positive"
+    action: get_random
+    args: [-50, 50]
+    result: int_range_negative
+  
+  - name: "Log integer range negative"
+    action: log
+    args: ["Integer range (-50 to 50): ${int_range_negative}"]
+  
+  - name: "Validate integer range negative"
+    action: assert
+    args: ["${int_range_negative}", ">=", "-50", "Should be >= -50"]
+  
+  - name: "Validate integer range negative max"
+    action: assert
+    args: ["${int_range_negative}", "<=", "50", "Should be <= 50"]
+
+  - name: "Test integer range - small range"
+    action: get_random
+    args: [1, 5]
+    result: int_range_small
+  
+  - name: "Log integer range small"
+    action: log
+    args: ["Integer range (1-5): ${int_range_small}"]
+  
+  - name: "Validate integer range small"
+    action: assert
+    args: ["${int_range_small}", ">=", "1", "Should be >= 1"]
+  
+  - name: "Validate integer range small max"
+    action: assert
+    args: ["${int_range_small}", "<=", "5", "Should be <= 5"]
+
+  # Test decimal ranges
+  - name: "Test decimal range - positive numbers"
+    action: get_random
+    args: [10.5, 100.5]
+    result: decimal_range_positive
+  
+  - name: "Log decimal range positive"
+    action: log
+    args: ["Decimal range (10.5-100.5): ${decimal_range_positive}"]
+  
+  - name: "Validate decimal range positive"
+    action: assert
+    args: ["${decimal_range_positive}", ">=", "10.50", "Should be >= 10.50"]
+  
+  - name: "Validate decimal range positive max"
+    action: assert
+    args: ["${decimal_range_positive}", "<=", "100.50", "Should be <= 100.50"]
+
+  - name: "Test decimal range - negative to positive"
+    action: get_random
+    args: [-25.75, 25.75]
+    result: decimal_range_negative
+  
+  - name: "Log decimal range negative"
+    action: log
+    args: ["Decimal range (-25.75 to 25.75): ${decimal_range_negative}"]
+  
+  - name: "Validate decimal range negative"
+    action: assert
+    args: ["${decimal_range_negative}", ">=", "-25.75", "Should be >= -25.75"]
+  
+  - name: "Validate decimal range negative max"
+    action: assert
+    args: ["${decimal_range_negative}", "<=", "25.75", "Should be <= 25.75"]
+
+  - name: "Test decimal range - small precision"
+    action: get_random
+    args: [0.1, 1.0]
+    result: decimal_range_small
+  
+  - name: "Log decimal range small"
+    action: log
+    args: ["Decimal range (0.1-1.0): ${decimal_range_small}"]
+  
+  - name: "Validate decimal range small"
+    action: assert
+    args: ["${decimal_range_small}", ">=", "0.10", "Should be >= 0.10"]
+  
+  - name: "Validate decimal range small max"
+    action: assert
+    args: ["${decimal_range_small}", "<=", "1.00", "Should be <= 1.00"]
+
+  # Test SWIFT amount ranges (practical use case)
+  - name: "Generate SWIFT amount ranges"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate SWIFT amount in range"
+          action: get_random
+          args: [1000.00, 50000.00]
+          result: swift_amount_range
+        
+        - name: "Log SWIFT amount range"
+          action: log
+          args: ["SWIFT amount ${iteration} (1000-50000): ${swift_amount_range}"]
+        
+        - name: "Validate SWIFT amount range"
+          action: assert
+          args: ["${swift_amount_range}", ">=", "1000.00", "SWIFT amount should be >= 1000.00"]
+        
+        - name: "Validate SWIFT amount range max"
+          action: assert
+          args: ["${swift_amount_range}", "<=", "50000.00", "SWIFT amount should be <= 50000.00"]
+
+  # Test multiple range types in loops
+  - name: "Test multiple range types"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Generate integer range for iteration"
+          action: get_random
+          args: [1, 10]
+          result: iteration_int_range
+        
+        - name: "Generate decimal range for iteration"
+          action: get_random
+          args: [0.1, 10.0]
+          result: iteration_decimal_range
+        
+        - name: "Log iteration ranges"
+          action: log
+          args: ["Iteration ${iteration} - Int: ${iteration_int_range}, Decimal: ${iteration_decimal_range}"]
+        
+        - name: "Validate iteration integer range"
+          action: assert
+          args: ["${iteration_int_range}", ">=", "1", "Iteration ${iteration} int should be >= 1"]
+        
+        - name: "Validate iteration integer range max"
+          action: assert
+          args: ["${iteration_int_range}", "<=", "10", "Iteration ${iteration} int should be <= 10"]
+        
+        - name: "Validate iteration decimal range"
+          action: assert
+          args: ["${iteration_decimal_range}", ">=", "0.10", "Iteration ${iteration} decimal should be >= 0.10"]
+        
+        - name: "Validate iteration decimal range max"
+          action: assert
+          args: ["${iteration_decimal_range}", "<=", "10.00", "Iteration ${iteration} decimal should be <= 10.00"]
+
+  # Test edge cases
+  - name: "Test edge case - same min and max"
+    action: get_random
+    args: [5, 5]
+    result: edge_same_values
+  
+  - name: "Log edge case same values"
+    action: log
+    args: ["Edge case (5-5): ${edge_same_values}"]
+  
+  - name: "Validate edge case same values"
+    action: assert
+    args: ["${edge_same_values}", "==", "5", "Should be exactly 5"]
+
+  - name: "Test edge case - decimal same values"
+    action: get_random
+    args: [10.5, 10.5]
+    result: edge_decimal_same
+  
+  - name: "Log edge case decimal same values"
+    action: log
+    args: ["Edge case decimal (10.5-10.5): ${edge_decimal_same}"]
+  
+  - name: "Validate edge case decimal same values"
+    action: assert
+    args: ["${edge_decimal_same}", "==", "10.50", "Should be exactly 10.50"]
+
+  # Test mixed usage in same test
+  - name: "Generate mixed random values"
+    action: get_random
+    args: [100]
+    result: mixed_backward
+  
+  - name: "Generate mixed integer range"
+    action: get_random
+    args: [10, 100]
+    result: mixed_int_range
+  
+  - name: "Generate mixed decimal range"
+    action: get_random
+    args: [10.5, 100.5]
+    result: mixed_decimal_range
+  
+  - name: "Log mixed results"
+    action: log
+    args: ["Mixed results - Backward: ${mixed_backward}, Int Range: ${mixed_int_range}, Decimal Range: ${mixed_decimal_range}"]
+
+  # Final validation
+  - name: "Validate backward compatibility still works"
+    action: assert
+    args: ["${backward_int}", ">=", "0", "Backward compatibility should still work"]
+  
+  - name: "Validate range support works"
+    action: assert
+    args: ["${int_range_positive}", ">=", "10", "Range support should work"]
+  
+  - name: "Validate decimal range support works"
+    action: assert
+    args: ["${decimal_range_positive}", ">=", "10.50", "Decimal range support should work"]
+  
+  - name: "Log final summary"
+    action: log
+    args: ["Random range support test completed successfully!"]
+
+# This test demonstrates:
+# - Backward compatibility with single argument (0 to max)
+# - Integer range support (min to max)
+# - Decimal range support (min to max)
+# - Negative to positive ranges
+# - Edge cases (same min/max values)
+# - Practical use cases (SWIFT amounts)
+# - Mixed usage in same test
+# - Comprehensive validation of all range types 

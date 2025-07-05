@@ -2,7 +2,7 @@
 # This file demonstrates the basic features of the Robogo framework
 
 testcase: "Sample Test Case"
-description: "A comprehensive sample test case demonstrating Robogo features"
+description: "A comprehensive sample test case demonstrating Robogo features including new decimal ranges and continue_on_failure"
 
 steps:
   # Basic logging
@@ -29,7 +29,7 @@ steps:
   # Basic assertion
   - name: "Basic assertion"
     action: assert
-    args: [true, true, "Basic assertion test"]
+    args: [true, "==", true, "Basic assertion test"]
   
   # String operations with variables
   - name: "Create greeting"
@@ -54,18 +54,62 @@ steps:
   # Assert using variables
   - name: "Assert greeting length"
     action: assert
-    args: ["${greeting_length}", "17", "Greeting should be 17 characters"]
+    args: ["${greeting_length}", "==", "17", "Greeting should be 17 characters"]
   
-  # Get a random number
-  - name: "Get random number"
+  # Get a random number (backward compatibility)
+  - name: "Get random number (0-100)"
     action: get_random
     args: [100]
     result: random_value
   
   - name: "Log random number"
     action: log
-    args: ["Random number: ${random_value}"]
+    args: ["Random number (0-100): ${random_value}"]
   
+  # NEW: Get random number in range
+  - name: "Get random number in range"
+    action: get_random
+    args: [10, 50]
+    result: random_range
+  
+  - name: "Log random range number"
+    action: log
+    args: ["Random number (10-50): ${random_range}"]
+  
+  # NEW: Get random decimal
+  - name: "Get random decimal"
+    action: get_random
+    args: [0.1, 1.0]
+    result: random_decimal
+  
+  - name: "Log random decimal"
+    action: log
+    args: ["Random decimal (0.1-1.0): ${random_decimal}"]
+  
+  # NEW: Test continue_on_failure
+  - name: "Test continue_on_failure"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate test value"
+          action: get_random
+          args: [1, 10]
+          result: test_value
+        
+        - name: "Log test value"
+          action: log
+          args: ["Test value ${iteration}: ${test_value}"]
+        
+        - name: "Fail on even numbers (continue)"
+          action: assert
+          args: ["${test_value}", "%", "2", "!=", "0", "Should not be even"]
+          continue_on_failure: true
+        
+        - name: "Fail on value 5 (continue)"
+          action: assert
+          args: ["${test_value}", "!=", "5", "Should not be 5"]
+          continue_on_failure: true
+
   # Different time formats
   - name: "Get current date"
     action: get_time
@@ -81,6 +125,26 @@ steps:
     action: log
     args: ["Current date: ${current_date}, time: ${current_time}"]
   
+  # NEW: Test edge cases with same min/max values
+  - name: "Test same min/max values"
+    action: get_random
+    args: [42, 42]
+    result: same_value
+  
+  - name: "Validate same value"
+    action: assert
+    args: ["${same_value}", "==", "42", "Should be exactly 42"]
+  
+  # NEW: Test decimal edge case
+  - name: "Test decimal same values"
+    action: get_random
+    args: [3.14, 3.14]
+    result: same_decimal
+  
+  - name: "Validate same decimal"
+    action: assert
+    args: ["${same_decimal}", "==", "3.14", "Should be exactly 3.14"]
+  
   # Final log with multiple variables
   - name: "Log completion"
     action: log
@@ -92,5 +156,10 @@ steps:
 # - Variable substitution with ${variable}
 # - String operations: concat, length
 # - Time operations with different formats
-# - Random number generation
-# - Complex assertions using variables 
+# - Random number generation (backward compatibility: 0 to max)
+# - NEW: Random number generation with ranges (min to max)
+# - NEW: Random decimal generation with ranges
+# - NEW: continue_on_failure for error handling
+# - NEW: Edge case handling with same min/max values
+# - Complex assertions using variables
+# - Loop testing with proper iteration context 

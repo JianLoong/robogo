@@ -51,6 +51,8 @@ type Step struct {
 	If    *ConditionalBlock `yaml:"if,omitempty"`    // If statement
 	For   *LoopBlock        `yaml:"for,omitempty"`   // For loop
 	While *LoopBlock        `yaml:"while,omitempty"` // While loop
+
+	ContinueOnFailure bool `yaml:"continue_on_failure,omitempty"` // Continue on failure
 }
 
 // ConditionalBlock represents an if/else block

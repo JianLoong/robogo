@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -22,6 +23,11 @@ func AssertAction(args []interface{}) (string, error) {
 		msg = fmt.Sprintf("%v", args[3])
 	}
 
+	// Handle modulo operation (value % divisor operator expected)
+	if operator == "%" && len(args) >= 5 {
+		return handleModuloOperation(value, args[2], fmt.Sprintf("%v", args[3]), args[4], msg)
+	}
+
 	// Convert values to comparable types
 	valueFloat, valueOk := toFloat(value)
 	expectedFloat, expectedOk := toFloat(expected)
@@ -35,6 +41,28 @@ func AssertAction(args []interface{}) (string, error) {
 	valueStr := fmt.Sprintf("%v", value)
 	expectedStr := fmt.Sprintf("%v", expected)
 	return compareString(valueStr, expectedStr, operator, msg)
+}
+
+func handleModuloOperation(value interface{}, divisor interface{}, operator string, expected interface{}, msg string) (string, error) {
+	// Convert value and divisor to float
+	valueFloat, valueOk := toFloat(value)
+	divisorFloat, divisorOk := toFloat(divisor)
+	expectedFloat, expectedOk := toFloat(expected)
+
+	if !valueOk || !divisorOk || !expectedOk {
+		return "", fmt.Errorf("modulo operation requires numeric values: value=%v, divisor=%v, expected=%v", value, divisor, expected)
+	}
+
+	if divisorFloat == 0 {
+		return "", fmt.Errorf("modulo operation: division by zero")
+	}
+
+	// Calculate modulo
+	result := int(valueFloat) % int(divisorFloat)
+	resultFloat := float64(result)
+
+	// Compare result with expected value
+	return compareNumeric(resultFloat, expectedFloat, operator, msg)
 }
 
 func toFloat(v interface{}) (float64, bool) {
@@ -70,11 +98,11 @@ func compareNumeric(value, expected float64, operator, msg string) (string, erro
 	case "<=":
 		result = value <= expected
 	default:
-		return "", fmt.Errorf("unsupported operator: %s", operator)
+		return "", fmt.Errorf("unsupported numeric operator: %s", operator)
 	}
 
 	if !result {
-		return "", fmt.Errorf("assertion failed: %v %s %v", value, operator, expected)
+		return "", fmt.Errorf("assertion failed: %v %s %v - %s", value, operator, expected, msg)
 	}
 
 	fmt.Printf("✅ %s\n", msg)
@@ -105,12 +133,30 @@ func compareString(value, expected, operator, msg string) (string, error) {
 		result = strings.HasPrefix(value, expected)
 	case "ends_with":
 		result = strings.HasSuffix(value, expected)
+	case "matches":
+		// Regex pattern matching
+		matched, err := regexp.MatchString(expected, value)
+		if err != nil {
+			return "", fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
+		}
+		result = matched
+	case "not_matches":
+		// Regex pattern not matching
+		matched, err := regexp.MatchString(expected, value)
+		if err != nil {
+			return "", fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
+		}
+		result = !matched
+	case "empty":
+		result = strings.TrimSpace(value) == ""
+	case "not_empty":
+		result = strings.TrimSpace(value) != ""
 	default:
-		return "", fmt.Errorf("unsupported operator: %s", operator)
+		return "", fmt.Errorf("unsupported string operator: %s", operator)
 	}
 
 	if !result {
-		return "", fmt.Errorf("assertion failed: %v %s %v", value, operator, expected)
+		return "", fmt.Errorf("assertion failed: '%v' %s '%v' - %s", value, operator, expected, msg)
 	}
 
 	fmt.Printf("✅ %s\n", msg)

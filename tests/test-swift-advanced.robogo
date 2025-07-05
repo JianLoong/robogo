@@ -1,0 +1,373 @@
+# Advanced SWIFT Message Testing
+# Demonstrates multiple SWIFT message types, conditional logic, and advanced template handling
+
+testcase: "Advanced SWIFT Message Testing"
+description: "Test multiple SWIFT message types with conditional logic and advanced validation"
+
+variables:
+  vars:
+    swift_api_url: "https://api.swift.com/v1/messages"
+    bank_bic: "DEUTDEFF"
+    account_number: "1234567890"
+    currency: "EUR"
+    test_amount: "5000.00"
+    beneficiary_name: "Acme Corporation"
+    beneficiary_bic: "COBADEFF"
+    beneficiary_account: "0987654321"
+    reference: "INV-2024-001"
+    message_types: ["MT103", "MT202", "MT300"]
+    priority_levels: ["NORMAL", "HIGH", "URGENT"]
+  secrets:
+    swift_api_key:
+      file: "secret.txt"
+      mask_output: true
+
+steps:
+  # Generate base data for all messages
+  - name: "Generate base transaction data"
+    action: get_time
+    args: ["unix_ms"]
+    result: base_timestamp
+  
+  - name: "Create base transaction ID"
+    action: concat
+    args: ["SWIFT", "${base_timestamp}"]
+    result: base_txn_id
+  
+  - name: "Get current date"
+    action: get_time
+    args: ["date"]
+    result: current_date
+
+  # Test different SWIFT message types
+  - name: "Test multiple SWIFT message types"
+    for:
+      condition: "[MT103,MT202,MT300]"
+      steps:
+        - name: "Generate message for type"
+          action: log
+          args: ["Processing SWIFT message type: ${condition}"]
+        
+        - name: "Generate unique ID for message type"
+          action: concat
+          args: ["${base_txn_id}", "-", "${condition}"]
+          result: message_txn_id
+        
+        # Generate different message templates based on type
+        - name: "Generate MT103 message"
+          if:
+            condition: "${condition} == MT103"
+            then:
+              - action: concat
+                args: [
+                  "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+                  "{2:I103", "${bank_bic}", "XXXX", "U}",
+                  "{3:{113:SEPA}",
+                  "{108:${message_txn_id}}",
+                  "{111:001}",
+                  "{121:${base_timestamp}}}",
+                  "{4:",
+                  ":20:${message_txn_id}",
+                  ":23B:CRED",
+                  ":32A:${current_date}${currency}${test_amount}",
+                  ":33B:${currency}${test_amount}",
+                  ":50K:/${account_number}",
+                  "1/Account Name",
+                  ":59:/${beneficiary_account}",
+                  "1/${beneficiary_name}",
+                  ":70:${reference}",
+                  ":71A:SHA",
+                  "-}",
+                  "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+                ]
+                result: swift_message
+        
+        - name: "Generate MT202 message"
+          if:
+            condition: "${condition} == MT202"
+            then:
+              - action: concat
+                args: [
+                  "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+                  "{2:I202", "${bank_bic}", "XXXX", "U}",
+                  "{3:{113:SEPA}",
+                  "{108:${message_txn_id}}",
+                  "{111:001}",
+                  "{121:${base_timestamp}}}",
+                  "{4:",
+                  ":20:${message_txn_id}",
+                  ":21:${reference}",
+                  ":32A:${current_date}${currency}${test_amount}",
+                  ":52A:${bank_bic}",
+                  ":53A:${beneficiary_bic}",
+                  ":58A:${beneficiary_bic}",
+                  ":71A:SHA",
+                  "-}",
+                  "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+                ]
+                result: swift_message
+        
+        - name: "Generate MT300 message"
+          if:
+            condition: "${condition} == MT300"
+            then:
+              - action: concat
+                args: [
+                  "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+                  "{2:I300", "${bank_bic}", "XXXX", "U}",
+                  "{3:{113:SEPA}",
+                  "{108:${message_txn_id}}",
+                  "{111:001}",
+                  "{121:${base_timestamp}}}",
+                  "{4:",
+                  ":20:${message_txn_id}",
+                  ":22A:NEWT",
+                  ":22C:${bank_bic}",
+                  ":82A:${bank_bic}",
+                  ":87A:${beneficiary_bic}",
+                  ":30T:${current_date}",
+                  ":30V:${current_date}",
+                  ":36:${test_amount}",
+                  ":32B:${currency}${test_amount}",
+                  ":57A:${beneficiary_bic}",
+                  "-}",
+                  "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+                ]
+                result: swift_message
+        
+        - name: "Validate message format"
+          action: assert
+          args: ["${swift_message}", "contains", ":20:", "Message must contain transaction reference"]
+        
+        - name: "Send message via API"
+          action: http_post
+          args: 
+            - "${swift_api_url}"
+            - '{"message": "${swift_message}", "type": "${condition}", "priority": "NORMAL"}'
+          result: api_response
+        
+        - name: "Validate API response"
+          action: assert
+          args: ["${api_response.status_code}", "==", "200", "API should return 200 for ${condition}"]
+        
+        - name: "Log success"
+          action: log
+          args: ["Successfully processed ${condition} message"]
+
+  # Test different priority levels
+  - name: "Test different priority levels"
+    for:
+      condition: "[NORMAL,HIGH,URGENT]"
+      steps:
+        - name: "Generate priority test message"
+          action: concat
+          args: [
+            "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+            "{2:I103", "${bank_bic}", "XXXX", "U}",
+            "{3:{113:SEPA}",
+            "{108:${base_txn_id}-PRIORITY}",
+            "{111:001}",
+            "{121:${base_timestamp}}}",
+            "{4:",
+            ":20:${base_txn_id}-PRIORITY",
+            ":23B:CRED",
+            ":32A:${current_date}${currency}1000.00",
+            ":33B:${currency}1000.00",
+            ":50K:/${account_number}",
+            "1/Account Name",
+            ":59:/${beneficiary_account}",
+            "1/${beneficiary_name}",
+            ":70:${reference}-PRIORITY",
+            ":71A:SHA",
+            "-}",
+            "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+          ]
+          result: priority_message
+        
+        - name: "Send priority message"
+          action: http_post
+          args: 
+            - "${swift_api_url}"
+            - '{"message": "${priority_message}", "type": "MT103", "priority": "${condition}"}'
+          result: priority_response
+        
+        - name: "Validate priority response"
+          action: assert
+          args: ["${priority_response.status_code}", "==", "200", "Priority ${condition} should return 200"]
+
+  # Test message validation with different amounts
+  - name: "Test message validation with different amounts"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Generate random amount"
+          action: get_random
+          args: [50000]
+          result: random_amount
+        
+        - name: "Format amount with decimals"
+          action: concat
+          args: ["${random_amount}", ".00"]
+          result: formatted_amount
+        
+        - name: "Generate amount test message"
+          action: concat
+          args: [
+            "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+            "{2:I103", "${bank_bic}", "XXXX", "U}",
+            "{3:{113:SEPA}",
+            "{108:${base_txn_id}-AMT-${iteration}}",
+            "{111:001}",
+            "{121:${base_timestamp}}}",
+            "{4:",
+            ":20:${base_txn_id}-AMT-${iteration}",
+            ":23B:CRED",
+            ":32A:${current_date}${currency}${formatted_amount}",
+            ":33B:${currency}${formatted_amount}",
+            ":50K:/${account_number}",
+            "1/Account Name",
+            ":59:/${beneficiary_account}",
+            "1/${beneficiary_name}",
+            ":70:${reference}-AMT-${iteration}",
+            ":71A:SHA",
+            "-}",
+            "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+          ]
+          result: amount_message
+        
+        - name: "Validate amount message format"
+          action: assert
+          args: ["${amount_message}", "contains", ":32A:", "Amount message must contain amount field"]
+        
+        - name: "Validate amount value"
+          action: assert
+          args: ["${amount_message}", "contains", "${formatted_amount}", "Message must contain correct amount"]
+        
+        - name: "Send amount test message"
+          action: http_post
+          args: 
+            - "${swift_api_url}"
+            - '{"message": "${amount_message}", "type": "MT103", "priority": "NORMAL"}'
+          result: amount_response
+        
+        - name: "Validate amount response"
+          action: assert
+          args: ["${amount_response.status_code}", "==", "200", "Amount test ${iteration} should return 200"]
+
+  # Test error scenarios
+  - name: "Test error scenarios"
+    for:
+      condition: "[INVALID_MT999,EMPTY_MESSAGE,MALFORMED_JSON]"
+      steps:
+        - name: "Generate error test data"
+          if:
+            condition: "${condition} == INVALID_MT999"
+            then:
+              - action: concat
+                args: ["INVALID_SWIFT_MESSAGE_CONTENT"]
+                result: error_message
+          else:
+            - if:
+                condition: "${condition} == EMPTY_MESSAGE"
+                then:
+                  - action: concat
+                    args: [""]
+                    result: error_message
+                else:
+                  - action: concat
+                    args: ['{"invalid": "json", "missing": "closing brace"']
+                    result: error_message
+        
+        - name: "Send error test message"
+          action: http_post
+          args: 
+            - "${swift_api_url}"
+            - '{"message": "${error_message}", "type": "MT103"}'
+          result: error_test_response
+        
+        - name: "Validate error response"
+          action: assert
+          args: ["${error_test_response.status_code}", ">=", "400", "Error test ${condition} should return error status"]
+
+  # Performance and load testing
+  - name: "Start load test"
+    action: get_time
+    args: ["unix_ms"]
+    result: load_start_time
+  
+  - name: "Load test with multiple messages"
+    for:
+      condition: "1..10"
+      max_iterations: 10
+      steps:
+        - name: "Generate load test message"
+          action: concat
+          args: [
+            "{1:F01", "${bank_bic}", "XXXX", "U", "3003", "1234567890", "}",
+            "{2:I103", "${bank_bic}", "XXXX", "U}",
+            "{3:{113:SEPA}",
+            "{108:${base_txn_id}-LOAD-${iteration}}",
+            "{111:001}",
+            "{121:${base_timestamp}}}",
+            "{4:",
+            ":20:${base_txn_id}-LOAD-${iteration}",
+            ":23B:CRED",
+            ":32A:${current_date}${currency}100.00",
+            ":33B:${currency}100.00",
+            ":50K:/${account_number}",
+            "1/Account Name",
+            ":59:/${beneficiary_account}",
+            "1/${beneficiary_name}",
+            ":70:${reference}-LOAD-${iteration}",
+            ":71A:SHA",
+            "-}",
+            "{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}}"
+          ]
+          result: load_message
+        
+        - name: "Send load test message"
+          action: http_post
+          args: 
+            - "${swift_api_url}"
+            - '{"message": "${load_message}", "type": "MT103", "priority": "NORMAL"}'
+          result: load_response
+        
+        - name: "Validate load response"
+          action: assert
+          args: ["${load_response.status_code}", "==", "200", "Load test ${iteration} should return 200"]
+  
+  - name: "End load test"
+    action: get_time
+    args: ["unix_ms"]
+    result: load_end_time
+  
+  - name: "Calculate load test duration"
+    action: log
+    args: ["Load test completed: ${load_end_time} - ${load_start_time} ms for 10 messages"]
+
+  # Final validation and summary
+  - name: "Generate test summary"
+    action: concat
+    args: [
+      "SWIFT Advanced Test Summary:",
+      " - Base Transaction ID: ${base_txn_id}",
+      " - Messages Processed: Multiple types and priorities",
+      " - Load Test: 10 messages completed",
+      " - All validations passed"
+    ]
+    result: test_summary
+  
+  - name: "Log final summary"
+    action: log
+    args: ["${test_summary}"]
+
+# This advanced test demonstrates:
+# - Multiple SWIFT message types (MT103, MT202, MT300)
+# - Conditional message generation based on type
+# - Different priority levels testing
+# - Dynamic amount generation and validation
+# - Error scenario testing
+# - Load testing with multiple concurrent messages
+# - Comprehensive validation of message formats
+# - Performance measurement
+# - Advanced template handling with conditional logic 

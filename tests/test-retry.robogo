@@ -62,6 +62,7 @@ steps:
       backoff: "fixed"
       conditions: ["connection_error"]
     result: "connection_retry_result"
+    continue_on_failure: true
 
   - name: "Successful request (no retry needed)"
     action: http

@@ -59,6 +59,7 @@ steps:
     action: http
     args: ["GET", "https://api.example.com/secure", "", "", {"cert": "/path/to/client.crt", "key": "/path/to/client.key"}]
     result: cert_response
+    continue_on_failure: true
   
   - name: "Log certificate response"
     action: log
@@ -69,6 +70,7 @@ steps:
     action: http
     args: ["GET", "https://api.example.com/secure", "", "", {"cert": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----", "key": "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----"}]
     result: pem_cert_response
+    continue_on_failure: true
   
   - name: "Log PEM certificate response"
     action: log
@@ -79,6 +81,7 @@ steps:
     action: http
     args: ["GET", "https://internal.example.com/api", "", "", {"ca": "/path/to/custom-ca.crt"}]
     result: ca_response
+    continue_on_failure: true
   
   - name: "Log custom CA response"
     action: log
@@ -89,6 +92,7 @@ steps:
     action: http
     args: ["GET", "https://internal.example.com/api", "", "", {"ca": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"}]
     result: pem_ca_response
+    continue_on_failure: true
   
   - name: "Log PEM CA response"
     action: log
@@ -99,6 +103,7 @@ steps:
     action: http
     args: ["POST", "https://secure.example.com/data", '{"secure": true}', {"Content-Type": "application/json"}, {"cert": "/path/to/client.crt", "key": "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----", "ca": "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"}]
     result: mixed_cert_response
+    continue_on_failure: true
   
   - name: "Log mixed certificate response"
     action: log
@@ -117,15 +122,18 @@ steps:
   # Assert response status codes
   - name: "Assert GET 200"
     action: assert
-    args: ["${get_response}", "200", "GET request should return 200"]
+    args: ["${get_response.status_code}", "==", "200", "GET request should return 200"]
+    continue_on_failure: true
   
   - name: "Assert POST 200"
     action: assert
-    args: ["${post_response}", "200", "POST request should return 200"]
+    args: ["${post_response.status_code}", "==", "200", "POST request should return 200"]
+    continue_on_failure: true
   
   - name: "Assert 404"
     action: assert
-    args: ["${error_response}", "404", "Error request should return 404"]
+    args: ["${error_response.status_code}", "==", "404", "Error request should return 404"]
+    continue_on_failure: true
 
 # Available HTTP actions:
 # - http: Generic HTTP request with method, url, body, headers, options

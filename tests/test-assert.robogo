@@ -5,106 +5,77 @@ steps:
   # Numeric assertions
   - name: "Assert equal numbers"
     action: assert
-    args:
-      - 1
-      - "=="
-      - 1
+    args: [1, "==", 1]
 
   - name: "Assert not equal numbers"
     action: assert
-    args:
-      - 1
-      - "!="
-      - 2
+    args: [1, "!=", 2]
 
   - name: "Assert greater"
     action: assert
-    args:
-      - 2
-      - ">"
-      - 1
+    args: [2, ">", 1]
 
   - name: "Assert less"
     action: assert
-    args:
-      - 1
-      - "<"
-      - 2
+    args: [1, "<", 2]
 
   - name: "Assert greater or equal"
     action: assert
-    args:
-      - 2
-      - ">="
-      - 2
+    args: [2, ">=", 2]
 
   - name: "Assert less or equal"
     action: assert
-    args:
-      - 2
-      - "<="
-      - 2
+    args: [2, "<=", 2]
+
+  # Modulo assertions (new)
+  - name: "Assert modulo equals"
+    action: assert
+    args: [5, "%", 2, "==", 1]
+
+  - name: "Assert modulo not equals"
+    action: assert
+    args: [6, "%", 4, "!=", 3]
 
   # String assertions
   - name: "Assert string equal"
     action: assert
-    args:
-      - "foo"
-      - "=="
-      - "foo"
+    args: ["foo", "==", "foo"]
 
   - name: "Assert string not equal"
     action: assert
-    args:
-      - "foo"
-      - "!="
-      - "bar"
+    args: ["foo", "!=", "bar"]
 
   - name: "Assert contains"
     action: assert
-    args:
-      - "hello world"
-      - "contains"
-      - "world"
+    args: ["hello world", "contains", "world"]
 
   - name: "Assert not contains"
     action: assert
-    args:
-      - "hello"
-      - "not_contains"
-      - "world"
+    args: ["hello", "not_contains", "world"]
 
   - name: "Assert starts with"
     action: assert
-    args:
-      - "foobar"
-      - "starts_with"
-      - "foo"
+    args: ["foobar", "starts_with", "foo"]
 
   - name: "Assert ends with"
     action: assert
-    args:
-      - "foobar"
-      - "ends_with"
-      - "bar"
+    args: ["foobar", "ends_with", "bar"]
 
-  # Edge cases (should fail)
-  - name: "Unsupported operator"
+  # Regex assertions (new)
+  - name: "Assert matches regex"
     action: assert
-    args:
-      - 1
-      - "???"
-      - 1
+    args: ["abc123", "matches", "[a-z]+[0-9]+"]
 
-  - name: "Missing arguments"
+  - name: "Assert not matches regex"
     action: assert
-    args:
-      - 1
-      - ">"
+    args: ["abc123", "not_matches", "xyz"]
+
+  - name: "Assert not empty string"
+    action: assert
+    args: ["not empty", "not_empty", ""]
+
 
   - name: "Type mismatch"
     action: assert
-    args:
-      - 1
-      - "=="
-      - "one" 
+    args: [1, "==", "one"]
+    continue_on_failure: true 

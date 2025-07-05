@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as yaml from 'js-yaml';
 
 const execAsync = promisify(exec);
 
@@ -42,6 +43,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(signatureHelpProvider);
 
+    // Register diagnostic provider for real-time validation
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('robogo');
+    context.subscriptions.push(diagnosticCollection);
+
+    const diagnosticProvider = new RobogoDiagnosticProvider(diagnosticCollection);
+    context.subscriptions.push(diagnosticProvider);
+
     // Register commands
     const runTestCommand = vscode.commands.registerCommand('robogo.runTest', async () => {
         await runTest();
@@ -52,6 +60,625 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(runTestCommand, listActionsCommand);
+}
+
+// Robogo Diagnostic Provider for real-time validation
+class RobogoDiagnosticProvider {
+    private diagnosticCollection: vscode.DiagnosticCollection;
+    private disposables: vscode.Disposable[] = [];
+
+    constructor(diagnosticCollection: vscode.DiagnosticCollection) {
+        this.diagnosticCollection = diagnosticCollection;
+        this.setupValidation();
+    }
+
+    private setupValidation() {
+        // Validate on document change
+        const changeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
+            if (this.isRobogoFile(event.document)) {
+                this.validateDocument(event.document);
+            }
+        });
+
+        // Validate on document open
+        const openDisposable = vscode.workspace.onDidOpenTextDocument((document) => {
+            if (this.isRobogoFile(document)) {
+                this.validateDocument(document);
+            }
+        });
+
+        // Validate on document save
+        const saveDisposable = vscode.workspace.onDidSaveTextDocument((document) => {
+            if (this.isRobogoFile(document)) {
+                this.validateDocument(document);
+            }
+        });
+
+        this.disposables.push(changeDisposable, openDisposable, saveDisposable);
+    }
+
+    private isRobogoFile(document: vscode.TextDocument): boolean {
+        return document.languageId === 'robogo' || 
+               document.languageId === 'yaml' || 
+               document.fileName.endsWith('.robogo') ||
+               document.fileName.endsWith('.yaml') ||
+               document.fileName.endsWith('.yml');
+    }
+
+    private async validateDocument(document: vscode.TextDocument) {
+        const diagnostics: vscode.Diagnostic[] = [];
+
+        try {
+            // Parse YAML
+            const text = document.getText();
+            const parsed = yaml.load(text) as any;
+
+            if (!parsed) {
+                diagnostics.push(this.createDiagnostic(
+                    new vscode.Range(0, 0, 0, 0),
+                    'Empty or invalid YAML file',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            } else {
+                // Validate test case structure
+                this.validateTestCase(parsed, document, diagnostics);
+            }
+        } catch (error) {
+            // YAML parsing error
+            const errorMessage = error instanceof Error ? error.message : 'Unknown YAML error';
+            const lineMatch = errorMessage.match(/line (\d+)/);
+            const line = lineMatch ? parseInt(lineMatch[1]) - 1 : 0;
+            
+            diagnostics.push(this.createDiagnostic(
+                new vscode.Range(line, 0, line, 0),
+                `YAML parsing error: ${errorMessage}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        this.diagnosticCollection.set(document.uri, diagnostics);
+    }
+
+    private validateTestCase(testCase: any, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        // Check required fields
+        if (!testCase.testcase) {
+            diagnostics.push(this.createDiagnostic(
+                new vscode.Range(0, 0, 0, 0),
+                'Missing required field: testcase',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        if (!testCase.steps || !Array.isArray(testCase.steps)) {
+            diagnostics.push(this.createDiagnostic(
+                new vscode.Range(0, 0, 0, 0),
+                'Missing or invalid steps array',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        // Validate each step
+        testCase.steps.forEach((step: any, index: number) => {
+            this.validateStep(step, index, document, diagnostics);
+        });
+
+        // Validate variables section
+        if (testCase.variables) {
+            this.validateVariables(testCase.variables, document, diagnostics);
+        }
+
+        // Validate variable references in steps
+        this.validateVariableReferences(testCase.steps, testCase.variables, document, diagnostics);
+    }
+
+    private validateStep(step: any, stepIndex: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        const stepLine = this.findStepLine(stepIndex, document);
+        const range = new vscode.Range(stepLine, 0, stepLine, 0);
+
+        // Check if step has action or control flow
+        const hasAction = step.action;
+        const hasControlFlow = step.if || step.for || step.while;
+
+        if (!hasAction && !hasControlFlow) {
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Step must have either an action or control flow (if/for/while)',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        if (hasAction && hasControlFlow) {
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Step cannot have both action and control flow',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        // Validate action if present
+        if (hasAction) {
+            this.validateAction(step, stepIndex, document, diagnostics);
+        }
+
+        // Validate control flow if present
+        if (hasControlFlow) {
+            this.validateControlFlow(step, range, diagnostics);
+        }
+
+        // Validate retry configuration
+        if (step.retry) {
+            this.validateRetry(step.retry, range, diagnostics);
+        }
+    }
+
+    private validateAction(step: any, stepIndex: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        const action = step.action;
+        const args = step.args;
+        const stepLine = this.findStepLine(stepIndex, document);
+        const actionLine = this.findStepFieldLine(stepIndex, 'action', document);
+        const argsLine = this.findStepFieldLine(stepIndex, 'args', document);
+
+        // Check if action is valid
+        if (typeof action !== 'string' || action.trim() === '') {
+            const range = new vscode.Range(actionLine, 0, actionLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Action must be a non-empty string',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        // Validate args
+        if (args !== undefined && !Array.isArray(args)) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Args must be an array',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        // Validate specific actions
+        if (action === 'assert') {
+            this.validateAssertAction(args, argsLine, document, diagnostics);
+        } else if (action === 'http' || action === 'http_get' || action === 'http_post') {
+            this.validateHttpAction(action, args, argsLine, document, diagnostics);
+        } else if (action === 'postgres') {
+            this.validatePostgresAction(args, argsLine, document, diagnostics);
+        } else if (action === 'get_time') {
+            this.validateGetTimeAction(args, argsLine, document, diagnostics);
+        } else if (action === 'random') {
+            this.validateRandomAction(args, argsLine, document, diagnostics);
+        } else if (action === 'sleep') {
+            this.validateSleepAction(args, argsLine, document, diagnostics);
+        }
+
+        // Check for unknown actions
+        const range = new vscode.Range(actionLine, 0, actionLine, 0);
+        this.validateActionExistsSync(action, range, diagnostics);
+    }
+
+    private validateAssertAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 3) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Assert action requires at least 3 arguments: value, operator, expected',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const operator = args[1];
+        const validOperators = ['==', '!=', '>', '<', '>=', '<=', 'contains', 'not_contains', 'starts_with', 'ends_with', 'matches', 'not_matches', 'empty', 'not_empty', '%'];
+
+        // Special handling for modulo operations: [value, %, divisor, operator, expected]
+        if (operator === '%') {
+            if (args.length < 5) {
+                const range = new vscode.Range(argsLine, 0, argsLine, 0);
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'Modulo assertion requires 5 arguments: value, %, divisor, operator, expected',
+                    vscode.DiagnosticSeverity.Error
+                ));
+                return;
+            }
+            const moduloOperator = args[3];
+            if (typeof moduloOperator !== 'string' || !validOperators.includes(moduloOperator)) {
+                const range = new vscode.Range(argsLine, 0, argsLine, 0);
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    `Invalid modulo assertion operator: ${moduloOperator}. Valid operators: ${validOperators.join(', ')}`,
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            return;
+        }
+
+        if (typeof operator !== 'string' || !validOperators.includes(operator)) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `Invalid assertion operator: ${operator}. Valid operators: ${validOperators.join(', ')}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private validateHttpAction(action: string, args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length === 0) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `${action} action requires at least one argument (URL)`,
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const url = args[0];
+        if (typeof url !== 'string' || !url.startsWith('http')) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'First argument must be a valid HTTP URL',
+                vscode.DiagnosticSeverity.Warning
+            ));
+        }
+    }
+
+    private validatePostgresAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 2) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Postgres action requires at least 2 arguments: operation, connection_string',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const operation = args[0];
+        const validOperations = ['connect', 'query', 'execute', 'close'];
+
+        if (typeof operation !== 'string' || !validOperations.includes(operation)) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `Invalid postgres operation: ${operation}. Valid operations: ${validOperations.join(', ')}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private validateGetTimeAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (args && args.length > 0) {
+            const format = args[0];
+            const validFormats = ['iso', 'iso_date', 'iso_time', 'datetime', 'date', 'time', 'timestamp', 'unix', 'unix_ms'];
+            
+            if (typeof format !== 'string' || !validFormats.includes(format)) {
+                const range = new vscode.Range(argsLine, 0, argsLine, 0);
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    `Invalid time format: ${format}. Valid formats: ${validFormats.join(', ')}`,
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+        }
+    }
+
+    private validateRandomAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 2) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Random action requires at least 2 arguments: min, max',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const [min, max] = args;
+        if (typeof min !== 'number' || typeof max !== 'number') {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Random min and max must be numbers',
+                vscode.DiagnosticSeverity.Error
+            ));
+        } else if (min >= max) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Random min must be less than max',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private validateSleepAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length === 0) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Sleep action requires duration argument',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const duration = args[0];
+        if (typeof duration !== 'number' || duration < 0) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Sleep duration must be a positive number',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private validateControlFlow(step: any, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
+        if (step.if) {
+            if (!step.if.condition || !step.if.then) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'If statement must have condition and then blocks',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+        }
+
+        if (step.for) {
+            if (!step.for.condition || !step.for.steps) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'For loop must have condition and steps blocks',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+        }
+
+        if (step.while) {
+            if (!step.while.condition || !step.while.steps) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'While loop must have condition and steps blocks',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+        }
+    }
+
+    private validateRetry(retry: any, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
+        if (retry.attempts && (typeof retry.attempts !== 'number' || retry.attempts < 1)) {
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Retry attempts must be a positive number',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        if (retry.backoff && !['fixed', 'linear', 'exponential'].includes(retry.backoff)) {
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Retry backoff must be: fixed, linear, or exponential',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private validateVariables(variables: any, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (variables.secrets) {
+            Object.entries(variables.secrets).forEach(([name, secret]: [string, any]) => {
+                if (typeof secret === 'object' && secret.file && secret.value) {
+                    const line = this.findVariableLine(name, document);
+                    diagnostics.push(this.createDiagnostic(
+                        new vscode.Range(line, 0, line, 0),
+                        `Secret '${name}' has both file and value - value takes precedence`,
+                        vscode.DiagnosticSeverity.Warning
+                    ));
+                }
+            });
+        }
+    }
+
+    private findStepLine(stepIndex: number, document: vscode.TextDocument): number {
+        const text = document.getText();
+        const lines = text.split('\n');
+        let stepCount = 0;
+        let inSteps = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Check if we're entering the steps section
+            if (line === 'steps:' || line.startsWith('steps:')) {
+                inSteps = true;
+                continue;
+            }
+            
+            // Only count steps when we're in the steps section
+            if (inSteps && line.startsWith('-')) {
+                if (stepCount === stepIndex) {
+                    return i;
+                }
+                stepCount++;
+            }
+        }
+        
+        return 0;
+    }
+
+    private findStepFieldLine(stepIndex: number, fieldName: string, document: vscode.TextDocument): number {
+        const text = document.getText();
+        const lines = text.split('\n');
+        let stepCount = 0;
+        let inSteps = false;
+        let inTargetStep = false;
+        let currentIndent = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+            
+            // Skip empty lines
+            if (trimmedLine === '') {
+                continue;
+            }
+            
+            // Check if we're entering the steps section
+            if (trimmedLine === 'steps:' || trimmedLine.startsWith('steps:')) {
+                inSteps = true;
+                continue;
+            }
+            
+            // Calculate indentation level
+            const indent = line.length - line.trimStart().length;
+            
+            // Check if we're entering the target step (starts with - and proper indentation)
+            if (inSteps && trimmedLine.startsWith('-') && indent <= 2) {
+                if (stepCount === stepIndex) {
+                    inTargetStep = true;
+                    currentIndent = indent;
+                } else {
+                    inTargetStep = false;
+                }
+                stepCount++;
+                continue;
+            }
+            
+            // If we're in the target step, look for the field
+            if (inTargetStep && trimmedLine.startsWith(fieldName + ':')) {
+                return i;
+            }
+            
+            // If we hit another step or section, we're no longer in the target step
+            if (inTargetStep && (trimmedLine.startsWith('-') || (trimmedLine.includes(':') && indent <= currentIndent && !trimmedLine.startsWith('  ')))) {
+                inTargetStep = false;
+            }
+        }
+        
+        // If we can't find the specific field, return the step line as fallback
+        return this.findStepLine(stepIndex, document);
+    }
+
+    private findVariableLine(varName: string, document: vscode.TextDocument): number {
+        const text = document.getText();
+        const lines = text.split('\n');
+        
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes(varName + ':')) {
+                return i;
+            }
+        }
+        
+        return 0;
+    }
+
+    private validateVariableReferences(steps: any[], variables: any, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        const definedVars = new Set<string>();
+        
+        // Collect defined variables
+        if (variables) {
+            if (variables.vars) {
+                Object.keys(variables.vars).forEach(varName => definedVars.add(varName));
+            }
+            if (variables.secrets) {
+                Object.keys(variables.secrets).forEach(varName => definedVars.add(varName));
+            }
+        }
+
+        // Check variable references in steps
+        steps.forEach((step: any, stepIndex: number) => {
+            this.checkStepVariableReferences(step, definedVars, stepIndex, document, diagnostics);
+        });
+    }
+
+    private checkStepVariableReferences(step: any, definedVars: Set<string>, stepIndex: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        const stepText = JSON.stringify(step);
+        const varRegex = /\$\{([^}]+)\}/g;
+        let match;
+
+        while ((match = varRegex.exec(stepText)) !== null) {
+            const varName = match[1];
+            // Handle dot notation (e.g., response.status_code)
+            const baseVarName = varName.split('.')[0];
+            
+            if (!definedVars.has(baseVarName)) {
+                const stepLine = this.findStepLine(stepIndex, document);
+                diagnostics.push(this.createDiagnostic(
+                    new vscode.Range(stepLine, 0, stepLine, 0),
+                    `Undefined variable: ${baseVarName}`,
+                    vscode.DiagnosticSeverity.Warning
+                ));
+            }
+        }
+    }
+
+    private createDiagnostic(range: vscode.Range, message: string, severity: vscode.DiagnosticSeverity): vscode.Diagnostic {
+        const diagnostic = new vscode.Diagnostic(range, message, severity);
+        diagnostic.source = 'robogo';
+        return diagnostic;
+    }
+
+    private validateActionExistsSync(action: string, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
+        // Use a predefined list of valid actions for immediate validation
+        const validActions = [
+            'assert', 'http', 'http_get', 'http_post', 'postgres', 'get_time', 
+            'random', 'sleep', 'log', 'set_variable', 'get_variable', 'list_variables',
+            'get_secret', 'set_secret', 'list_secrets', 'get_swift_message', 'validate_swift'
+        ];
+        
+        if (!validActions.includes(action)) {
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `Unknown action: ${action}. Available actions: ${validActions.join(', ')}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+    }
+
+    private async validateActionExists(action: string, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
+        try {
+            const actions = await this.getAvailableActions();
+            if (!actions.includes(action)) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    `Unknown action: ${action}. Available actions: ${actions.slice(0, 10).join(', ')}${actions.length > 10 ? '...' : ''}`,
+                    vscode.DiagnosticSeverity.Warning
+                ));
+            }
+        } catch (error) {
+            // Silently fail - action validation is not critical
+        }
+    }
+
+    private async getAvailableActions(): Promise<string[]> {
+        try {
+            const config = vscode.workspace.getConfiguration('robogo');
+            const executablePath = config.get<string>('executablePath', 'robogo');
+            
+            const { stdout } = await execAsync(`${executablePath} list-actions`);
+            const lines = stdout.split('\n');
+            return lines
+                .filter(line => line.trim() && !line.startsWith('Available'))
+                .map(line => line.split(/\s+/)[0])
+                .filter(Boolean);
+        } catch (error) {
+            // Return common actions if we can't get the list
+            return [
+                'assert', 'http', 'http_get', 'http_post', 'postgres', 'get_time', 
+                'random', 'sleep', 'log', 'set_variable', 'get_variable', 'list_variables'
+            ];
+        }
+    }
+
+    dispose() {
+        this.disposables.forEach(d => d.dispose());
+        this.diagnosticCollection.dispose();
+    }
 }
 
 interface RobogoAction {

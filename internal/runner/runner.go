@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -37,29 +38,20 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 	return RunTestCase(testCase, silent)
 }
 
-// RunTestCase runs a single test case
+// RunTestCase runs a test case and returns the result
 func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-	runner := NewTestRunner()
-	return runner.runTestCase(testCase, silent)
-}
-
-// runTestCase runs a single test case
-func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-	startTime := time.Now()
-
-	// Initialize variables from test case
+	tr := NewTestRunner()
 	tr.initializeVariables(testCase)
 
 	// Create action executor
 	executor := actions.NewActionExecutor()
 
-	// Initialize result
 	result := &parser.TestResult{
 		TestCase:    *testCase,
 		Status:      "PASSED",
-		TotalSteps:  len(testCase.Steps),
-		StepResults: make([]parser.StepResult, 0, len(testCase.Steps)),
+		StepResults: make([]parser.StepResult, 0),
 	}
+	startTime := time.Now()
 
 	if !silent {
 		fmt.Printf("🚀 Running test case: %s\n", testCase.Name)
@@ -69,70 +61,85 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 		fmt.Printf("📝 Steps: %d\n\n", len(testCase.Steps))
 	}
 
-	// Execute each step
-	for i, step := range testCase.Steps {
+	// Pass the StepResults slice pointer for recursive collection
+	_ = tr.executeSteps(testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase)
+
+	result.Duration = time.Since(startTime)
+	result.TotalSteps = len(result.StepResults)
+	for _, sr := range result.StepResults {
+		if sr.Status == "FAILED" {
+			result.FailedSteps++
+		} else {
+			result.PassedSteps++
+		}
+	}
+	if result.FailedSteps > 0 {
+		result.Status = "FAILED"
+		// Only set ErrorMessage if a non-continue-on-failure step failed
+		for _, sr := range result.StepResults {
+			if sr.Status == "FAILED" && !sr.Step.ContinueOnFailure {
+				if sr.Error != "" {
+					result.ErrorMessage = sr.Error
+				} else {
+					result.ErrorMessage = "Test failed due to step failure."
+				}
+				break
+			}
+		}
+	}
+
+	if !silent {
+		fmt.Printf("\n🏁 Test completed in %v\n", result.Duration)
+		fmt.Printf("\n📊 Test Results:\n")
+		fmt.Printf("✅ Status: %s\n", result.Status)
+		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
+		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n", result.TotalSteps, result.PassedSteps, result.FailedSteps)
+	}
+
+	// Only return error if a non-continue-on-failure step failed
+	if result.Status == "FAILED" && result.ErrorMessage != "" {
+		return result, fmt.Errorf(result.ErrorMessage)
+	}
+	return result, nil
+}
+
+// executeSteps executes a slice of steps, collecting StepResults recursively
+func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	for idx, step := range steps {
+		stepContext := context
+		if parentLoop != nil {
+			iteration := tr.variables["iteration"]
+			stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
+		}
+
+		if step.If != nil {
+			if err := tr.executeIfStatement(step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
+				return err
+			}
+			continue
+		}
+		if step.For != nil {
+			if err := tr.executeForLoop(step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
+				return err
+			}
+			continue
+		}
+		if step.While != nil {
+			if err := tr.executeWhileLoop(step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
+				return err
+			}
+			continue
+		}
+
 		stepStart := time.Now()
 		stepLabel := step.Name
 		if stepLabel == "" {
 			stepLabel = step.Action
 		}
 		if !silent {
-			fmt.Printf("Step %d: %s\n", i+1, stepLabel)
+			fmt.Printf("Step %d: %s\n", len(*stepResults)+1, stepLabel)
 		}
 
-		// Handle control flow structures
-		if step.If != nil {
-			if err := tr.executeIfStatement(step.If, executor, silent); err != nil {
-				result.Status = "FAILED"
-				result.FailedSteps++
-				result.ErrorMessage = err.Error()
-				if !silent {
-					fmt.Printf("❌ Step %d (if statement) failed: %s\n", i+1, err.Error())
-				}
-			} else {
-				result.PassedSteps++
-				if !silent {
-					fmt.Printf("✅ Step %d (if statement) completed in %v\n", i+1, time.Since(stepStart))
-				}
-			}
-			continue
-		}
-
-		if step.For != nil {
-			if err := tr.executeForLoop(step.For, executor, silent); err != nil {
-				result.Status = "FAILED"
-				result.FailedSteps++
-				result.ErrorMessage = err.Error()
-				if !silent {
-					fmt.Printf("❌ Step %d (for loop) failed: %s\n", i+1, err.Error())
-				}
-			} else {
-				result.PassedSteps++
-				if !silent {
-					fmt.Printf("✅ Step %d (for loop) completed in %v\n", i+1, time.Since(stepStart))
-				}
-			}
-			continue
-		}
-
-		if step.While != nil {
-			if err := tr.executeWhileLoop(step.While, executor, silent); err != nil {
-				result.Status = "FAILED"
-				result.FailedSteps++
-				result.ErrorMessage = err.Error()
-				if !silent {
-					fmt.Printf("❌ Step %d (while loop) failed: %s\n", i+1, err.Error())
-				}
-			} else {
-				result.PassedSteps++
-				if !silent {
-					fmt.Printf("✅ Step %d (while loop) completed in %v\n", i+1, time.Since(stepStart))
-				}
-			}
-			continue
-		}
-
-		// Execute regular step with retry support
 		substitutedArgs := tr.substituteVariables(step.Args)
 		output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, silent)
 		stepDuration := time.Since(stepStart)
@@ -150,22 +157,17 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 			Step:      step,
 			Status:    "PASSED",
 			Duration:  stepDuration,
-			Output:    maskedOutput, // Use masked output for display
+			Output:    maskedOutput,
 			Timestamp: time.Now(),
 		}
 
 		if err != nil {
 			stepResult.Status = "FAILED"
 			stepResult.Error = err.Error()
-			result.Status = "FAILED"
-			result.FailedSteps++
-			result.ErrorMessage = err.Error()
-
 			if !silent {
-				fmt.Printf("❌ Step %d failed: %s\n", i+1, err.Error())
+				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
 			}
 		} else {
-			result.PassedSteps++
 			if !silent {
 				// Display verbose output if enabled
 				if verboseOutput != "" {
@@ -177,9 +179,30 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 						maskedMessage := tr.secretManager.MaskSecretsInString(message)
 						fmt.Printf("📝 %s\n", maskedMessage)
 					} else {
-						fmt.Printf("✅ Step %d completed in %v\n", i+1, stepDuration)
+						fmt.Printf("✅ Step %d completed in %v\n", len(*stepResults)+1, stepDuration)
 					}
 				}
+			}
+		}
+
+		// Add context to step name for reporting
+		if step.Name != "" {
+			stepResult.Step.Name = stepContext + step.Name
+		} else if stepContext != "" {
+			stepResult.Step.Name = stepContext + fmt.Sprintf("Step%d", idx+1)
+		}
+
+		*stepResults = append(*stepResults, stepResult)
+
+		if err != nil {
+			if step.ContinueOnFailure {
+				// Log and continue to next step
+				if !silent {
+					fmt.Printf("⚠️  Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
+				}
+				continue
+			} else {
+				return fmt.Errorf("step '%s' failed: %w", stepResult.Step.Name, err)
 			}
 		}
 
@@ -192,21 +215,77 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 				fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, maskedValue)
 			}
 		}
-
-		result.StepResults = append(result.StepResults, stepResult)
 	}
+	return nil
+}
 
-	result.Duration = time.Since(startTime)
-
-	if !silent {
-		fmt.Printf("\n🏁 Test completed in %v\n", result.Duration)
-		fmt.Printf("\n📊 Test Results:\n")
-		fmt.Printf("✅ Status: %s\n", result.Status)
-		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n", result.TotalSteps, result.PassedSteps, result.FailedSteps)
+// executeIfStatement executes an if/else block, collecting StepResults
+func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	condition := tr.substituteString(ifBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"if", condition})
+	if err != nil {
+		return fmt.Errorf("failed to evaluate if condition: %w", err)
 	}
+	var stepsToExecute []parser.Step
+	if output == "true" {
+		stepsToExecute = ifBlock.Then
+	} else {
+		stepsToExecute = ifBlock.Else
+	}
+	return tr.executeSteps(stepsToExecute, executor, nil, silent, stepResults, context, testCase)
+}
 
-	return result, nil
+// executeForLoop executes a for loop, collecting StepResults
+func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	condition := tr.substituteString(forBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"for", condition})
+	if err != nil {
+		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
+	}
+	iterations, err := strconv.Atoi(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse iteration count: %w", err)
+	}
+	maxIterations := forBlock.MaxIterations
+	if maxIterations > 0 && iterations > maxIterations {
+		iterations = maxIterations
+	}
+	for i := 0; i < iterations; i++ {
+		tr.variables["iteration"] = i + 1
+		tr.variables["index"] = i
+		if err := tr.executeSteps(forBlock.Steps, executor, forBlock, silent, stepResults, context, testCase); err != nil {
+			return fmt.Errorf("iteration %d failed: %w", i+1, err)
+		}
+	}
+	return nil
+}
+
+// executeWhileLoop executes a while loop, collecting StepResults
+func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	iteration := 0
+	maxIterations := whileBlock.MaxIterations
+	if maxIterations <= 0 {
+		maxIterations = 1000
+	}
+	for {
+		iteration++
+		if iteration > maxIterations {
+			return fmt.Errorf("while loop exceeded maximum iterations (%d)", maxIterations)
+		}
+		tr.variables["iteration"] = iteration
+		condition := tr.substituteString(whileBlock.Condition)
+		output, err := executor.Execute("control", []interface{}{"while", condition})
+		if err != nil {
+			return fmt.Errorf("failed to evaluate while condition: %w", err)
+		}
+		if output != "true" {
+			break
+		}
+		if err := tr.executeSteps(whileBlock.Steps, executor, whileBlock, silent, stepResults, context, testCase); err != nil {
+			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
+		}
+	}
+	return nil
 }
 
 // initializeVariables initializes variables from the test case
@@ -243,162 +322,6 @@ func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
 	}
 }
 
-// executeIfStatement executes an if/else block
-func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool) error {
-	// Evaluate condition
-	condition := tr.substituteString(ifBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"if", condition})
-	if err != nil {
-		return fmt.Errorf("failed to evaluate if condition: %w", err)
-	}
-
-	// Determine which branch to execute
-	var stepsToExecute []parser.Step
-	if output == "true" {
-		stepsToExecute = ifBlock.Then
-		if !silent {
-			fmt.Printf("🔍 If condition '%s' is true, executing 'then' branch (%d steps)\n", condition, len(stepsToExecute))
-		}
-	} else {
-		stepsToExecute = ifBlock.Else
-		if !silent {
-			fmt.Printf("🔍 If condition '%s' is false, executing 'else' branch (%d steps)\n", condition, len(stepsToExecute))
-		}
-	}
-
-	// Execute the selected branch
-	return tr.executeSteps(stepsToExecute, executor, silent)
-}
-
-// executeForLoop executes a for loop
-func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool) error {
-	// Evaluate loop condition to get iteration count
-	condition := tr.substituteString(forBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"for", condition})
-	if err != nil {
-		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
-	}
-
-	iterations, err := strconv.Atoi(output)
-	if err != nil {
-		return fmt.Errorf("failed to parse iteration count: %w", err)
-	}
-
-	maxIterations := forBlock.MaxIterations
-	if maxIterations > 0 && iterations > maxIterations {
-		iterations = maxIterations
-		if !silent {
-			fmt.Printf("⚠️  Limiting iterations to %d (max_iterations)\n", maxIterations)
-		}
-	}
-
-	if !silent {
-		fmt.Printf("🔄 For loop: executing %d iterations\n", iterations)
-	}
-
-	// Execute the loop body for each iteration
-	for i := 0; i < iterations; i++ {
-		if !silent {
-			fmt.Printf("  🔄 Iteration %d/%d\n", i+1, iterations)
-		}
-
-		// Set iteration variable
-		tr.variables["iteration"] = i + 1
-		tr.variables["index"] = i
-
-		if err := tr.executeSteps(forBlock.Steps, executor, silent); err != nil {
-			return fmt.Errorf("iteration %d failed: %w", i+1, err)
-		}
-	}
-
-	return nil
-}
-
-// executeWhileLoop executes a while loop
-func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool) error {
-	iteration := 0
-	maxIterations := whileBlock.MaxIterations
-	if maxIterations <= 0 {
-		maxIterations = 1000 // Default max iterations to prevent infinite loops
-	}
-
-	for {
-		iteration++
-		if iteration > maxIterations {
-			return fmt.Errorf("while loop exceeded maximum iterations (%d)", maxIterations)
-		}
-
-		// Evaluate condition
-		condition := tr.substituteString(whileBlock.Condition)
-		output, err := executor.Execute("control", []interface{}{"while", condition})
-		if err != nil {
-			return fmt.Errorf("failed to evaluate while condition: %w", err)
-		}
-
-		if output != "true" {
-			if !silent {
-				fmt.Printf("🔄 While loop: condition '%s' is false, exiting after %d iterations\n", condition, iteration-1)
-			}
-			break
-		}
-
-		if !silent {
-			fmt.Printf("  🔄 While iteration %d\n", iteration)
-		}
-
-		// Set iteration variable
-		tr.variables["iteration"] = iteration
-
-		// Execute loop body
-		if err := tr.executeSteps(whileBlock.Steps, executor, silent); err != nil {
-			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
-		}
-	}
-
-	return nil
-}
-
-// executeSteps executes a slice of steps
-func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.ActionExecutor, silent bool) error {
-	for _, step := range steps {
-		// Handle nested control flow
-		if step.If != nil {
-			if err := tr.executeIfStatement(step.If, executor, silent); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if step.For != nil {
-			if err := tr.executeForLoop(step.For, executor, silent); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if step.While != nil {
-			if err := tr.executeWhileLoop(step.While, executor, silent); err != nil {
-				return err
-			}
-			continue
-		}
-
-		// Execute regular step with retry support
-		substitutedArgs := tr.substituteVariables(step.Args)
-		output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, true) // Silent for nested steps
-		if err != nil {
-			return fmt.Errorf("step '%s' failed: %w", step.Name, err)
-		}
-
-		// Store result in variable if specified
-		if step.Result != "" {
-			tr.variables[step.Result] = output
-		}
-	}
-
-	return nil
-}
-
 // substituteVariables replaces ${variable} references with actual values
 func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
 	substituted := make([]interface{}, len(args))
@@ -424,11 +347,57 @@ func (tr *TestRunner) substituteString(s string) string {
 	re := regexp.MustCompile(`\$\{([^}]+)\}`)
 	return re.ReplaceAllStringFunc(s, func(match string) string {
 		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
-		if value, exists := tr.variables[varName]; exists {
+		if value, ok := tr.resolveDotNotation(varName); ok {
 			return fmt.Sprintf("%v", value)
 		}
 		return match // Return original if variable not found
 	})
+}
+
+// resolveDotNotation resolves variables with dot notation (e.g., response.status_code)
+func (tr *TestRunner) resolveDotNotation(varName string) (interface{}, bool) {
+	parts := strings.Split(varName, ".")
+	value, exists := tr.variables[parts[0]]
+	if !exists {
+		return nil, false
+	}
+	if len(parts) == 1 {
+		return value, true
+	}
+	// Try to parse JSON string to map if needed
+	var m map[string]interface{}
+	switch v := value.(type) {
+	case string:
+		if err := json.Unmarshal([]byte(v), &m); err == nil {
+			value = m
+		} else {
+			return v, true // not JSON, return as is
+		}
+	case map[string]interface{}:
+		m = v
+	default:
+		return value, true
+	}
+	// Traverse the map for each field
+	for _, field := range parts[1:] {
+		if m2, ok := value.(map[string]interface{}); ok {
+			if v, ok := m2[field]; ok {
+				value = v
+				// If nested JSON string, try to parse again
+				if s, isStr := v.(string); isStr && json.Valid([]byte(s)) {
+					var nested map[string]interface{}
+					if err := json.Unmarshal([]byte(s), &nested); err == nil {
+						value = nested
+					}
+				}
+			} else {
+				return nil, false
+			}
+		} else {
+			return nil, false
+		}
+	}
+	return value, true
 }
 
 // substituteStringForDisplay replaces ${variable} references and masks secrets for display

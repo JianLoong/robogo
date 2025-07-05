@@ -1,0 +1,194 @@
+# SWIFT Message Test Case
+# This file demonstrates SWIFT message generation and validation using Robogo
+
+testcase: "SWIFT Message Test"
+description: "Comprehensive SWIFT message testing with amount validation, message generation, and error handling"
+
+steps:
+  # Initialize test variables
+  - name: "Initialize SWIFT test"
+    action: log
+    args: ["Starting SWIFT message validation test"]
+  
+  # Generate SWIFT amounts using decimal ranges
+  - name: "Generate SWIFT amounts"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Generate amount in range"
+          action: get_random
+          args: [1000.00, 50000.00]
+          result: swift_amount
+        
+        - name: "Log generated amount"
+          action: log
+          args: ["SWIFT amount ${iteration}: ${swift_amount}"]
+        
+        - name: "Validate amount range"
+          action: assert
+          args: ["${swift_amount}", ">=", "1000.00", "Amount should be >= 1000.00"]
+          continue_on_failure: true
+        
+        - name: "Validate amount max"
+          action: assert
+          args: ["${swift_amount}", "<=", "50000.00", "Amount should be <= 50000.00"]
+          continue_on_failure: true
+
+  # Test different SWIFT amount ranges
+  - name: "Test small SWIFT amounts"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate small amount"
+          action: get_random
+          args: [100.00, 999.99]
+          result: small_amount
+        
+        - name: "Validate small amount"
+          action: assert
+          args: ["${small_amount}", ">=", "100.00", "Small amount should be >= 100.00"]
+          continue_on_failure: true
+        
+        - name: "Validate small amount max"
+          action: assert
+          args: ["${small_amount}", "<=", "999.99", "Small amount should be <= 999.99"]
+          continue_on_failure: true
+
+  # Test large SWIFT amounts
+  - name: "Test large SWIFT amounts"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate large amount"
+          action: get_random
+          args: [100000.00, 999999.99]
+          result: large_amount
+        
+        - name: "Validate large amount"
+          action: assert
+          args: ["${large_amount}", ">=", "100000.00", "Large amount should be >= 100000.00"]
+          continue_on_failure: true
+        
+        - name: "Validate large amount max"
+          action: assert
+          args: ["${large_amount}", "<=", "999999.99", "Large amount should be <= 999999.99"]
+          continue_on_failure: true
+
+  # Test edge cases with same min/max values
+  - name: "Test edge case amounts"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate fixed amount"
+          action: get_random
+          args: [5000.00, 5000.00]
+          result: fixed_amount
+        
+        - name: "Validate fixed amount"
+          action: assert
+          args: ["${fixed_amount}", "==", "5000.00", "Fixed amount should be exactly 5000.00"]
+          continue_on_failure: true
+
+  # Test SWIFT message generation with variables
+  - name: "Generate SWIFT message components"
+    action: get_random
+    args: [1000000, 9999999]
+    result: reference_number
+  
+  - name: "Generate transaction amount"
+    action: get_random
+    args: [10000.00, 100000.00]
+    result: transaction_amount
+  
+  - name: "Get current timestamp"
+    action: get_time
+    args: ["iso"]
+    result: transaction_time
+  
+  - name: "Create SWIFT message"
+    action: concat
+    args: ["{1:F01BANKBIC0AXXX0000000000}{2:I103BANKBIC0XXXXXN}{3:{108:", "${reference_number}", "}{4:\n:20:", "${reference_number}", "\n:32A:", "${transaction_time}", "USD", "${transaction_amount}", "\n:50K:/123456789\nABCDEF COMPANY\n123 MAIN STREET\nNEW YORK NY 10001\n:59:/987654321\nBENEFICIARY COMPANY\n456 BUSINESS AVE\nLONDON UK SW1A 1AA\n:71A:SHA\n-}"]
+    result: swift_message
+  
+  - name: "Log SWIFT message"
+    action: log
+    args: ["Generated SWIFT message:\n${swift_message}"]
+  
+  # Validate SWIFT message structure
+  - name: "Validate SWIFT message contains required fields"
+    action: assert
+    args: ["${swift_message}", "contains", ":20:", "SWIFT message should contain :20: field"]
+    continue_on_failure: true
+  
+  - name: "Validate SWIFT message contains amount"
+    action: assert
+    args: ["${swift_message}", "contains", "USD", "SWIFT message should contain USD currency"]
+    continue_on_failure: true
+  
+  - name: "Validate SWIFT message contains reference"
+    action: assert
+    args: ["${swift_message}", "contains", "${reference_number}", "SWIFT message should contain reference number"]
+    continue_on_failure: true
+
+  # Test HTTP API call (simulated SWIFT gateway)
+  - name: "Test SWIFT API endpoint"
+    action: http_request
+    args: ["POST", "https://httpbin.org/post", "{\"swift_message\": \"${swift_message}\", \"amount\": \"${transaction_amount}\"}", "application/json"]
+    result: api_response
+    continue_on_failure: true
+  
+  - name: "Validate API response"
+    action: assert
+    args: ["${api_response}", "contains", "swift_message", "API response should contain swift_message"]
+    continue_on_failure: true
+
+  # Test database operations (simulated SWIFT transaction log)
+  - name: "Test database connection"
+    action: db_connect
+    args: ["postgresql://localhost:5432/swift_test?sslmode=disable"]
+    continue_on_failure: true
+  
+  - name: "Insert SWIFT transaction"
+    action: db_execute
+    args: ["INSERT INTO swift_transactions (reference, amount, timestamp, message) VALUES (?, ?, ?, ?)", "${reference_number}", "${transaction_amount}", "${transaction_time}", "${swift_message}"]
+    continue_on_failure: true
+  
+  - name: "Query SWIFT transaction"
+    action: db_query
+    args: ["SELECT * FROM swift_transactions WHERE reference = ?", "${reference_number}"]
+    result: db_result
+    continue_on_failure: true
+  
+  - name: "Validate database result"
+    action: assert
+    args: ["${db_result}", "contains", "${reference_number}", "Database should contain the inserted reference"]
+    continue_on_failure: true
+  
+  - name: "Close database connection"
+    action: db_close
+    args: []
+
+  # Final validation and summary
+  - name: "Generate test summary"
+    action: get_time
+    args: ["iso"]
+    result: end_time
+  
+  - name: "Log test completion"
+    action: log
+    args: ["SWIFT message test completed at ${end_time}"]
+  
+  - name: "Final assertion"
+    action: assert
+    args: ["${transaction_amount}", ">", "0", "Transaction amount should be positive"]
+
+# This test demonstrates:
+# - SWIFT amount generation using decimal ranges (1000.00-50000.00, 100.00-999.99, etc.)
+# - Edge case handling with same min/max values (5000.00-5000.00)
+# - SWIFT message generation with dynamic components
+# - Message validation using string operations
+# - HTTP API testing for SWIFT gateway simulation
+# - Database operations for transaction logging
+# - Comprehensive error handling with continue_on_failure
+# - Loop testing with proper iteration context reporting
+# - Variable substitution and complex string concatenation 

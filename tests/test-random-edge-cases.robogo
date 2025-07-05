@@ -1,0 +1,210 @@
+# Test Random Edge Cases
+# This file tests edge cases for the get_random action
+
+testcase: "Random Edge Cases Test"
+description: "Test edge cases for get_random including same min/max values"
+
+steps:
+  # Test same min/max values for integers
+  - name: "Same min/max integers"
+    action: get_random
+    args: [5, 5]
+    result: same_int
+
+  - name: "Verify same integer result"
+    action: assert
+    args: ["${same_int}", "==", "5", "Same min/max should return the value"]
+
+  # Test same min/max values for decimals
+  - name: "Same min/max decimals"
+    action: get_random
+    args: [10.5, 10.5]
+    result: same_decimal
+
+  - name: "Verify same decimal result"
+    action: assert
+    args: ["${same_decimal}", "==", "10.50", "Same min/max should return the value"]
+
+  # Test zero range for integers
+  - name: "Zero range integers"
+    action: get_random
+    args: [0, 0]
+    result: zero_int
+
+  - name: "Verify zero integer result"
+    action: assert
+    args: ["${zero_int}", "==", "0", "Zero range should return 0"]
+
+  # Test zero range for decimals
+  - name: "Zero range decimals"
+    action: get_random
+    args: [0.0, 0.0]
+    result: zero_decimal
+
+  - name: "Verify zero decimal result"
+    action: assert
+    args: ["${zero_decimal}", "==", "0.00", "Zero range should return 0.00"]
+
+  # Test negative same values
+  - name: "Negative same values"
+    action: get_random
+    args: [-3, -3]
+    result: negative_same
+
+  - name: "Verify negative same result"
+    action: assert
+    args: ["${negative_same}", "==", "-3", "Negative same values should return the value"]
+
+  # Test small decimal range
+  - name: "Small decimal range"
+    action: get_random
+    args: [1.1, 1.2]
+    result: small_decimal
+
+  - name: "Verify small decimal range min"
+    action: assert
+    args: ["${small_decimal}", ">=", "1.10", "Should be >= 1.10"]
+
+  - name: "Verify small decimal range max"
+    action: assert
+    args: ["${small_decimal}", "<=", "1.20", "Should be <= 1.20"]
+
+  # Test single value (backward compatibility)
+  - name: "Single value backward compatibility"
+    action: get_random
+    args: [100]
+    result: single_value
+
+  - name: "Verify single value range min"
+    action: assert
+    args: ["${single_value}", ">=", "0", "Should be >= 0"]
+
+  - name: "Verify single value range max"
+    action: assert
+    args: ["${single_value}", "<", "100", "Should be < 100"]
+
+  # Test single decimal value
+  - name: "Single decimal value"
+    action: get_random
+    args: [50.5]
+    result: single_decimal
+
+  - name: "Verify single decimal range min"
+    action: assert
+    args: ["${single_decimal}", ">=", "0.00", "Should be >= 0.00"]
+
+  - name: "Verify single decimal range max"
+    action: assert
+    args: ["${single_decimal}", "<", "50.50", "Should be < 50.50"]
+
+  # Test large range
+  - name: "Large integer range"
+    action: get_random
+    args: [1000, 9999]
+    result: large_range
+
+  - name: "Verify large range min"
+    action: assert
+    args: ["${large_range}", ">=", "1000", "Should be >= 1000"]
+
+  - name: "Verify large range max"
+    action: assert
+    args: ["${large_range}", "<=", "9999", "Should be <= 9999"]
+
+  # Test mixed integer/decimal range
+  - name: "Mixed range (int to decimal)"
+    action: get_random
+    args: [1, 2.5]
+    result: mixed_range
+
+  - name: "Verify mixed range min"
+    action: assert
+    args: ["${mixed_range}", ">=", "1.00", "Should be >= 1.00"]
+
+  - name: "Verify mixed range max"
+    action: assert
+    args: ["${mixed_range}", "<=", "2.50", "Should be <= 2.50"]
+
+  # Test SWIFT amount ranges
+  - name: "SWIFT amount range (small)"
+    action: get_random
+    args: [100.00, 999.99]
+    result: swift_small
+
+  - name: "Verify SWIFT small amount min"
+    action: assert
+    args: ["${swift_small}", ">=", "100.00", "Should be >= 100.00"]
+
+  - name: "Verify SWIFT small amount max"
+    action: assert
+    args: ["${swift_small}", "<=", "999.99", "Should be <= 999.99"]
+
+  # Test edge case: min equals max with decimals
+  - name: "Edge case: min equals max with decimals"
+    action: get_random
+    args: [123.45, 123.45]
+    result: edge_decimal
+
+  - name: "Verify edge decimal result"
+    action: assert
+    args: ["${edge_decimal}", "==", "123.45", "Edge case should return exact value"]
+
+  # Test edge case: min equals max with integers
+  - name: "Edge case: min equals max with integers"
+    action: get_random
+    args: [999, 999]
+    result: edge_integer
+
+  - name: "Verify edge integer result"
+    action: assert
+    args: ["${edge_integer}", "==", "999", "Edge case should return exact value"]
+
+  # Test multiple same-value calls to ensure consistency
+  - name: "Multiple same-value calls test 1"
+    action: get_random
+    args: [42, 42]
+    result: same_test1
+
+  - name: "Multiple same-value calls test 2"
+    action: get_random
+    args: [42, 42]
+    result: same_test2
+
+  - name: "Multiple same-value calls test 3"
+    action: get_random
+    args: [42, 42]
+    result: same_test3
+
+  - name: "Verify all same-value results are identical"
+    action: assert
+    args: ["${same_test1}", "==", "42", "First call should be 42"]
+
+  - name: "Verify second same-value result"
+    action: assert
+    args: ["${same_test2}", "==", "42", "Second call should be 42"]
+
+  - name: "Verify third same-value result"
+    action: assert
+    args: ["${same_test3}", "==", "42", "Third call should be 42"]
+
+  # Test decimal precision edge cases
+  - name: "Decimal precision edge case"
+    action: get_random
+    args: [1.23456789, 1.23456789]
+    result: precision_edge
+
+  - name: "Verify decimal precision"
+    action: assert
+    args: ["${precision_edge}", "==", "1.23", "Should maintain 2 decimal precision"]
+
+# This test file verifies:
+# - Same min/max values return the exact value
+# - Zero ranges work correctly
+# - Negative same values work
+# - Small decimal ranges work
+# - Backward compatibility with single values
+# - Large ranges work
+# - Mixed integer/decimal ranges work
+# - SWIFT amount ranges work
+# - Edge cases with high precision decimals
+# - Consistency across multiple calls with same values 

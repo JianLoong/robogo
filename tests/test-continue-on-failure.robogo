@@ -1,0 +1,35 @@
+# Demo: Continue on Failure
+# This test demonstrates the continue_on_failure feature for steps and loops
+
+testcase: "Continue on Failure Demo"
+description: "Demonstrates that steps with continue_on_failure: true do not stop the test on failure."
+
+steps:
+  - name: "Fail but continue"
+    action: assert
+    args: ["1", "==", "2"]
+    continue_on_failure: true
+
+  - name: "This will still run"
+    action: log
+    args: ["Continuing after failure"]
+
+  - name: "Loop with continue_on_failure"
+    for:
+      condition: "1..4"
+      steps:
+        - name: "Log iteration"
+          action: log
+          args: ["Iteration ${iteration}"]
+        - name: "Fail on 2 and 4"
+          action: assert
+          args: ["${iteration}", "!=", "2", "Should not be 2"]
+          continue_on_failure: true
+        - name: "Fail on 3 (continue)"
+          action: assert
+          args: ["${iteration}", "!=", "3", "Should not be 3"]
+          continue_on_failure: true
+
+  - name: "Final step"
+    action: log
+    args: ["Test completed with all failures reported"] 

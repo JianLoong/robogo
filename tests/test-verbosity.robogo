@@ -63,7 +63,7 @@ steps:
   # Assertions with verbose output
   - name: "Verbose assertion"
     action: assert
-    args: ["${greeting}", "Hello World from Robogo", "Greeting should match expected"]
+    args: ["${greeting}", "==", "Hello World from Robogo", "Greeting should match expected"]
     verbose: "detailed"
   
   # Random number with verbose output

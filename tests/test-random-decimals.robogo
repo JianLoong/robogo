@@ -1,0 +1,201 @@
+# Test Random Decimal Support
+# This file demonstrates the enhanced get_random action with decimal support
+
+testcase: "Random Decimal Support Test"
+description: "Test the enhanced get_random action that supports both integers and decimal values"
+
+steps:
+  # Test integer random (backward compatibility)
+  - name: "Test integer random"
+    action: get_random
+    args: [100]
+    result: int_random
+  
+  - name: "Log integer random"
+    action: log
+    args: ["Integer random result: ${int_random}"]
+  
+  - name: "Validate integer random"
+    action: assert
+    args: ["${int_random}", ">=", "0", "Integer random should be >= 0"]
+  
+  - name: "Validate integer random max"
+    action: assert
+    args: ["${int_random}", "<", "100", "Integer random should be < 100"]
+
+  # Test decimal random (new feature)
+  - name: "Test decimal random"
+    action: get_random
+    args: [100.5]
+    result: decimal_random
+  
+  - name: "Log decimal random"
+    action: log
+    args: ["Decimal random result: ${decimal_random}"]
+  
+  - name: "Validate decimal random"
+    action: assert
+    args: ["${decimal_random}", ">=", "0.00", "Decimal random should be >= 0"]
+  
+  - name: "Validate decimal random max"
+    action: assert
+    args: ["${decimal_random}", "<", "100.50", "Decimal random should be < 100.50"]
+
+  # Test small decimal values
+  - name: "Test small decimal random"
+    action: get_random
+    args: [1.5]
+    result: small_decimal
+  
+  - name: "Log small decimal random"
+    action: log
+    args: ["Small decimal random result: ${small_decimal}"]
+  
+  - name: "Validate small decimal"
+    action: assert
+    args: ["${small_decimal}", ">=", "0.00", "Small decimal should be >= 0"]
+  
+  - name: "Validate small decimal max"
+    action: assert
+    args: ["${small_decimal}", "<", "1.50", "Small decimal should be < 1.50"]
+
+  # Test large decimal values
+  - name: "Test large decimal random"
+    action: get_random
+    args: [10000.75]
+    result: large_decimal
+  
+  - name: "Log large decimal random"
+    action: log
+    args: ["Large decimal random result: ${large_decimal}"]
+  
+  - name: "Validate large decimal"
+    action: assert
+    args: ["${large_decimal}", ">=", "0.00", "Large decimal should be >= 0"]
+  
+  - name: "Validate large decimal max"
+    action: assert
+    args: ["${large_decimal}", "<", "10000.75", "Large decimal should be < 10000.75"]
+
+  # Test multiple decimal random values
+  - name: "Generate multiple decimal random values"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Generate decimal random for iteration"
+          action: get_random
+          args: [1000.25]
+          result: iteration_decimal
+        
+        - name: "Log iteration decimal"
+          action: log
+          args: ["Iteration ${iteration} decimal: ${iteration_decimal}"]
+        
+        - name: "Validate iteration decimal"
+          action: assert
+          args: ["${iteration_decimal}", ">=", "0.00", "Iteration ${iteration} should be >= 0"]
+        
+        - name: "Validate iteration decimal max"
+          action: assert
+          args: ["${iteration_decimal}", "<", "1000.25", "Iteration ${iteration} should be < 1000.25"]
+
+  # Test decimal values with different precision
+  - name: "Test decimal with .1 precision"
+    action: get_random
+    args: [10.1]
+    result: decimal_1
+  
+  - name: "Test decimal with .25 precision"
+    action: get_random
+    args: [10.25]
+    result: decimal_25
+  
+  - name: "Test decimal with .75 precision"
+    action: get_random
+    args: [10.75]
+    result: decimal_75
+  
+  - name: "Log different precision decimals"
+    action: log
+    args: ["Decimal .1: ${decimal_1}, .25: ${decimal_25}, .75: ${decimal_75}"]
+
+  # Test decimal values for SWIFT amounts (practical use case)
+  - name: "Generate SWIFT-style decimal amounts"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Generate random amount"
+          action: get_random
+          args: [50000.00]
+          result: swift_amount
+        
+        - name: "Format amount for SWIFT"
+          action: concat
+          args: ["EUR", "${swift_amount}"]
+          result: formatted_amount
+        
+        - name: "Log SWIFT amount"
+          action: log
+          args: ["SWIFT amount ${iteration}: ${formatted_amount}"]
+        
+        - name: "Validate SWIFT amount"
+          action: assert
+          args: ["${swift_amount}", ">=", "0.00", "SWIFT amount should be >= 0"]
+        
+        - name: "Validate SWIFT amount max"
+          action: assert
+          args: ["${swift_amount}", "<", "50000.00", "SWIFT amount should be < 50000.00"]
+
+  # Test edge cases
+  - name: "Test very small decimal"
+    action: get_random
+    args: [0.01]
+    result: tiny_decimal
+  
+  - name: "Log very small decimal"
+    action: log
+    args: ["Very small decimal: ${tiny_decimal}"]
+  
+  - name: "Validate very small decimal"
+    action: assert
+    args: ["${tiny_decimal}", ">=", "0.00", "Very small decimal should be >= 0"]
+  
+  - name: "Validate very small decimal max"
+    action: assert
+    args: ["${tiny_decimal}", "<", "0.01", "Very small decimal should be < 0.01"]
+
+  # Test mixed integer and decimal in same test
+  - name: "Generate mixed random values"
+    action: get_random
+    args: [100]
+    result: mixed_int
+  
+  - name: "Generate mixed decimal"
+    action: get_random
+    args: [100.5]
+    result: mixed_decimal
+  
+  - name: "Log mixed results"
+    action: log
+    args: ["Mixed results - Integer: ${mixed_int}, Decimal: ${mixed_decimal}"]
+
+  # Final validation
+  - name: "Validate backward compatibility"
+    action: assert
+    args: ["${int_random}", ">=", "0", "Integer random should still work (backward compatibility)"]
+  
+  - name: "Validate decimal support"
+    action: assert
+    args: ["${decimal_random}", "contains", ".", "Decimal random should contain decimal point"]
+  
+  - name: "Log final summary"
+    action: log
+    args: ["Random decimal support test completed successfully!"]
+
+# This test demonstrates:
+# - Backward compatibility with integer random values
+# - New decimal random value support
+# - Various decimal precision levels
+# - Practical use cases (SWIFT amounts)
+# - Edge cases and validation
+# - Mixed integer and decimal usage 

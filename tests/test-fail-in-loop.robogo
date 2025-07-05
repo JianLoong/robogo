@@ -1,0 +1,18 @@
+cl# Demo: Failure in Loop
+# This test demonstrates that failures inside a loop are reported with iteration context
+
+testcase: "Fail in Loop Demo"
+description: "A for loop where one iteration fails, to show reporting of failed steps in iterations."
+
+steps:
+  - name: "Loop with assert failure"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Log iteration"
+          action: log
+          args: ["Iteration ${iteration}"]
+        - name: "Assert iteration not 3"
+          action: assert
+          args: ["${iteration}", "!=", "3", "Should not be 3"]
+          continue_on_failure: true 
