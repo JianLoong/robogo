@@ -1,0 +1,405 @@
+{
+  "Set Variable Dynamically": {
+    "prefix": "robogo-set-variable",
+    "body": [
+      "- action: variable",
+      "  args: [\"set_variable\", \"${1:var_name}\", \"${2:value}\"]",
+      "  result: ${3:result_var}"
+    ],
+    "description": "Set a variable dynamically during test execution"
+  },
+  "File-based Secret (Single Value)": {
+    "prefix": "robogo-file-secret",
+    "body": [
+      "secrets:",
+      "  ${1:db_password}:",
+      "    file: \"${2:secret.txt}\"",
+      "    mask_output: true"
+    ],
+    "description": "Define a secret loaded from a file (single value per file)"
+  },
+  "Inline Secret": {
+    "prefix": "robogo-inline-secret",
+    "body": [
+      "secrets:",
+      "  ${1:api_key}:",
+      "    inline: \"${2:your_secret_value}\"",
+      "    mask_output: true"
+    ],
+    "description": "Define an inline secret with masking"
+  },
+  "PostgreSQL Query": {
+    "prefix": "robogo-postgres-query",
+    "body": [
+      "- action: postgres",
+      "  args: [\"query\", \"${1:postgres://user:pass@localhost/db}\", \"${2:SELECT * FROM table}\"]",
+      "  result: ${3:query_result}"
+    ],
+    "description": "Execute a PostgreSQL query"
+  },
+  "PostgreSQL with Secret": {
+    "prefix": "robogo-postgres-secret",
+    "body": [
+      "- action: postgres",
+      "  args: [\"query\", \"postgres://user:${db_password}@localhost/db\", \"${1:SELECT * FROM table}\"]",
+      "  result: ${2:query_result}"
+    ],
+    "description": "Execute PostgreSQL query using secret variable"
+  },
+  "Control Flow - If": {
+    "prefix": "robogo-control-if",
+    "body": [
+      "- action: control",
+      "  args: [\"if\", \"${1:condition}\"]",
+      "  result: ${2:condition_result}",
+      "  steps:",
+      "    - action: log",
+      "      args: [\"Condition is true\"]"
+    ],
+    "description": "Control flow with if condition"
+  },
+  "Control Flow - For Loop": {
+    "prefix": "robogo-control-for",
+    "body": [
+      "- action: control",
+      "  args: [\"for\", \"${1:5}\"]",
+      "  result: ${2:loop_result}",
+      "  steps:",
+      "    - action: log",
+      "      args: [\"Iteration \\${_index}\"]"
+    ],
+    "description": "Control flow with for loop"
+  },
+  "HTTP Request": {
+    "prefix": "robogo-http",
+    "body": [
+      "- action: http",
+      "  args: [\"${1:GET}\", \"${2:https://api.example.com}\", \"${3:}\", \"${4:{}}\"]",
+      "  result: ${5:response}"
+    ],
+    "description": "Perform HTTP request"
+  },
+  "HTTP GET": {
+    "prefix": "robogo-http-get",
+    "body": [
+      "- action: http_get",
+      "  args: [\"${1:https://api.example.com}\"]",
+      "  result: ${2:response}"
+    ],
+    "description": "Perform HTTP GET request"
+  },
+  "HTTP POST": {
+    "prefix": "robogo-http-post",
+    "body": [
+      "- action: http_post",
+      "  args: [\"${1:https://api.example.com}\", \"${2:{\"key\": \"value\"}}\"]",
+      "  result: ${3:response}"
+    ],
+    "description": "Perform HTTP POST request"
+  },
+  "Assert Values": {
+    "prefix": "robogo-assert",
+    "body": [
+      "- action: assert",
+      "  args: [\"${1:expected}\", \"${2:actual}\", \"${3:message}\"]"
+    ],
+    "description": "Assert two values are equal"
+  },
+  "Get Current Time": {
+    "prefix": "robogo-get-time",
+    "body": [
+      "- action: get_time",
+      "  args: [\"${1:iso}\"]",
+      "  result: ${2:timestamp}"
+    ],
+    "description": "Get current timestamp with format"
+  },
+  "Sleep/Delay": {
+    "prefix": "robogo-sleep",
+    "body": [
+      "- action: sleep",
+      "  args: [${1:2}]"
+    ],
+    "description": "Sleep for specified duration in seconds"
+  },
+  "Log Message": {
+    "prefix": "robogo-log",
+    "body": [
+      "- action: log",
+      "  args: [\"${1:message}\"]"
+    ],
+    "description": "Log a message during test execution"
+  },
+  "Basic Test Structure": {
+    "prefix": "robogo-test",
+    "body": [
+      "testcase: \"${1:Test Name}\"",
+      "description: \"${2:Test Description}\"",
+      "",
+      "variables:",
+      "  vars:",
+      "    base_url: \"${3:https://api.example.com}\"",
+      "    timeout: \"30\"",
+      "",
+      "  secrets:",
+      "    api_key:",
+      "      file: \"${4:api-key.txt}\"",
+      "      mask_output: true",
+      "",
+      "steps:",
+      "  - name: \"Start test\"",
+      "    action: log",
+      "    args: [\"Starting test\"]",
+      "  ",
+      "  - name: \"Health check\"",
+      "    action: http_get",
+      "    args: [\"\\${base_url}/health\"]",
+      "    result: health_check",
+      "  ",
+      "  - name: \"Assert health check\"",
+      "    action: assert",
+      "    args: [200, \"\\${health_check.status_code}\", \"Health check should return 200\"]"
+    ],
+    "description": "Complete test structure with variables, secrets, and basic steps"
+  },
+  "PostgreSQL Connection": {
+    "prefix": "robogo-postgres-connect",
+    "body": [
+      "- name: \"Connect to database\"",
+      "  action: postgres",
+      "  args: [\"connect\", \"postgres://user:pass@localhost/db\"]",
+      "  result: db_connection"
+    ],
+    "description": "Connect to PostgreSQL database"
+  },
+  "PostgreSQL Query": {
+    "prefix": "robogo-postgres-query",
+    "body": [
+      "- name: \"Execute query\"",
+      "  action: postgres",
+      "  args: [\"query\", \"\\${db_connection}\", \"${1:SELECT * FROM table}\"]",
+      "  result: ${2:query_result}"
+    ],
+    "description": "Execute a PostgreSQL query"
+  },
+  "PostgreSQL Execute": {
+    "prefix": "robogo-postgres-execute",
+    "body": [
+      "- name: \"Execute statement\"",
+      "  action: postgres",
+      "  args: [\"execute\", \"\\${db_connection}\", \"${1:INSERT INTO table (col) VALUES ('value')}\"]",
+      "  result: ${2:execute_result}"
+    ],
+    "description": "Execute PostgreSQL INSERT/UPDATE/DELETE"
+  },
+  "Basic Retry": {
+    "prefix": "robogo-retry-basic",
+    "body": [
+      "  retry:",
+      "    attempts: ${1:3}",
+      "    delay: ${2:1s}",
+      "    conditions: [\"${3:5xx}\"]"
+    ],
+    "description": "Basic retry configuration with fixed delay"
+  },
+  "Exponential Backoff Retry": {
+    "prefix": "robogo-retry-exponential",
+    "body": [
+      "  retry:",
+      "    attempts: ${1:4}",
+      "    delay: ${2:1s}",
+      "    backoff: \"exponential\"",
+      "    max_delay: ${3:10s}",
+      "    conditions: [\"${4:5xx}\", \"${5:timeout}\"]"
+    ],
+    "description": "Retry with exponential backoff strategy"
+  },
+  "Linear Backoff with Jitter": {
+    "prefix": "robogo-retry-linear",
+    "body": [
+      "  retry:",
+      "    attempts: ${1:3}",
+      "    delay: ${2:2s}",
+      "    backoff: \"linear\"",
+      "    jitter: true",
+      "    conditions: [\"${3:5xx}\", \"${4:connection_error}\"]"
+    ],
+    "description": "Retry with linear backoff and jitter"
+  },
+  "Rate Limit Retry": {
+    "prefix": "robogo-retry-rate-limit",
+    "body": [
+      "  retry:",
+      "    attempts: ${1:2}",
+      "    delay: ${2:3s}",
+      "    backoff: \"fixed\"",
+      "    conditions: [\"${3:rate_limit}\", \"${4:4xx}\"]"
+    ],
+    "description": "Retry configuration for rate limiting scenarios"
+  },
+  "HTTP with Retry": {
+    "prefix": "robogo-http-retry",
+    "body": [
+      "- name: \"${1:HTTP request with retry}\"",
+      "  action: http",
+      "  args:",
+      "    method: \"${2:GET}\"",
+      "    url: \"${3:https://api.example.com}\"",
+      "  retry:",
+      "    attempts: ${4:3}",
+      "    delay: ${5:1s}",
+      "    backoff: \"${6:exponential}\"",
+      "    conditions: [\"${7:5xx}\", \"${8:timeout}\"]",
+      "  result: ${9:response}"
+    ],
+    "description": "HTTP request with comprehensive retry configuration"
+  },
+  "Variable Set": {
+    "prefix": "robogo-variable-set",
+    "body": [
+      "- name: \"Set variable\"",
+      "  action: variable",
+      "  args: [\"set_variable\", \"${1:var_name}\", \"${2:value}\"]",
+      "  result: ${3:set_result}"
+    ],
+    "description": "Set a variable dynamically"
+  },
+  "Variable Get": {
+    "prefix": "robogo-variable-get",
+    "body": [
+      "- name: \"Get variable\"",
+      "  action: variable",
+      "  args: [\"get_variable\", \"${1:var_name}\"]",
+      "  result: ${2:get_result}"
+    ],
+    "description": "Get a variable value"
+  },
+  "Control Flow If": {
+    "prefix": "robogo-if",
+    "body": [
+      "- name: \"Conditional check\"",
+      "  if:",
+      "    condition: \"${1:condition}\"",
+      "    then:",
+      "      - action: log",
+      "        args: [\"Condition is true\"]",
+      "    else:",
+      "      - action: log",
+      "        args: [\"Condition is false\"]"
+    ],
+    "description": "If/else control flow"
+  },
+  "Control Flow For": {
+    "prefix": "robogo-for",
+    "body": [
+      "- name: \"For loop\"",
+      "  for:",
+      "    condition: \"${1:5}\"",
+      "    max_iterations: ${2:10}",
+      "    steps:",
+      "      - action: log",
+      "        args: [\"Iteration \\${_index}\"]"
+    ],
+    "description": "For loop control flow"
+  },
+  "Control Flow While": {
+    "prefix": "robogo-while",
+    "body": [
+      "- name: \"While loop\"",
+      "  while:",
+      "    condition: \"${1:condition}\"",
+      "    max_iterations: ${2:100}",
+      "    steps:",
+      "      - action: log",
+      "        args: [\"Loop iteration\"]"
+    ],
+    "description": "While loop control flow"
+  },
+  "Verbose HTTP Request": {
+    "prefix": "robogo-http-verbose",
+    "body": [
+      "- name: \"${1:HTTP request}\"",
+      "  action: http",
+      "  args: [\"${2:GET}\", \"${3:https://api.example.com}\"]",
+      "  verbose: true",
+      "  result: ${4:response}"
+    ],
+    "description": "HTTP request with verbose output"
+  },
+  "Verbose Database Query": {
+    "prefix": "robogo-postgres-verbose",
+    "body": [
+      "- name: \"${1:Database query}\"",
+      "  action: postgres",
+      "  args: [\"query\", \"${2:connection}\", \"${3:SELECT * FROM table}\"]",
+      "  verbose: \"detailed\"",
+      "  result: ${4:query_result}"
+    ],
+    "description": "PostgreSQL query with detailed verbose output"
+  },
+  "Verbose Variable Operation": {
+    "prefix": "robogo-variable-verbose",
+    "body": [
+      "- name: \"${1:Variable operation}\"",
+      "  action: variable",
+      "  args: [\"set_variable\", \"${2:var_name}\", \"${3:value}\"]",
+      "  verbose: \"debug\"",
+      "  result: ${4:set_result}"
+    ],
+    "description": "Variable operation with debug verbose output"
+  },
+  "Global Verbose Test": {
+    "prefix": "robogo-test-verbose",
+    "body": [
+      "testcase: \"${1:Test Name}\"",
+      "description: \"${2:Test Description}\"",
+      "verbose: true",
+      "",
+      "variables:",
+      "  vars:",
+      "    base_url: \"${3:https://api.example.com}\"",
+      "",
+      "steps:",
+      "  - name: \"Start test\"",
+      "    action: log",
+      "    args: [\"Starting verbose test\"]",
+      "  ",
+      "  - name: \"HTTP request\"",
+      "    action: http_get",
+      "    args: [\"\\${base_url}/health\"]",
+      "    result: health_check",
+      "  ",
+      "  - name: \"Assert response\"",
+      "    action: assert",
+      "    args: [200, \"\\${health_check.status_code}\", \"Health check should return 200\"]"
+    ],
+    "description": "Complete test structure with global verbose output"
+  },
+  "Assert with Retry": {
+    "prefix": "robogo-assert-retry",
+    "body": [
+      "- name: \"Assert with retry\"",
+      "  action: assert",
+      "  args: [${1:expected}, ${2:actual}, \"${3:message}\"]",
+      "  retry:",
+      "    attempts: ${4:5}",
+      "    delay: ${5:1s}",
+      "    conditions: [\"${6:all}\"]"
+    ],
+    "description": "Assert with retry block for transient assertion failures"
+  },
+  "Postgres Query with Retry": {
+    "prefix": "robogo-postgres-retry",
+    "body": [
+      "- name: \"Retry DB query\"",
+      "  action: postgres",
+      "  args: [\"query\", \"${1:postgres://user:pass@localhost/db}\", \"${2:SELECT 1}\"]",
+      "  retry:",
+      "    attempts: ${3:3}",
+      "    delay: ${4:2s}",
+      "    backoff: \"${5:linear}\"",
+      "    conditions: [\"${6:connection_error}\", \"${7:5xx}\"]"
+    ],
+    "description": "Postgres query with retry block for transient DB errors"
+  }
+} 
