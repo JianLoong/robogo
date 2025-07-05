@@ -153,6 +153,37 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
             }
         }
 
+        // Autocomplete PostgreSQL operations in postgres action context
+        if (linePrefix.includes('args:') && this.isInPostgresContext(document, position)) {
+            const postgresOps = [
+                { name: 'connect', desc: 'Connect to PostgreSQL database' },
+                { name: 'query', desc: 'Execute a SELECT query' },
+                { name: 'execute', desc: 'Execute INSERT/UPDATE/DELETE statement' },
+                { name: 'close', desc: 'Close database connection' }
+            ];
+            for (const op of postgresOps) {
+                const item = new vscode.CompletionItem(op.name, vscode.CompletionItemKind.Function);
+                item.detail = `PostgreSQL operation: ${op.desc}`;
+                item.insertText = `"${op.name}"`;
+                items.push(item);
+            }
+        }
+
+        // Autocomplete variable operations in variable action context
+        if (linePrefix.includes('args:') && this.isInVariableContext(document, position)) {
+            const variableOps = [
+                { name: 'set_variable', desc: 'Set a variable to a value' },
+                { name: 'get_variable', desc: 'Get a variable value' },
+                { name: 'list_variables', desc: 'List all variables' }
+            ];
+            for (const op of variableOps) {
+                const item = new vscode.CompletionItem(op.name, vscode.CompletionItemKind.Function);
+                item.detail = `Variable operation: ${op.desc}`;
+                item.insertText = `"${op.name}"`;
+                items.push(item);
+            }
+        }
+
         // Check if we're at the start of a step (after "-")
         if (linePrefix.trim().endsWith('-') || linePrefix.trim() === '') {
             // Add action field completion
@@ -169,7 +200,17 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
             items.push(
                 this.createCompletionItem('testcase', 'Test case name', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('description', 'Test case description', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('variables', 'Test case variables and secrets', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('verbose', 'Global verbosity setting (true/false or basic/detailed/debug)', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('steps', 'List of test steps', vscode.CompletionItemKind.Property)
+            );
+        }
+
+        // Add variables section completions
+        if (linePrefix.includes('variables:') || linePrefix.includes('vars:') || linePrefix.includes('secrets:')) {
+            items.push(
+                this.createCompletionItem('vars', 'Regular variables', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('secrets', 'Secret variables', vscode.CompletionItemKind.Property)
             );
         }
 
@@ -179,7 +220,8 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                 this.createCompletionItem('name', 'Step name (strongly recommended for clarity)', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('action', 'Action to execute', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('args', 'Arguments for the action', vscode.CompletionItemKind.Property),
-                this.createCompletionItem('result', 'Variable name to store the result', vscode.CompletionItemKind.Property)
+                this.createCompletionItem('result', 'Variable name to store the result', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('verbose', 'Enable verbose output (true/false or basic/detailed/debug)', vscode.CompletionItemKind.Property)
             );
         }
 
@@ -191,6 +233,24 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                 const item = new vscode.CompletionItem(varName, vscode.CompletionItemKind.Variable);
                 item.detail = 'Variable';
                 item.insertText = varName;
+                items.push(item);
+            }
+        }
+
+        // Verbosity value completion
+        if (linePrefix.includes('verbose:')) {
+            const verbosityOptions = [
+                { value: 'true', desc: 'Enable basic verbose output' },
+                { value: 'false', desc: 'Disable verbose output' },
+                { value: '"basic"', desc: 'Basic verbose output (action + duration)' },
+                { value: '"detailed"', desc: 'Detailed verbose output (args + duration + output)' },
+                { value: '"debug"', desc: 'Debug verbose output (all details + verbosity level)' }
+            ];
+            
+            for (const option of verbosityOptions) {
+                const item = new vscode.CompletionItem(option.value, vscode.CompletionItemKind.Value);
+                item.detail = `Verbosity: ${option.desc}`;
+                item.insertText = option.value;
                 items.push(item);
             }
         }
@@ -269,20 +329,50 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                     Name: "sleep",
                     Description: "Sleep for a duration",
                     Example: "- action: sleep\n  args: [2]"
+                },
+                {
+                    Name: "postgres",
+                    Description: "PostgreSQL database operations (query, execute, connect, close)",
+                    Example: "- action: postgres\n  args: [\"query\", \"postgres://user:pass@localhost/db\", \"SELECT * FROM users\"]\n  result: query_result"
+                },
+                {
+                    Name: "variable",
+                    Description: "Variable management operations (set_variable, get_variable, list_variables)",
+                    Example: "- action: variable\n  args: [\"set_variable\", \"my_var\", \"my_value\"]\n  result: set_result"
+                },
+                {
+                    Name: "control",
+                    Description: "Control flow operations (if, for, while)",
+                    Example: "- action: control\n  args: [\"if\", \"condition\"]\n  result: condition_result"
                 }
             ];
         }
     }
 
-    // Extract variable names from the document (simple heuristic: find all result: ...)
+    // Extract variable names from the document (from result fields and variables section)
     private extractVariableNames(document: vscode.TextDocument): string[] {
         const text = document.getText();
-        const regex = /result:\s*([a-zA-Z_][a-zA-Z0-9_]*)/g;
         const variables = new Set<string>();
+        
+        // Find variables from result fields
+        const resultRegex = /result:\s*([a-zA-Z_][a-zA-Z0-9_]*)/g;
         let match;
-        while ((match = regex.exec(text)) !== null) {
+        while ((match = resultRegex.exec(text)) !== null) {
             variables.add(match[1]);
         }
+        
+        // Find variables from variables section
+        const varsRegex = /vars:\s*\n\s*([a-zA-Z_][a-zA-Z0-9_]*):/g;
+        while ((match = varsRegex.exec(text)) !== null) {
+            variables.add(match[1]);
+        }
+        
+        // Find variables from secrets section
+        const secretsRegex = /secrets:\s*\n\s*([a-zA-Z_][a-zA-Z0-9_]*):/g;
+        while ((match = secretsRegex.exec(text)) !== null) {
+            variables.add(match[1]);
+        }
+        
         return Array.from(variables);
     }
 
@@ -304,6 +394,30 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
         for (let i = Math.max(0, position.line - 3); i <= position.line; i++) {
             const line = document.lineAt(i).text;
             if (line.includes('action: http') || line.includes('action: http_get') || line.includes('action: http_post')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Check if we're in a PostgreSQL action context
+    private isInPostgresContext(document: vscode.TextDocument, position: vscode.Position): boolean {
+        // Check current line and previous few lines for postgres action
+        for (let i = Math.max(0, position.line - 3); i <= position.line; i++) {
+            const line = document.lineAt(i).text;
+            if (line.includes('action: postgres')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Check if we're in a variable action context
+    private isInVariableContext(document: vscode.TextDocument, position: vscode.Position): boolean {
+        // Check current line and previous few lines for variable action
+        for (let i = Math.max(0, position.line - 3); i <= position.line; i++) {
+            const line = document.lineAt(i).text;
+            if (line.includes('action: variable')) {
                 return true;
             }
         }

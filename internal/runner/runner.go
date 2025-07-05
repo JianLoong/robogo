@@ -132,13 +132,19 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 			continue
 		}
 
-		// Execute regular step
+		// Execute regular step with retry support
 		substitutedArgs := tr.substituteVariables(step.Args)
-		output, err := executor.Execute(step.Action, substitutedArgs)
+		output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, silent)
 		stepDuration := time.Since(stepStart)
+
+		// Get verbosity level for this step
+		verbosityLevel := parser.GetVerbosityLevel(&step, testCase)
 
 		// Mask secrets in output for display
 		maskedOutput := tr.secretManager.MaskSecretsInString(output)
+
+		// Format verbose output if enabled
+		verboseOutput := parser.FormatVerboseOutput(verbosityLevel, step.Action, substitutedArgs, maskedOutput, stepDuration.String())
 
 		stepResult := parser.StepResult{
 			Step:      step,
@@ -161,13 +167,18 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 		} else {
 			result.PassedSteps++
 			if !silent {
-				// For log actions, mask the message before displaying
-				if step.Action == "log" && len(step.Args) > 0 {
-					message := fmt.Sprintf("%v", step.Args[0])
-					maskedMessage := tr.secretManager.MaskSecretsInString(message)
-					fmt.Printf("📝 %s\n", maskedMessage)
+				// Display verbose output if enabled
+				if verboseOutput != "" {
+					fmt.Print(verboseOutput)
 				} else {
-					fmt.Printf("✅ Step %d completed in %v\n", i+1, stepDuration)
+					// For log actions, mask the message before displaying
+					if step.Action == "log" && len(step.Args) > 0 {
+						message := fmt.Sprintf("%v", step.Args[0])
+						maskedMessage := tr.secretManager.MaskSecretsInString(message)
+						fmt.Printf("📝 %s\n", maskedMessage)
+					} else {
+						fmt.Printf("✅ Step %d completed in %v\n", i+1, stepDuration)
+					}
 				}
 			}
 		}
@@ -372,9 +383,9 @@ func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.Action
 			continue
 		}
 
-		// Execute regular step
+		// Execute regular step with retry support
 		substitutedArgs := tr.substituteVariables(step.Args)
-		output, err := executor.Execute(step.Action, substitutedArgs)
+		output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, true) // Silent for nested steps
 		if err != nil {
 			return fmt.Errorf("step '%s' failed: %w", step.Name, err)
 		}
@@ -451,4 +462,87 @@ func (tr *TestRunner) substituteMap(m map[string]interface{}) map[string]interfa
 		}
 	}
 	return result
+}
+
+// executeStepWithRetry executes a step with retry logic if configured
+func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (string, error) {
+	// If no retry configuration, execute normally
+	if step.Retry == nil {
+		return executor.Execute(step.Action, args)
+	}
+
+	// Validate retry configuration
+	if err := parser.ValidateRetryConfig(step.Retry); err != nil {
+		return "", fmt.Errorf("invalid retry configuration: %w", err)
+	}
+
+	// Merge with defaults
+	retryConfig := parser.MergeRetryConfig(step.Retry)
+
+	// Initialize retry result
+	retryResult := parser.RetryResult{
+		RetryLogs: make([]string, 0),
+	}
+
+	startTime := time.Now()
+	var lastError error
+	var lastOutput string
+
+	// Execute with retries
+	for attempt := 1; attempt <= retryConfig.Attempts; attempt++ {
+		// Execute the action
+		output, err := executor.Execute(step.Action, args)
+		lastOutput = output
+
+		// If successful, return immediately
+		if err == nil {
+			retryResult.Success = true
+			retryResult.Attempts = attempt
+			retryResult.TotalTime = time.Since(startTime)
+
+			if attempt > 1 && !silent {
+				fmt.Printf("✅ %s\n", parser.FormatRetrySummary(retryResult, false))
+			}
+			return output, nil
+		}
+
+		lastError = err
+
+		// Check if we should retry based on conditions
+		if !parser.ShouldRetry(err, output, retryConfig.Conditions) {
+			break
+		}
+
+		// If this is the last attempt, don't retry
+		if attempt == retryConfig.Attempts {
+			break
+		}
+
+		// Calculate delay for next attempt
+		delay := parser.CalculateDelay(retryConfig.Delay, attempt, retryConfig.Backoff, retryConfig.MaxDelay, retryConfig.Jitter)
+
+		// Log retry attempt
+		retryLog := parser.FormatRetryLog(attempt, retryConfig.Attempts, delay, err, false)
+		retryResult.RetryLogs = append(retryResult.RetryLogs, retryLog)
+
+		if !silent {
+			fmt.Printf("%s\n", retryLog)
+		}
+
+		// Wait before next attempt
+		time.Sleep(delay)
+	}
+
+	// All attempts failed
+	retryResult.Success = false
+	retryResult.Attempts = retryConfig.Attempts
+	retryResult.TotalTime = time.Since(startTime)
+	retryResult.LastError = lastError
+	retryResult.LastOutput = lastOutput
+
+	if !silent {
+		fmt.Printf("❌ %s\n", parser.FormatRetrySummary(retryResult, false))
+	}
+
+	return lastOutput, lastError
 }

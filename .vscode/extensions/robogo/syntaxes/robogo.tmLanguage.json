@@ -8,14 +8,14 @@
     },
     {
       "name": "keyword.control.robogo",
-      "match": "\\b(testcase|description|steps|action|args|result)\\b",
+      "match": "\\b(testcase|description|steps|action|args|result|verbose|variables|vars|secrets|if|then|else|for|while|max_iterations|retry|attempts|delay|backoff|conditions|max_delay|jitter)\\b",
       "captures": {
         "1": { "name": "keyword.control.robogo" }
       }
     },
     {
       "name": "support.function.robogo",
-      "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post)\\b",
+      "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post|postgres|variable|control)\\b",
       "captures": {
         "1": { "name": "support.function.robogo" }
       }
@@ -79,6 +79,13 @@
     {
       "name": "constant.language.boolean.robogo",
       "match": "\\b(true|false)\\b"
+    },
+    {
+      "name": "constant.language.retry.robogo",
+      "match": "\\b(fixed|linear|exponential|5xx|4xx|timeout|connection_error|rate_limit|all)\\b",
+      "captures": {
+        "1": { "name": "constant.language.retry.robogo" }
+      }
     },
     {
       "name": "entity.name.tag.yaml",

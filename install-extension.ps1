@@ -24,6 +24,8 @@ if (Test-Path $packageJsonPath) {
     $version = "0.3.0"  # fallback version
 }
 
+Write-Host "Installing Robogo extension version $version" -ForegroundColor Cyan
+
 $destDir = "$vscodeExtensionsDir\robogo.robogo-$version"
 
 # Check if source directory exists

@@ -9,6 +9,7 @@ type TestCase struct {
 	Steps       []Step        `yaml:"steps"`
 	Timeout     time.Duration `yaml:"timeout,omitempty"`
 	Variables   Variables     `yaml:"variables,omitempty"`
+	Verbose     interface{}   `yaml:"verbose,omitempty"` // Global verbosity setting
 }
 
 // Variables represents test case variables
@@ -26,13 +27,25 @@ type Secret struct {
 	MaskOutput bool   `yaml:"mask_output,omitempty"`
 }
 
+// RetryConfig represents retry configuration for a step
+type RetryConfig struct {
+	Attempts   int           `yaml:"attempts,omitempty"`   // Number of retry attempts
+	Delay      time.Duration `yaml:"delay,omitempty"`      // Delay between retries
+	Backoff    string        `yaml:"backoff,omitempty"`    // backoff strategy: fixed, linear, exponential
+	Conditions []string      `yaml:"conditions,omitempty"` // When to retry: 5xx, timeout, connection_error, etc.
+	MaxDelay   time.Duration `yaml:"max_delay,omitempty"`  // Maximum delay cap
+	Jitter     bool          `yaml:"jitter,omitempty"`     // Add randomness to delay
+}
+
 // Step represents a single test step
 // 'name' is optional but strongly recommended for clarity and reporting
 type Step struct {
-	Name   string        `yaml:"name,omitempty"`
-	Action string        `yaml:"action"`
-	Args   []interface{} `yaml:"args"`
-	Result string        `yaml:"result,omitempty"`
+	Name    string        `yaml:"name,omitempty"`
+	Action  string        `yaml:"action"`
+	Args    []interface{} `yaml:"args"`
+	Result  string        `yaml:"result,omitempty"`
+	Verbose interface{}   `yaml:"verbose,omitempty"` // true/false or "basic"/"detailed"/"debug"
+	Retry   *RetryConfig  `yaml:"retry,omitempty"`   // Retry configuration
 
 	// Control flow fields
 	If    *ConditionalBlock `yaml:"if,omitempty"`    // If statement

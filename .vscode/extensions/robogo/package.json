@@ -1,7 +1,7 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, and test execution",
+  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, verbosity support, and test execution",
   "version": "0.3.0",
   "publisher": "robogo",
   "engines": {
@@ -21,7 +21,11 @@
     "postgresql",
     "database",
     "secrets",
-    "variables"
+    "variables",
+    "verbosity",
+    "debugging",
+    "http",
+    "api"
   ],
   "activationEvents": [
     "onLanguage:yaml",
@@ -114,7 +118,9 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "build": "npm run compile && npm run package"
   },
   "devDependencies": {
     "@types/vscode": "^1.60.0",
