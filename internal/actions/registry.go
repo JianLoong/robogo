@@ -111,6 +111,13 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "Variable management operations (set_variable, get_variable, list_variables)",
 		Example:     `- action: variable\n  args: ["set_variable", "my_var", "my_value"]\n  result: set_result`,
 	})
+
+	// Test Data Management actions
+	ar.Register(ActionInfo{
+		Name:        "tdm",
+		Description: "Test Data Management operations (generate, validate, load_dataset, set_environment)",
+		Example:     `- action: tdm\n  args: ["generate", "user_{index}", 5]\n  result: generated_data`,
+	})
 }
 
 // Register adds an action to the registry

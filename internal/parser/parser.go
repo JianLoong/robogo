@@ -3,33 +3,34 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// ParseTestFile parses a YAML test case file
+// ParseTestFile parses a test case from a file
 func ParseTestFile(filename string) (*TestCase, error) {
 	// Check file extension
 	if !isValidTestFile(filename) {
 		return nil, fmt.Errorf("unsupported file extension. Use .yaml, .yml, or .robogo")
 	}
 
-	// Read file
-	data, err := ioutil.ReadFile(filename)
+	// Read file content
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
+		return nil, fmt.Errorf("failed to read test file: %w", err)
 	}
 
 	// Parse YAML
 	var testCase TestCase
-	if err := yaml.Unmarshal(data, &testCase); err != nil {
+	if err := yaml.Unmarshal(content, &testCase); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
 	// Validate test case
 	if err := validateTestCase(&testCase); err != nil {
-		return nil, fmt.Errorf("invalid test case: %w", err)
+		return nil, fmt.Errorf("test case validation failed: %w", err)
 	}
 
 	return &testCase, nil
@@ -37,23 +38,22 @@ func ParseTestFile(filename string) (*TestCase, error) {
 
 // isValidTestFile checks if the file has a valid extension
 func isValidTestFile(filename string) bool {
-	ext := strings.ToLower(filename)
-	return strings.HasSuffix(ext, ".yaml") ||
-		strings.HasSuffix(ext, ".yml") ||
-		strings.HasSuffix(ext, ".robogo")
+	ext := strings.ToLower(filepath.Ext(filename))
+	return ext == ".yaml" || ext == ".yml" || ext == ".robogo"
 }
 
-// validateTestCase validates a test case
-func validateTestCase(tc *TestCase) error {
-	if tc.Name == "" {
-		return fmt.Errorf("test case name is required")
+// validateTestCase validates the test case structure
+func validateTestCase(testCase *TestCase) error {
+	if testCase.Name == "" {
+		return fmt.Errorf("test case must have a name")
 	}
 
-	if len(tc.Steps) == 0 {
+	if len(testCase.Steps) == 0 {
 		return fmt.Errorf("test case must have at least one step")
 	}
 
-	for i, step := range tc.Steps {
+	// Validate each step
+	for i, step := range testCase.Steps {
 		// Check if step has any control flow or regular action
 		hasControlFlow := step.If != nil || step.For != nil || step.While != nil
 		hasAction := step.Action != ""

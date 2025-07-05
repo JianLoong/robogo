@@ -90,20 +90,7 @@
         ],
         "description": "Add an HTTP POST action"
     },
-    "For Loop": {
-        "prefix": "for",
-        "body": [
-            "- name: \"$1:For loop\"",
-            "  for:",
-            "    condition: \"$2:1..5\"",
-            "    steps:",
-            "      - name: \"$3:Loop step\"",
-            "        action: $4:log",
-            "        args: [\"$5:Iteration \\${iteration}\"]"
-        ],
-        "description": "Add a for loop"
-    },
-    "If Statement": {
+    "If Statement - Basic": {
         "prefix": "if",
         "body": [
             "- name: \"$1:If statement\"",
@@ -112,30 +99,187 @@
             "    then:",
             "      - name: \"$3:Then step\"",
             "        action: $4:log",
-            "        args: [\"$5:Condition is true\"]"
+            "        args: [\"$5:Condition is true\"]",
+            "    else:",
+            "      - name: \"$6:Else step\"",
+            "        action: $7:log",
+            "        args: [\"$8:Condition is false\"]"
         ],
-        "description": "Add an if statement"
+        "description": "Add a complete if statement with then and else branches"
+    },
+    "If Statement - Simple": {
+        "prefix": "if_simple",
+        "body": [
+            "- name: \"$1:If statement\"",
+            "  if:",
+            "    condition: \"$2:true\"",
+            "    then:",
+            "      - action: $3:log",
+            "        args: [\"$4:Condition is true\"]"
+        ],
+        "description": "Add a simple if statement with only then branch"
+    },
+    "If Statement - Comparison": {
+        "prefix": "if_compare",
+        "body": [
+            "- name: \"$1:If with comparison\"",
+            "  if:",
+            "    condition: \"\\${$2:variable} $3:> $4:5\"",
+            "    then:",
+            "      - action: $5:log",
+            "        args: [\"$6:Value is greater than 5\"]",
+            "    else:",
+            "      - action: $7:log",
+            "        args: [\"$8:Value is 5 or less\"]"
+        ],
+        "description": "Add an if statement with numeric comparison"
+    },
+    "If Statement - String": {
+        "prefix": "if_string",
+        "body": [
+            "- name: \"$1:If with string\"",
+            "  if:",
+            "    condition: \"\\${$2:variable} contains '$3:search'\"",
+            "    then:",
+            "      - action: $4:log",
+            "        args: [\"$5:String contains search term\"]",
+            "    else:",
+            "      - action: $6:log",
+            "        args: [\"$7:String does not contain search term\"]"
+        ],
+        "description": "Add an if statement with string operations"
+    },
+    "For Loop - Range": {
+        "prefix": "for_range",
+        "body": [
+            "- name: \"$1:For loop with range\"",
+            "  for:",
+            "    condition: \"$2:1..$3:5\"",
+            "    steps:",
+            "      - name: \"$4:Loop step\"",
+            "        action: $5:log",
+            "        args: [\"$6:Iteration \\${iteration}\"]"
+        ],
+        "description": "Add a for loop with numeric range (1..5)"
+    },
+    "For Loop - Array": {
+        "prefix": "for_array",
+        "body": [
+            "- name: \"$1:For loop with array\"",
+            "  for:",
+            "    condition: \"[$2:item1,$3:item2,$4:item3]\"",
+            "    steps:",
+            "      - name: \"$5:Loop step\"",
+            "        action: $6:log",
+            "        args: [\"$7:Processing \\${condition} at index \\${index}\"]"
+        ],
+        "description": "Add a for loop with array of items"
+    },
+    "For Loop - Count": {
+        "prefix": "for_count",
+        "body": [
+            "- name: \"$1:For loop with count\"",
+            "  for:",
+            "    condition: \"$2:3\"",
+            "    max_iterations: $3:10",
+            "    steps:",
+            "      - name: \"$4:Loop step\"",
+            "        action: $5:log",
+            "        args: [\"$6:Count iteration \\${iteration}\"]"
+        ],
+        "description": "Add a for loop with count and max iterations"
+    },
+    "While Loop": {
+        "prefix": "while",
+        "body": [
+            "- name: \"$1:While loop\"",
+            "  while:",
+            "    condition: \"\\${$2:counter} $3:< $4:5\"",
+            "    max_iterations: $5:10",
+            "    steps:",
+            "      - name: \"$6:Loop step\"",
+            "        action: $7:log",
+            "        args: [\"$8:While iteration \\${iteration}\"]"
+        ],
+        "description": "Add a while loop with condition and max iterations"
+    },
+    "Nested If in For": {
+        "prefix": "nested_if_for",
+        "body": [
+            "- name: \"$1:Nested if in for loop\"",
+            "  for:",
+            "    condition: \"$2:1..$3:3\"",
+            "    steps:",
+            "      - action: $4:log",
+            "        args: [\"$5:Outer loop iteration \\${iteration}\"]",
+            "      - if:",
+            "          condition: \"\\${iteration} == $6:2\"",
+            "          then:",
+            "            - action: $7:log",
+            "              args: [\"$8:Nested if: iteration is 2\"]",
+            "          else:",
+            "            - action: $9:log",
+            "              args: [\"$10:Nested if: iteration is not 2\"]"
+        ],
+        "description": "Add a for loop with nested if statement"
+    },
+    "Nested For in If": {
+        "prefix": "nested_for_if",
+        "body": [
+            "- name: \"$1:Nested for in if\"",
+            "  if:",
+            "    condition: \"$2:true\"",
+            "    then:",
+            "      - for:",
+            "          condition: \"$3:1..$4:2\"",
+            "          steps:",
+            "            - action: $5:log",
+            "              args: [\"$6:Nested for iteration \\${iteration}\"]",
+            "    else:",
+            "      - action: $7:log",
+            "        args: [\"$8:Condition is false\"]"
+        ],
+        "description": "Add an if statement with nested for loop"
+    },
+    "Control Flow with Continue on Failure": {
+        "prefix": "control_continue",
+        "body": [
+            "- name: \"$1:Control flow with continue\"",
+            "  for:",
+            "    condition: \"$2:1..$3:3\"",
+            "    steps:",
+            "      - action: $4:log",
+            "        args: [\"$5:Processing iteration \\${iteration}\"]",
+            "      - action: $6:assert",
+            "        args: [\"\\${iteration}\", \"!=\", \"$7:2\", \"Should not be 2\"]",
+            "        continue_on_failure: $8:true"
+        ],
+        "description": "Add control flow with continue_on_failure"
     },
     "Variables Section": {
         "prefix": "variables",
         "body": [
             "variables:",
-            "  $1:variable_name: \"$2:value\"",
+            "  vars:",
+            "    $1:variable_name: \"$2:value\"",
             "  secrets:",
             "    $3:secret_name:",
             "      file: \"$4:path/to/secret.txt\"",
-            "      value: \"$5:secret_value\""
+            "      mask_output: $5:true"
         ],
-        "description": "Add variables section"
+        "description": "Add variables section with vars and secrets"
     },
     "Retry Configuration": {
         "prefix": "retry",
         "body": [
             "retry:",
             "  attempts: $1:3",
-            "  backoff: \"$2:exponential\""
+            "  delay: $2:1s",
+            "  backoff: \"$3:exponential\"",
+            "  max_delay: $4:10s",
+            "  jitter: $5:true"
         ],
-        "description": "Add retry configuration"
+        "description": "Add retry configuration with all options"
     },
     "Continue on Failure": {
         "prefix": "continue_on_failure",
@@ -143,5 +287,12 @@
             "continue_on_failure: $1:true"
         ],
         "description": "Add continue_on_failure flag"
+    },
+    "Verbose Output": {
+        "prefix": "verbose",
+        "body": [
+            "verbose: $1:true"
+        ],
+        "description": "Add verbose output flag"
     }
 }

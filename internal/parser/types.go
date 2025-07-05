@@ -1,6 +1,8 @@
 package parser
 
-import "time"
+import (
+	"time"
+)
 
 // TestCase represents a single test case
 type TestCase struct {
@@ -10,12 +12,69 @@ type TestCase struct {
 	Timeout     time.Duration `yaml:"timeout,omitempty"`
 	Variables   Variables     `yaml:"variables,omitempty"`
 	Verbose     interface{}   `yaml:"verbose,omitempty"` // Global verbosity setting
+
+	// TDM Fields
+	DataManagement *DataManagement `yaml:"data_management,omitempty"`
+	Environments   []Environment   `yaml:"environments,omitempty"`
+}
+
+// DataManagement represents test data management configuration
+type DataManagement struct {
+	DataSets    []DataSet    `yaml:"data_sets,omitempty"`
+	Setup       []Step       `yaml:"setup,omitempty"`
+	Teardown    []Step       `yaml:"teardown,omitempty"`
+	Validation  []Validation `yaml:"validation,omitempty"`
+	Isolation   bool         `yaml:"isolation,omitempty"`   // Enable data isolation
+	Cleanup     bool         `yaml:"cleanup,omitempty"`     // Enable automatic cleanup
+	Environment string       `yaml:"environment,omitempty"` // Target environment
+}
+
+// DataSet represents a collection of test data
+type DataSet struct {
+	Name        string                 `yaml:"name"`
+	Description string                 `yaml:"description,omitempty"`
+	Data        map[string]interface{} `yaml:"data"`
+	Schema      map[string]string      `yaml:"schema,omitempty"`      // Data type validation
+	Required    []string               `yaml:"required,omitempty"`    // Required fields
+	Unique      []string               `yaml:"unique,omitempty"`      // Unique constraint fields
+	Relations   []Relation             `yaml:"relations,omitempty"`   // Data relationships
+	Version     string                 `yaml:"version,omitempty"`     // Data version
+	Environment string                 `yaml:"environment,omitempty"` // Environment-specific data
+}
+
+// Relation represents data relationships between fields or datasets
+type Relation struct {
+	Type      string `yaml:"type"`      // foreign_key, dependency, etc.
+	Field     string `yaml:"field"`     // Field name
+	Reference string `yaml:"reference"` // Referenced field/dataset
+	Required  bool   `yaml:"required"`  // Is relationship required
+}
+
+// Validation represents data validation rules
+type Validation struct {
+	Name              string      `yaml:"name"`
+	Type              string      `yaml:"type"`     // format, range, length, custom
+	Field             string      `yaml:"field"`    // Field to validate
+	Rule              interface{} `yaml:"rule"`     // Validation rule
+	Message           string      `yaml:"message"`  // Error message
+	Severity          string      `yaml:"severity"` // error, warning, info
+	ContinueOnFailure bool        `yaml:"continue_on_failure,omitempty"`
+}
+
+// Environment represents environment-specific configuration
+type Environment struct {
+	Name        string                 `yaml:"name"`
+	Description string                 `yaml:"description,omitempty"`
+	Variables   map[string]interface{} `yaml:"variables,omitempty"`
+	DataSets    []string               `yaml:"data_sets,omitempty"` // Data sets to load
+	Overrides   map[string]interface{} `yaml:"overrides,omitempty"` // Variable overrides
+	Secrets     map[string]Secret      `yaml:"secrets,omitempty"`
 }
 
 // Variables represents test case variables
 type Variables struct {
-	Regular map[string]interface{} `yaml:"vars,omitempty"`    // Regular variables
-	Secrets map[string]Secret      `yaml:"secrets,omitempty"` // Secret variables
+	Regular map[string]interface{} `yaml:"vars,omitempty"`
+	Secrets map[string]Secret      `yaml:"secrets,omitempty"`
 }
 
 // Secret represents a secret variable
@@ -79,6 +138,35 @@ type TestResult struct {
 	FailedSteps  int
 	StepResults  []StepResult
 	ErrorMessage string
+
+	// TDM Results
+	DataResults *DataResults `yaml:"data_results,omitempty"`
+}
+
+// DataResults represents TDM execution results
+type DataResults struct {
+	SetupStatus    string                 `yaml:"setup_status"`
+	TeardownStatus string                 `yaml:"teardown_status"`
+	Validations    []ValidationResult     `yaml:"validations"`
+	DataSets       map[string]DataSetInfo `yaml:"data_sets"`
+	CleanupStatus  string                 `yaml:"cleanup_status"`
+}
+
+// ValidationResult represents the result of a data validation
+type ValidationResult struct {
+	Name     string `yaml:"name"`
+	Status   string `yaml:"status"`
+	Message  string `yaml:"message"`
+	Severity string `yaml:"severity"`
+}
+
+// DataSetInfo represents information about a loaded data set
+type DataSetInfo struct {
+	Name     string `yaml:"name"`
+	Version  string `yaml:"version"`
+	Records  int    `yaml:"records"`
+	Status   string `yaml:"status"`
+	LoadTime string `yaml:"load_time"`
 }
 
 // StepResult represents the result of a single step

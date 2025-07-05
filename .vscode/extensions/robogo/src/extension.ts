@@ -332,12 +332,20 @@ class RobogoDiagnosticProvider {
             const format = args[0];
             const validFormats = ['iso', 'iso_date', 'iso_time', 'datetime', 'date', 'time', 'timestamp', 'unix', 'unix_ms'];
 
-            if (typeof format !== 'string' || !validFormats.includes(format)) {
+            if (typeof format !== 'string') {
                 const range = new vscode.Range(argsLine, 0, argsLine, 0);
                 diagnostics.push(this.createDiagnostic(
                     range,
-                    `Invalid time format: ${format}. Valid formats: ${validFormats.join(', ')}`,
+                    'Time format must be a string',
                     vscode.DiagnosticSeverity.Error
+                ));
+            } else if (!validFormats.includes(format)) {
+                // Custom formats are supported, so this is just an info message
+                const range = new vscode.Range(argsLine, 0, argsLine, 0);
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    `Custom time format: ${format}. Predefined formats: ${validFormats.join(', ')}`,
+                    vscode.DiagnosticSeverity.Information
                 ));
             }
         }
@@ -409,31 +417,85 @@ class RobogoDiagnosticProvider {
     }
 
     private validateControlFlow(step: any, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
+        // Validate if statement
         if (step.if) {
-            if (!step.if.condition || !step.if.then) {
+            if (!step.if.condition) {
                 diagnostics.push(this.createDiagnostic(
                     range,
-                    'If statement must have condition and then blocks',
+                    'If statement must have a condition',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            if (!step.if.then || !Array.isArray(step.if.then)) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'If statement must have a then block with steps array',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            // Validate else block if present
+            if (step.if.else && !Array.isArray(step.if.else)) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'If statement else block must be a steps array',
                     vscode.DiagnosticSeverity.Error
                 ));
             }
         }
 
+        // Validate for loop
         if (step.for) {
-            if (!step.for.condition || !step.for.steps) {
+            if (!step.for.condition) {
                 diagnostics.push(this.createDiagnostic(
                     range,
-                    'For loop must have condition and steps blocks',
+                    'For loop must have a condition (range, array, or count)',
                     vscode.DiagnosticSeverity.Error
+                ));
+            }
+            if (!step.for.steps || !Array.isArray(step.for.steps)) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'For loop must have a steps array',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            // Validate max_iterations if present
+            if (step.for.max_iterations && typeof step.for.max_iterations !== 'number') {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'For loop max_iterations must be a number',
+                    vscode.DiagnosticSeverity.Warning
                 ));
             }
         }
 
+        // Validate while loop
         if (step.while) {
-            if (!step.while.condition || !step.while.steps) {
+            if (!step.while.condition) {
                 diagnostics.push(this.createDiagnostic(
                     range,
-                    'While loop must have condition and steps blocks',
+                    'While loop must have a condition',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            if (!step.while.steps || !Array.isArray(step.while.steps)) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'While loop must have a steps array',
+                    vscode.DiagnosticSeverity.Error
+                ));
+            }
+            // Validate max_iterations (required for while loops)
+            if (!step.while.max_iterations) {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'While loop should have max_iterations to prevent infinite loops',
+                    vscode.DiagnosticSeverity.Warning
+                ));
+            } else if (typeof step.while.max_iterations !== 'number') {
+                diagnostics.push(this.createDiagnostic(
+                    range,
+                    'While loop max_iterations must be a number',
                     vscode.DiagnosticSeverity.Error
                 ));
             }
@@ -598,7 +660,13 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                 this.createCompletionItem('name', 'Step name (strongly recommended for clarity)', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('action', 'Action to execute', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('args', 'Arguments for the action', vscode.CompletionItemKind.Property),
-                this.createCompletionItem('result', 'Variable name to store the result', vscode.CompletionItemKind.Property)
+                this.createCompletionItem('result', 'Variable name to store the result', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('if', 'If statement for conditional execution', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('for', 'For loop for repeated execution', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('while', 'While loop for conditional repetition', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('continue_on_failure', 'Continue execution even if this step fails', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('verbose', 'Enable verbose output for this step', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('retry', 'Retry configuration for this step', vscode.CompletionItemKind.Property)
             );
         }
 
@@ -607,9 +675,21 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
             items.push(
                 this.createCompletionItem('testcase', 'Test case name', vscode.CompletionItemKind.Property),
                 this.createCompletionItem('description', 'Test case description', vscode.CompletionItemKind.Property),
-                this.createCompletionItem('variables', 'Test case variables and secrets', vscode.CompletionItemKind.Property),
-                this.createCompletionItem('verbose', 'Global verbosity setting (true/false or basic/detailed/debug)', vscode.CompletionItemKind.Property),
-                this.createCompletionItem('steps', 'List of test steps', vscode.CompletionItemKind.Property)
+                this.createCompletionItem('variables', 'Variables section with vars and secrets', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('steps', 'Test steps array', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('timeout', 'Test timeout duration', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('verbose', 'Global verbosity setting', vscode.CompletionItemKind.Property)
+            );
+        }
+
+        // Add control flow structure completions
+        if (linePrefix.includes('if:') || linePrefix.includes('for:') || linePrefix.includes('while:')) {
+            items.push(
+                this.createCompletionItem('condition', 'Condition for control flow', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('then', 'Steps to execute when condition is true', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('else', 'Steps to execute when condition is false', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('steps', 'Steps to execute in loop', vscode.CompletionItemKind.Property),
+                this.createCompletionItem('max_iterations', 'Maximum iterations to prevent infinite loops', vscode.CompletionItemKind.Property)
             );
         }
 

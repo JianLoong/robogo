@@ -23,6 +23,7 @@ var actionFuncs = map[string]ActionFunc{
 	"control":    ControlFlowAction,
 	"postgres":   PostgresAction,
 	"variable":   VariableAction,
+	"tdm":        TDMAction,
 }
 
 // NewActionExecutor creates a new action executor

@@ -16,6 +16,7 @@ import (
 type TestRunner struct {
 	variables     map[string]interface{} // Store variables for the test case
 	secretManager *actions.SecretManager // Secret manager for handling secrets
+	tdmManager    *actions.TDMManager    // TDM manager for test data management
 }
 
 // NewTestRunner creates a new test runner
@@ -23,6 +24,7 @@ func NewTestRunner() *TestRunner {
 	return &TestRunner{
 		variables:     make(map[string]interface{}),
 		secretManager: actions.NewSecretManager(),
+		tdmManager:    actions.NewTDMManager(),
 	}
 }
 
@@ -42,6 +44,7 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
 	tr := NewTestRunner()
 	tr.initializeVariables(testCase)
+	tr.initializeTDM(testCase)
 
 	// Create action executor
 	executor := actions.NewActionExecutor()
@@ -50,6 +53,10 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 		TestCase:    *testCase,
 		Status:      "PASSED",
 		StepResults: make([]parser.StepResult, 0),
+		DataResults: &parser.DataResults{
+			Validations: make([]parser.ValidationResult, 0),
+			DataSets:    make(map[string]parser.DataSetInfo),
+		},
 	}
 	startTime := time.Now()
 
@@ -61,8 +68,26 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 		fmt.Printf("📝 Steps: %d\n\n", len(testCase.Steps))
 	}
 
+	// Execute TDM setup if configured
+	if testCase.DataManagement != nil && len(testCase.DataManagement.Setup) > 0 {
+		if !silent {
+			fmt.Printf("🔧 Executing TDM setup...\n")
+		}
+		tr.executeSteps(testCase.DataManagement.Setup, executor, nil, silent, &result.StepResults, "TDM Setup: ", testCase)
+		result.DataResults.SetupStatus = "COMPLETED"
+	}
+
 	// Pass the StepResults slice pointer for recursive collection
 	_ = tr.executeSteps(testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase)
+
+	// Execute TDM teardown if configured
+	if testCase.DataManagement != nil && len(testCase.DataManagement.Teardown) > 0 {
+		if !silent {
+			fmt.Printf("🧹 Executing TDM teardown...\n")
+		}
+		tr.executeSteps(testCase.DataManagement.Teardown, executor, nil, silent, &result.StepResults, "TDM Teardown: ", testCase)
+		result.DataResults.TeardownStatus = "COMPLETED"
+	}
 
 	result.Duration = time.Since(startTime)
 	result.TotalSteps = len(result.StepResults)
@@ -175,7 +200,7 @@ func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.Action
 				} else {
 					// For log actions, mask the message before displaying
 					if step.Action == "log" && len(step.Args) > 0 {
-						message := fmt.Sprintf("%v", step.Args[0])
+						message := fmt.Sprintf("%v", substitutedArgs[0])
 						maskedMessage := tr.secretManager.MaskSecretsInString(message)
 						fmt.Printf("📝 %s\n", maskedMessage)
 					} else {
@@ -322,6 +347,51 @@ func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
 	}
 }
 
+// initializeTDM initializes test data management
+func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
+	if testCase.DataManagement == nil {
+		return
+	}
+
+	// Load data sets
+	if len(testCase.DataManagement.DataSets) > 0 {
+		if err := tr.tdmManager.LoadDataSets(testCase.DataManagement.DataSets); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to load data sets: %v\n", err)
+		}
+	}
+
+	// Load environments
+	if len(testCase.Environments) > 0 {
+		if err := tr.tdmManager.LoadEnvironments(testCase.Environments); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to load environments: %v\n", err)
+		}
+	}
+
+	// Set environment if specified
+	if testCase.DataManagement.Environment != "" {
+		if err := tr.tdmManager.SetEnvironment(testCase.DataManagement.Environment); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to set environment '%s': %v\n", testCase.DataManagement.Environment, err)
+		}
+	}
+
+	// Run data validations
+	if len(testCase.DataManagement.Validation) > 0 {
+		validationResults := tr.tdmManager.ValidateData(testCase.DataManagement.Validation)
+		for _, result := range validationResults {
+			if result.Status == "FAILED" {
+				fmt.Printf("❌ Data validation failed: %s - %s\n", result.Name, result.Message)
+			} else if result.Status == "WARNING" {
+				fmt.Printf("⚠️  Data validation warning: %s - %s\n", result.Name, result.Message)
+			}
+		}
+	}
+
+	// Merge TDM variables into runner variables
+	for name, value := range tr.tdmManager.GetAllVariables() {
+		tr.variables[name] = value
+	}
+}
+
 // substituteVariables replaces ${variable} references with actual values
 func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
 	substituted := make([]interface{}, len(args))
@@ -356,6 +426,11 @@ func (tr *TestRunner) substituteString(s string) string {
 
 // resolveDotNotation resolves variables with dot notation (e.g., response.status_code)
 func (tr *TestRunner) resolveDotNotation(varName string) (interface{}, bool) {
+	// First, check for the full key (flat variable)
+	if value, exists := tr.variables[varName]; exists {
+		return value, true
+	}
+	// Fallback to dot notation logic
 	parts := strings.Split(varName, ".")
 	value, exists := tr.variables[parts[0]]
 	if !exists {
