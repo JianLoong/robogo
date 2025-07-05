@@ -1,0 +1,92 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Robogo",
+  "scopeName": "source.robogo",
+  "patterns": [
+    {
+      "include": "source.yaml"
+    },
+    {
+      "name": "keyword.control.robogo",
+      "match": "\\b(testcase|description|steps|action|args|result)\\b",
+      "captures": {
+        "1": { "name": "keyword.control.robogo" }
+      }
+    },
+    {
+      "name": "support.function.robogo",
+      "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post)\\b",
+      "captures": {
+        "1": { "name": "support.function.robogo" }
+      }
+    },
+    {
+      "name": "constant.language.robogo",
+      "match": "\\b(INFO|DEBUG|WARN|ERROR|TRACE)\\b",
+      "captures": {
+        "1": { "name": "constant.language.robogo" }
+      }
+    },
+    {
+      "name": "variable.other.robogo",
+      "match": "\\$\\{[^}]+\\}",
+      "captures": {
+        "0": { "name": "variable.other.robogo" }
+      }
+    },
+    {
+      "name": "string.quoted.double.robogo",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.robogo",
+          "match": "\\\\."
+        },
+        {
+          "name": "variable.other.robogo",
+          "match": "\\$\\{[^}]+\\}"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.robogo",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.robogo",
+          "match": "\\\\."
+        },
+        {
+          "name": "variable.other.robogo",
+          "match": "\\$\\{[^}]+\\}"
+        }
+      ]
+    },
+    {
+      "name": "comment.line.number-sign.robogo",
+      "match": "#.*$"
+    },
+    {
+      "name": "constant.numeric.integer.robogo",
+      "match": "\\b\\d+\\b"
+    },
+    {
+      "name": "constant.numeric.float.robogo",
+      "match": "\\b\\d+\\.\\d+\\b"
+    },
+    {
+      "name": "constant.language.boolean.robogo",
+      "match": "\\b(true|false)\\b"
+    },
+    {
+      "name": "entity.name.tag.yaml",
+      "match": "\\b\\w+:"
+    },
+    {
+      "name": "punctuation.definition.list.begin.yaml",
+      "match": "^-\\s"
+    }
+  ]
+} 

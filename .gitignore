@@ -94,9 +94,10 @@ junit-output.xml
 # Local development files
 *.local
 
-# VS Code extension specific - exclude only build outputs and dependencies
+# VS Code extension specific - exclude build outputs and dependencies
 .vscode/extensions/*/node_modules/
 .vscode/extensions/*/out/
 .vscode/extensions/*/.vscode-test/
 .vscode/extensions/*/dist/
-.vscode/extensions/*/coverage/ 
+.vscode/extensions/*/coverage/
+.vscode/extensions/*/package-lock.json 
