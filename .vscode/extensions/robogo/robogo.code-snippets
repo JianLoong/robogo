@@ -199,7 +199,7 @@
             "    steps:",
             "      - name: \"$6:Loop step\"",
             "        action: $7:log",
-            "        args: [\"$8:While iteration \\${iteration}\"]"
+            "        args: [\"$8:Iteration \\${iteration}\"]"
         ],
         "description": "Add a while loop with condition and max iterations"
     },
@@ -294,5 +294,326 @@
             "verbose: $1:true"
         ],
         "description": "Add verbose output flag"
+    },
+    "Variable Action - Set": {
+        "prefix": "variable_set",
+        "body": [
+            "- name: \"$1:Set variable\"",
+            "  action: variable",
+            "  args: [\"set\", \"$2:var_name\", \"$3:value\"]",
+            "  result: $4:set_result"
+        ],
+        "description": "Add a variable set action"
+    },
+    "Variable Action - Get": {
+        "prefix": "variable_get",
+        "body": [
+            "- name: \"$1:Get variable\"",
+            "  action: variable",
+            "  args: [\"get\", \"$2:var_name\"]",
+            "  result: $3:get_result"
+        ],
+        "description": "Add a variable get action"
+    },
+    "Variable Action - List": {
+        "prefix": "variable_list",
+        "body": [
+            "- name: \"$1:List variables\"",
+            "  action: variable",
+            "  args: [\"list\"]",
+            "  result: $2:list_result"
+        ],
+        "description": "Add a variable list action"
+    },
+    "TDM Action - Generate": {
+        "prefix": "tdm_generate",
+        "body": [
+            "- name: \"$1:Generate test data\"",
+            "  action: tdm",
+            "  args: [\"generate\", \"$2:user_{index}\", $3:5]",
+            "  result: $4:generated_data"
+        ],
+        "description": "Add a TDM generate action"
+    },
+    "TDM Action - Validate": {
+        "prefix": "tdm_validate",
+        "body": [
+            "- name: \"$1:Validate data\"",
+            "  action: tdm",
+            "  args: [\"validate\", \"$2:validation_rule\"]",
+            "  result: $3:validation_result"
+        ],
+        "description": "Add a TDM validate action"
+    },
+    "TDM Action - Load Dataset": {
+        "prefix": "tdm_load",
+        "body": [
+            "- name: \"$1:Load dataset\"",
+            "  action: tdm",
+            "  args: [\"load_dataset\", \"$2:dataset_name\"]",
+            "  result: $3:load_result"
+        ],
+        "description": "Add a TDM load dataset action"
+    },
+    "TDM Action - Set Environment": {
+        "prefix": "tdm_env",
+        "body": [
+            "- name: \"$1:Set environment\"",
+            "  action: tdm",
+            "  args: [\"set_environment\", \"$2:environment_name\"]",
+            "  result: $3:env_result"
+        ],
+        "description": "Add a TDM set environment action"
+    },
+    "Control Action - If": {
+        "prefix": "control_if",
+        "body": [
+            "- name: \"$1:Control if\"",
+            "  action: control",
+            "  args: [\"if\", \"\\${$2:variable} $3:> $4:5\"]",
+            "  result: $5:condition_result"
+        ],
+        "description": "Add a control if action"
+    },
+    "Control Action - For": {
+        "prefix": "control_for",
+        "body": [
+            "- name: \"$1:Control for\"",
+            "  action: control",
+            "  args: [\"for\", \"$2:1..5\"]",
+            "  result: $3:loop_result"
+        ],
+        "description": "Add a control for action"
+    },
+    "Control Action - While": {
+        "prefix": "control_while",
+        "body": [
+            "- name: \"$1:Control while\"",
+            "  action: control",
+            "  args: [\"while\", \"\\${$2:counter} $3:< $4:10\"]",
+            "  result: $5:while_result"
+        ],
+        "description": "Add a control while action"
+    },
+    "HTTP with mTLS": {
+        "prefix": "http_mtls",
+        "body": [
+            "- name: \"$1:HTTP with mTLS\"",
+            "  action: http",
+            "  args: [\"$2:GET\", \"$3:https://secure.example.com/api\", \"$4:{\\\"cert\\\": \\\"client.crt\\\", \\\"key\\\": \\\"client.key\\\", \\\"ca\\\": \\\"ca.crt\\\"}\"]",
+            "  result: $5:secure_response"
+        ],
+        "description": "Add an HTTP request with mTLS certificates"
+    },
+    "HTTP with Custom Headers": {
+        "prefix": "http_headers",
+        "body": [
+            "- name: \"$1:HTTP with headers\"",
+            "  action: http",
+            "  args: [\"$2:POST\", \"$3:https://api.example.com/data\", \"$4:{\\\"key\\\": \\\"value\\\"}\", \"$5:{\\\"Content-Type\\\": \\\"application/json\\\", \\\"Authorization\\\": \\\"Bearer ...\\\"}\"]",
+            "  result: $6:response"
+        ],
+        "description": "Add an HTTP request with custom headers"
+    },
+    "SWIFT Message Template": {
+        "prefix": "swift_template",
+        "body": [
+            "- name: \"$1:Generate SWIFT message\"",
+            "  action: concat",
+            "  args: [",
+            "    \"{1:F01\", \"\\${$2:bank_bic}\", \"XXXX\", \"U\", \"3003\", \"1234567890\", \"}\",",
+            "    \"{2:I103\", \"\\${$2:bank_bic}\", \"XXXX\", \"U}\",",
+            "    \"{3:{113:SEPA}\",",
+            "    \"{108:\\${$3:transaction_id}}\",",
+            "    \"{111:001}\",",
+            "    \"{121:}\",",
+            "    \"{4:\",",
+            "    \":20:\\${$3:transaction_id}\",",
+            "    \":23B:CRED\",",
+            "    \":32A:\\${$4:value_date}\", \"\\${$5:currency}\", \"\\${$6:amount}\",",
+            "    \":50K:/\\${$7:ordering_customer}\",",
+            "    \":59:/\\${$8:beneficiary}\",",
+            "    \":71A:SHA\",",
+            "    \":72:/ACC/\\${$9:account_info}\",",
+            "    \"-}\",",
+            "    \"{5:{MAC:}\",",
+            "    \"{CHK:}\",",
+            "    \"{TNG:}\",",
+            "    \"-}\",",
+            "    \"{S:{COP:S}}\",",
+            "    \"-}\"",
+            "  ]",
+            "  result: $10:swift_message"
+        ],
+        "description": "Add a SWIFT MT103 message template"
+    },
+    "TDM Data Management Block": {
+        "prefix": "tdm_block",
+        "body": [
+            "data_management:",
+            "  environment: \"$1:development\"",
+            "  isolation: $2:true",
+            "  cleanup: $3:true",
+            "  data_sets:",
+            "    - name: \"$4:test_users\"",
+            "      description: \"$5:Test user data\"",
+            "      version: \"$6:1.0\"",
+            "      data:",
+            "        user1:",
+            "          name: \"$7:John Doe\"",
+            "          email: \"$8:john@example.com\"",
+            "          age: $9:30",
+            "        user2:",
+            "          name: \"$10:Jane Smith\"",
+            "          email: \"$11:jane@example.com\"",
+            "          age: $12:25",
+            "      schema:",
+            "        name: \"string\"",
+            "        email: \"email\"",
+            "        age: \"number\"",
+            "      required: [\"name\", \"email\"]",
+            "      unique: [\"email\"]",
+            "  validation:",
+            "    - name: \"$13:email_validation\"",
+            "      type: \"format\"",
+            "      field: \"$4:test_users.user1.email\"",
+            "      rule: \"email\"",
+            "      message: \"$14:User email must be valid\"",
+            "      severity: \"error\"",
+            "  setup:",
+            "    - name: \"$15:TDM Setup\"",
+            "      action: log",
+            "      args: [\"$16:Setting up test environment\"]",
+            "  teardown:",
+            "    - name: \"$17:TDM Cleanup\"",
+            "      action: log",
+            "      args: [\"$18:Cleaning up test environment\"]"
+        ],
+        "description": "Add a complete TDM data management block"
+    },
+    "Environment Configuration": {
+        "prefix": "environment",
+        "body": [
+            "environments:",
+            "  - name: \"$1:development\"",
+            "    description: \"$2:Development environment\"",
+            "    variables:",
+            "      api_base_url: \"$3:https://dev-api.example.com\"",
+            "      timeout: $4:30",
+            "    overrides:",
+            "      debug_mode: $5:true",
+            "    secrets:",
+            "      api_key:",
+            "        file: \"$6:secret.txt\"",
+            "        mask_output: $7:true"
+        ],
+        "description": "Add environment configuration"
+    },
+    "Variables with Secrets": {
+        "prefix": "variables_secrets",
+        "body": [
+            "variables:",
+            "  vars:",
+            "    base_url: \"$1:https://api.example.com\"",
+            "    timeout: $2:30",
+            "    retry_count: $3:3",
+            "  secrets:",
+            "    api_key:",
+            "      value: \"$4:your-api-key-here\"",
+            "      mask_output: $5:true",
+            "    database_password:",
+            "      file: \"$6:db-password.txt\"",
+            "      mask_output: $7:true"
+        ],
+        "description": "Add variables section with secrets"
+    },
+    "Retry Configuration": {
+        "prefix": "retry",
+        "body": [
+            "retry:",
+            "  attempts: $1:3",
+            "  delay: $2:1s",
+            "  backoff: \"$3:exponential\"",
+            "  conditions: [\"$4:5xx\", \"$5:timeout\"]",
+            "  max_delay: $6:10s",
+            "  jitter: $7:true"
+        ],
+        "description": "Add retry configuration for a step"
+    },
+    "PostgreSQL with Connection": {
+        "prefix": "postgres_connect",
+        "body": [
+            "- name: \"$1:Connect to database\"",
+            "  action: postgres",
+            "  args: [\"connect\", \"$2:postgres://user:pass@localhost/db\"]",
+            "  result: $3:db_connection",
+            "",
+            "- name: \"$4:Execute query\"",
+            "  action: postgres",
+            "  args: [\"query\", \"$3:db_connection\", \"$5:SELECT * FROM users WHERE id = $1\", [\"$6:user_id\"]]",
+            "  result: $7:query_result",
+            "",
+            "- name: \"$8:Close connection\"",
+            "  action: postgres",
+            "  args: [\"close\", \"$3:db_connection\"]"
+        ],
+        "description": "Add PostgreSQL operations with connection management"
+    },
+    "Assert with Multiple Conditions": {
+        "prefix": "assert_multi",
+        "body": [
+            "- name: \"$1:Assert multiple conditions\"",
+            "  action: assert",
+            "  args: [\"\\${$2:response.status_code}\", \"==\", \"$3:200\", \"$4:Status should be 200\"]",
+            "",
+            "- name: \"$5:Assert response contains\"",
+            "  action: assert",
+            "  args: [\"\\${$6:response.body}\", \"contains\", \"$7:success\", \"$8:Response should contain success\"]",
+            "",
+            "- name: \"$9:Assert numeric range\"",
+            "  action: assert",
+            "  args: [\"\\${$10:count}\", \">=\", \"$11:1\", \"$12:Count should be at least 1\"]"
+        ],
+        "description": "Add multiple assertion steps"
+    },
+    "Time Operations": {
+        "prefix": "time_ops",
+        "body": [
+            "- name: \"$1:Get ISO timestamp\"",
+            "  action: get_time",
+            "  args: [\"iso\"]",
+            "  result: $2:iso_time",
+            "",
+            "- name: \"$3:Get Unix timestamp\"",
+            "  action: get_time",
+            "  args: [\"unix\"]",
+            "  result: $4:unix_time",
+            "",
+            "- name: \"$5:Get custom format\"",
+            "  action: get_time",
+            "  args: [\"$6:2006-01-02 15:04:05\"]",
+            "  result: $7:custom_time"
+        ],
+        "description": "Add various time operations"
+    },
+    "Random Data Generation": {
+        "prefix": "random_data",
+        "body": [
+            "- name: \"$1:Generate random integer\"",
+            "  action: get_random",
+            "  args: [$2:1, $3:100]",
+            "  result: $4:random_int",
+            "",
+            "- name: \"$5:Generate random decimal\"",
+            "  action: get_random",
+            "  args: [$6:0.1, $7:1.0]",
+            "  result: $8:random_decimal",
+            "",
+            "- name: \"$9:Generate random ID\"",
+            "  action: concat",
+            "  args: [\"ID_\", \"\\${$4:random_int}\", \"_\", \"\\${$8:random_decimal}\"]",
+            "  result: $10:random_id"
+        ],
+        "description": "Add random data generation steps"
     }
 }

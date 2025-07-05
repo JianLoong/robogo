@@ -132,7 +132,7 @@ steps:
 
   # Test HTTP API call (simulated SWIFT gateway)
   - name: "Test SWIFT API endpoint"
-    action: http_request
+    action: http_post
     args: ["POST", "https://httpbin.org/post", "{\"swift_message\": \"${swift_message}\", \"amount\": \"${transaction_amount}\"}", "application/json"]
     result: api_response
     continue_on_failure: true
@@ -144,7 +144,7 @@ steps:
 
   # Test database operations (simulated SWIFT transaction log)
   - name: "Test database connection"
-    action: db_connect
+    action: postgres
     args: ["postgresql://localhost:5432/swift_test?sslmode=disable"]
     continue_on_failure: true
   

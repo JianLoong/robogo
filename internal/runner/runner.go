@@ -186,7 +186,22 @@ func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.Action
 			Timestamp: time.Now(),
 		}
 
-		if err != nil {
+		// Handle expect_error property
+		if step.ExpectError != nil {
+			expectErr := tr.validateExpectedError(step.ExpectError, err, output, silent)
+			if expectErr != nil {
+				stepResult.Status = "FAILED"
+				stepResult.Error = expectErr.Error()
+				if !silent {
+					fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
+				}
+			} else {
+				if !silent {
+					fmt.Printf("✅ Error expectation passed\n")
+				}
+			}
+		} else if err != nil {
+			// Normal error handling (no expect_error)
 			stepResult.Status = "FAILED"
 			stepResult.Error = err.Error()
 			if !silent {
@@ -247,7 +262,7 @@ func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.Action
 // executeIfStatement executes an if/else block, collecting StepResults
 func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(ifBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"if", condition})
+	output, err := executor.Execute("control", []interface{}{"if", condition}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate if condition: %w", err)
 	}
@@ -263,7 +278,7 @@ func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, execu
 // executeForLoop executes a for loop, collecting StepResults
 func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(forBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"for", condition})
+	output, err := executor.Execute("control", []interface{}{"for", condition}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
 	}
@@ -299,7 +314,7 @@ func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *a
 		}
 		tr.variables["iteration"] = iteration
 		condition := tr.substituteString(whileBlock.Condition)
-		output, err := executor.Execute("control", []interface{}{"while", condition})
+		output, err := executor.Execute("control", []interface{}{"while", condition}, silent)
 		if err != nil {
 			return fmt.Errorf("failed to evaluate while condition: %w", err)
 		}
@@ -512,7 +527,7 @@ func (tr *TestRunner) substituteMap(m map[string]interface{}) map[string]interfa
 func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (string, error) {
 	// If no retry configuration, execute normally
 	if step.Retry == nil {
-		return executor.Execute(step.Action, args)
+		return executor.Execute(step.Action, args, silent)
 	}
 
 	// Validate retry configuration
@@ -535,7 +550,7 @@ func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{},
 	// Execute with retries
 	for attempt := 1; attempt <= retryConfig.Attempts; attempt++ {
 		// Execute the action
-		output, err := executor.Execute(step.Action, args)
+		output, err := executor.Execute(step.Action, args, silent)
 		lastOutput = output
 
 		// If successful, return immediately
@@ -589,4 +604,89 @@ func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{},
 	}
 
 	return lastOutput, lastError
+}
+
+// validateExpectedError validates that an error occurred as expected
+func (tr *TestRunner) validateExpectedError(expectError interface{}, actualErr error, output string, silent bool) error {
+	var errorType string
+	var expectedMessage string
+
+	// Parse expect_error configuration
+	switch v := expectError.(type) {
+	case string:
+		// Simple string format - check if it's "any" or default to "contains"
+		if v == "any" {
+			errorType = "any"
+			expectedMessage = ""
+		} else {
+			errorType = "contains"
+			expectedMessage = v
+		}
+	case map[string]interface{}:
+		// Detailed configuration
+		if t, ok := v["type"].(string); ok {
+			errorType = t
+		} else {
+			errorType = "any" // Default to any if type not specified
+		}
+		if msg, ok := v["message"].(string); ok {
+			expectedMessage = msg
+		}
+	default:
+		return fmt.Errorf("invalid expect_error format: must be string or object")
+	}
+
+	// If no error occurred but we expected one, that's a failure
+	if actualErr == nil {
+		if errorType == "any" {
+			return fmt.Errorf("expected any error but action succeeded with result: '%s'", output)
+		}
+		return fmt.Errorf("expected error but action succeeded with result: '%s'", output)
+	}
+
+	actualErrorMsg := actualErr.Error()
+
+	// Validate the error based on error_type
+	var result bool
+
+	switch errorType {
+	case "any":
+		// Any error is acceptable
+		result = true
+	case "contains":
+		result = strings.Contains(actualErrorMsg, expectedMessage)
+	case "not_contains":
+		result = !strings.Contains(actualErrorMsg, expectedMessage)
+	case "matches":
+		// Regex pattern matching
+		matched, err := regexp.MatchString(expectedMessage, actualErrorMsg)
+		if err != nil {
+			return fmt.Errorf("invalid regex pattern '%s': %v", expectedMessage, err)
+		}
+		result = matched
+	case "not_matches":
+		// Regex pattern not matching
+		matched, err := regexp.MatchString(expectedMessage, actualErrorMsg)
+		if err != nil {
+			return fmt.Errorf("invalid regex pattern '%s': %v", expectedMessage, err)
+		}
+		result = !matched
+	case "exact":
+		result = actualErrorMsg == expectedMessage
+	case "starts_with":
+		result = strings.HasPrefix(actualErrorMsg, expectedMessage)
+	case "ends_with":
+		result = strings.HasSuffix(actualErrorMsg, expectedMessage)
+	default:
+		return fmt.Errorf("unsupported error type: %s (supported: any, contains, not_contains, matches, not_matches, exact, starts_with, ends_with)", errorType)
+	}
+
+	if !result {
+		if errorType == "any" {
+			return fmt.Errorf("error expectation failed: expected any error but got '%s'", actualErrorMsg)
+		}
+		return fmt.Errorf("error expectation failed: '%s' %s '%s'", actualErrorMsg, errorType, expectedMessage)
+	}
+
+	return nil
 }

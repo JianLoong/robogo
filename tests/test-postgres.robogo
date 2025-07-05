@@ -45,7 +45,7 @@ steps:
   # Insert test data
   - name: "Insert test user 1"
     action: postgres
-    args: ["insert", "${db_connection_string}", "INSERT INTO test_users (name, email) VALUES ($1, $2)", ["John Doe", "john@example.com"]]
+    args: ["query", "${db_connection_string}", "INSERT INTO test_users (name, email) VALUES ($1, $2)", ["John Doe", "john@example.com"]]
     result: insert_result_1
 
   - name: "Insert test user 2"
@@ -100,7 +100,7 @@ steps:
   # Delete test data
   - name: "Delete test users"
     action: postgres
-    args: ["delete", "${db_connection_string}", "DELETE FROM test_users WHERE name IN ($1, $2)", ["John Doe", "Jane Smith"]]
+    args: ["query", "${db_connection_string}", "DELETE FROM test_users WHERE name IN ($1, $2)", ["John Doe", "Jane Smith"]]
     result: delete_result
 
   - name: "Log delete result"

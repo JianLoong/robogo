@@ -96,6 +96,12 @@ type RetryConfig struct {
 	Jitter     bool          `yaml:"jitter,omitempty"`     // Add randomness to delay
 }
 
+// ExpectErrorConfig represents error expectation configuration
+type ExpectErrorConfig struct {
+	Type    string `yaml:"type,omitempty"`    // any, contains, matches, exact, starts_with, ends_with, not_contains, not_matches
+	Message string `yaml:"message,omitempty"` // Expected error message or pattern
+}
+
 // Step represents a single test step
 // 'name' is optional but strongly recommended for clarity and reporting
 type Step struct {
@@ -112,6 +118,9 @@ type Step struct {
 	While *LoopBlock        `yaml:"while,omitempty"` // While loop
 
 	ContinueOnFailure bool `yaml:"continue_on_failure,omitempty"` // Continue on failure
+
+	// Error expectation - can be string (simple) or object (detailed)
+	ExpectError interface{} `yaml:"expect_error,omitempty"` // string or ExpectErrorConfig
 }
 
 // ConditionalBlock represents an if/else block

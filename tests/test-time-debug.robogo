@@ -1,0 +1,33 @@
+# Test Time Debug
+# This file tests time formatting to debug the issue
+
+testcase: "Time Debug Test"
+description: "Test to debug time formatting issue"
+
+steps:
+  - name: "Test time format"
+    action: get_time
+    args: ["time"]
+    result: time_result
+  
+  - name: "Log time result"
+    action: log
+    args: ["Time result: '${time_result}'"]
+  
+  - name: "Test custom time format"
+    action: get_time
+    args: ["15:04:05"]
+    result: custom_time
+  
+  - name: "Log custom time result"
+    action: log
+    args: ["Custom time result: '${custom_time}'"]
+  
+  - name: "Test unix timestamp"
+    action: get_time
+    args: ["unix"]
+    result: unix_time
+  
+  - name: "Log unix result"
+    action: log
+    args: ["Unix result: '${unix_time}'"] 

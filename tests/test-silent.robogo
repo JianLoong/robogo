@@ -1,0 +1,32 @@
+# Test Silent Functionality
+# This file tests that verbose output is suppressed when silent mode is enabled
+
+testcase: "Silent Mode Test"
+description: "Test that verbose output is suppressed in silent mode"
+
+steps:
+  - name: "Log message"
+    action: log
+    args: ["This should be suppressed in silent mode"]
+  
+  - name: "Get current time"
+    action: get_time
+    args: ["unix"]
+    result: current_time
+  
+  - name: "Generate random number"
+    action: get_random
+    args: [1, 100]
+    result: random_num
+  
+  - name: "Sleep for a moment"
+    action: sleep
+    args: [0.1]
+  
+  - name: "Assert something"
+    action: assert
+    args: ["test", "==", "test", "This assertion should pass"]
+  
+  - name: "Final log"
+    action: log
+    args: ["Test completed successfully"] 

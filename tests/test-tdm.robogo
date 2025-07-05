@@ -142,16 +142,18 @@ data_management:
       action: log
       args: ["Setting up test database for TDM test"]
     
+      # Build connection string with secrets
     - name: "Build connection string"
-      action: variable
-      args: ["set", "db_connection_string", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable"]
-      result: setup_connection_string
+      action: concat
+      args: ["postgres://", "${db_user}", ":", "${db_password}", "@", "${db_host}", ":", "${db_port}", "/", "${db_name}", "?sslmode=disable"]
+      result: db_connection_string
+      verbose: false
     
     - name: "Test database connection"
       action: postgres
       args: ["connect", "${db_connection_string}"]
       result: setup_connection_result
-      continue_on_failure: true
+      continue_on_failure: false
     
     - name: "Create test tables"
       action: postgres
@@ -225,12 +227,17 @@ steps:
   - name: "Build connection string"
     action: log
     args: ["Building database connection string for TDM test"]
-  
+
+  - name: "Build connection string"
+    action: concat
+    args: ["postgres://", "${db_user}", ":", "${db_password}", "@", "${db_host}", ":", "${db_port}", "/", "${db_name}", "?sslmode=disable"]
+    result: db_connection_string
+
   # Test database connection
-  - name: "Test database connection"
-    action: postgres
-    args: ["connect", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable"]
-    result: connection_result
+  # - name: "Test database connection"
+  #   action: postgres
+  #   args: ["connect", "${db_connection_string}"]
+  #   result: connection_result
 
   - name: "Log connection result"
     action: log

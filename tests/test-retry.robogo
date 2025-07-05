@@ -54,8 +54,8 @@ steps:
     result: "rate_limit_result"
 
   - name: "Retry on connection errors (simulated)"
-    action: http
-    args: ["GET", "https://invalid-domain-that-does-not-exist-12345.com"]
+    action: http_get
+    args: ["https://invalid-domain-that-does-not-exist-12345.com"]
     retry:
       attempts: 2
       delay: 1s

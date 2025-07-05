@@ -35,8 +35,44 @@ var dbManager = &DatabaseManager{
 	connections: make(map[string]*sql.DB),
 }
 
-// PostgresAction performs PostgreSQL database operations
-func PostgresAction(args []interface{}) (string, error) {
+// PostgresAction performs PostgreSQL database operations with comprehensive support for queries, transactions, and connection management.
+//
+// Parameters:
+//   - operation: Database operation to perform (query, execute, connect, close, test)
+//   - connection: Database connection string or connection parameters
+//   - query: SQL query or statement to execute
+//   - params: Query parameters (optional, for parameterized queries)
+//   - options: Additional options (timeout, ssl_mode, etc.)
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: JSON result with operation status, data, and timing information
+//
+// Supported Operations:
+//   - "connect": Establish database connection
+//   - "query": Execute SELECT query and return results
+//   - "execute": Execute INSERT/UPDATE/DELETE statement
+//   - "close": Close database connection
+//   - "test": Test connection without executing queries
+//
+// Examples:
+//   - Connect: ["connect", "postgres://user:pass@localhost:5432/dbname"]
+//   - Query: ["query", "SELECT * FROM users WHERE id = $1", [123]]
+//   - Execute: ["execute", "INSERT INTO users (name, email) VALUES ($1, $2)", ["John", "john@example.com"]]
+//   - Close: ["close"]
+//
+// Use Cases:
+//   - Database testing and validation
+//   - Data setup and teardown
+//   - Integration testing with databases
+//   - Performance testing of database operations
+//   - Data verification and assertions
+//
+// Notes:
+//   - Supports parameterized queries for security
+//   - Automatic connection pooling and management
+//   - Comprehensive error handling and timeout support
+//   - Results available for assertions and variable storage
+func PostgresAction(args []interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("postgres action requires at least 2 arguments: operation and connection_string")
 	}
@@ -46,9 +82,9 @@ func PostgresAction(args []interface{}) (string, error) {
 
 	switch operation {
 	case "query", "select":
-		return executeQuery(connectionString, args[2:])
+		return executeQuery(connectionString, args[2:], silent)
 	case "execute", "insert", "update", "delete":
-		return executeStatement(connectionString, args[2:])
+		return executeStatement(connectionString, args[2:], silent)
 	case "connect":
 		return testConnection(connectionString)
 	case "close":
@@ -59,7 +95,7 @@ func PostgresAction(args []interface{}) (string, error) {
 }
 
 // executeQuery executes a SELECT query and returns results
-func executeQuery(connectionString string, args []interface{}) (string, error) {
+func executeQuery(connectionString string, args []interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("query operation requires a SQL query")
 	}
@@ -150,12 +186,16 @@ func executeQuery(connectionString string, args []interface{}) (string, error) {
 		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	fmt.Printf("🗄️  Query executed: %d rows returned in %v\n", len(resultRows), duration)
+	// Only print if not silent
+	if !silent {
+		fmt.Printf("🗄️  Query executed: %d rows returned in %v\n", len(resultRows), duration)
+	}
+
 	return string(jsonResult), nil
 }
 
 // executeStatement executes INSERT, UPDATE, DELETE statements
-func executeStatement(connectionString string, args []interface{}) (string, error) {
+func executeStatement(connectionString string, args []interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("execute operation requires a SQL statement")
 	}
@@ -221,7 +261,11 @@ func executeStatement(connectionString string, args []interface{}) (string, erro
 		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	fmt.Printf("🗄️  Statement executed: %d rows affected in %v\n", rowsAffected, duration)
+	// Only print if not silent
+	if !silent {
+		fmt.Printf("🗄️  Statement executed: %d rows affected in %v\n", rowsAffected, duration)
+	}
+
 	return string(jsonResult), nil
 }
 

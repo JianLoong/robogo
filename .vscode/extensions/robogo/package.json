@@ -1,37 +1,30 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, validation, and test execution",
-  "version": "0.5.0",
+  "description": "Comprehensive support for Robogo test automation framework with rich documentation, syntax highlighting, autocomplete, and validation",
+  "version": "1.0.0",
   "publisher": "robogo",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Programming Languages",
-    "Other",
-    "Testing"
+    "Testing",
+    "Other"
   ],
   "keywords": [
     "robogo",
     "test",
     "automation",
     "yaml",
+    "api",
     "testing",
-    "postgresql",
-    "database",
-    "secrets",
-    "variables",
-    "verbosity",
-    "debugging",
-    "http",
-    "api"
+    "tdm",
+    "swift",
+    "postgres"
   ],
   "activationEvents": [
-    "onLanguage:yaml",
-    "onLanguage:robogo",
-    "onCommand:robogo.runTest",
-    "onCommand:robogo.listActions"
+    "onLanguage:robogo"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -58,12 +51,12 @@
     "commands": [
       {
         "command": "robogo.runTest",
-        "title": "Robogo: Run Test",
+        "title": "Run Robogo Test",
         "category": "Robogo"
       },
       {
         "command": "robogo.listActions",
-        "title": "Robogo: List Actions",
+        "title": "List Robogo Actions",
         "category": "Robogo"
       }
     ],
@@ -71,16 +64,17 @@
       "commandPalette": [
         {
           "command": "robogo.runTest",
-          "when": "resourceExtname == .robogo || resourceExtname == .yaml || resourceExtname == .yml"
+          "when": "resourceExtname == .robogo"
         },
         {
-          "command": "robogo.listActions"
+          "command": "robogo.listActions",
+          "when": "resourceExtname == .robogo"
         }
       ],
       "editor/context": [
         {
           "command": "robogo.runTest",
-          "when": "resourceExtname == .robogo || resourceExtname == .yaml || resourceExtname == .yml",
+          "when": "resourceExtname == .robogo",
           "group": "navigation"
         }
       ]
@@ -112,27 +106,32 @@
     },
     "snippets": [
       {
-        "language": "yaml",
-        "path": "./robogo.code-snippets"
+        "language": "robogo",
+        "path": "./snippets/robogo.json"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "build": "npm run compile && npm run package",
-    "dev": "npm run watch",
-    "test": "npm run compile && code --extensionDevelopmentPath=."
+    "watch": "tsc -watch -p ./"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.60.0",
-    "@types/node": "^16.0.0",
+    "@types/vscode": "^1.85.0",
+    "@types/node": "16.x",
     "@types/js-yaml": "^4.0.5",
-    "typescript": "^4.5.0"
-  }
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/robogo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/robogo/issues"
+  },
+  "homepage": "https://github.com/your-org/robogo#readme",
+  "license": "MIT"
 }

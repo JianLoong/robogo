@@ -6,8 +6,38 @@ import (
 	"strings"
 )
 
-// VariableAction handles variable-related operations
-func VariableAction(args []interface{}) (string, error) {
+// VariableAction manages test variables for dynamic data handling and state management.
+//
+// Operations:
+//   - set: Set a variable value (set, var_name, value)
+//   - get: Get a variable value (get, var_name)
+//   - list: List all available variables (list)
+//
+// Parameters:
+//   - operation: Variable operation to perform (set, get, list)
+//   - var_name: Variable name (for set/get operations)
+//   - value: Variable value (for set operation)
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: JSON result with operation status and data
+//
+// Examples:
+//   - Set variable: ["set", "api_key", "abc123"]
+//   - Set complex value: ["set", "user_data", {"name": "John", "age": 30}]
+//   - Get variable: ["get", "user_id"]
+//   - List variables: ["list"]
+//
+// Variable Naming:
+//   - Use descriptive names: user_id, api_response, test_data
+//   - Supports dot notation: users.admin.name
+//   - Case sensitive: UserID != userid
+//
+// Notes:
+//   - Variables persist throughout test execution
+//   - Supports complex data types (strings, numbers, objects, arrays)
+//   - Use ${variable_name} syntax to reference in other actions
+//   - Variables are shared across all steps in a test case
+func VariableAction(args []interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("variable action requires at least 1 argument: operation")
 	}
@@ -20,22 +50,22 @@ func VariableAction(args []interface{}) (string, error) {
 			return "", fmt.Errorf("set requires variable_name and value")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
-		return setVariable(variableName, args[2:])
+		return setVariable(variableName, args[2:], silent)
 	case "get":
 		if len(args) < 2 {
 			return "", fmt.Errorf("get requires variable_name")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
-		return getVariable(variableName)
+		return getVariable(variableName, silent)
 	case "list":
-		return listVariables()
+		return listVariables(silent)
 	default:
 		return "", fmt.Errorf("unknown variable operation: %s", operation)
 	}
 }
 
 // setVariable sets a variable value
-func setVariable(name string, args []interface{}) (string, error) {
+func setVariable(name string, args []interface{}, silent bool) (string, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("set requires a value")
 	}
@@ -70,7 +100,7 @@ func setVariable(name string, args []interface{}) (string, error) {
 }
 
 // getVariable gets a variable value (placeholder - actual implementation would need access to runner variables)
-func getVariable(name string) (string, error) {
+func getVariable(name string, silent bool) (string, error) {
 	result := map[string]interface{}{
 		"operation": "get",
 		"name":      name,
@@ -87,7 +117,7 @@ func getVariable(name string) (string, error) {
 }
 
 // listVariables lists all variables (placeholder - actual implementation would need access to runner variables)
-func listVariables() (string, error) {
+func listVariables(silent bool) (string, error) {
 	result := map[string]interface{}{
 		"operation": "list",
 		"status":    "not_implemented",

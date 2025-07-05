@@ -5,23 +5,48 @@ testcase: "Continue on Failure Demo"
 description: "Demonstrates that steps with continue_on_failure: true do not stop the test on failure."
 
 steps:
-  - name: "Fail but continue"
+  - name: "Step 1: This will pass"
+    action: log
+    args: ["Step 1 completed successfully"]
+
+  - name: "Step 2: This will fail but continue"
     action: assert
     args: ["1", "==", "2"]
     continue_on_failure: true
 
-  - name: "This will still run"
+  - name: "Step 3: This will run because of continue_on_failure"
     action: log
-    args: ["Continuing after failure"]
+    args: ["Step 3: Continuing after the failure in Step 2"]
 
-  - name: "Simple loop test"
+  - name: "Step 4: Another failure with continue_on_failure"
+    action: assert
+    args: ["hello", "==", "world"]
+    continue_on_failure: true
+
+  - name: "Step 5: This will also run"
+    action: log
+    args: ["Step 5: Continuing after the failure in Step 4"]
+
+  - name: "Step 6: Loop with continue_on_failure"
     for:
       condition: "1..3"
       steps:
         - name: "Log iteration"
           action: log
-          args: ["Iteration ${iteration}"]
+          args: ["Loop iteration ${iteration}"]
+        - name: "Fail in loop but continue"
+          action: assert
+          args: ["${iteration}", "==", "2"]
+          continue_on_failure: true
+        - name: "Continue after loop failure"
+          action: log
+          args: ["Continued after loop failure in iteration ${iteration}"]
 
-  - name: "Final step"
+  - name: "Step 7: Final step - this should run"
     action: log
-    args: ["Test completed with all failures reported"] 
+    args: ["Final step: Test completed with all failures reported"]
+
+  - name: "Step 8: This step will fail and stop the test"
+    action: assert
+    args: ["final", "==", "failure"]
+    # No continue_on_failure - this will stop the test 

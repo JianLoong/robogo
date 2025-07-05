@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type ActionFunc func([]interface{}) (string, error)
+type ActionFunc func([]interface{}, bool) (string, error)
 
 type ActionExecutor struct{}
 
@@ -26,20 +26,84 @@ var actionFuncs = map[string]ActionFunc{
 	"tdm":        TDMAction,
 }
 
-// NewActionExecutor creates a new action executor
+// NewActionExecutor creates a new action executor instance.
+//
+// Returns: ActionExecutor ready to execute Robogo actions
+//
+// Notes:
+//   - Registers all built-in actions
+//   - Provides unified interface for action execution
+//   - Handles argument validation and error reporting
 func NewActionExecutor() *ActionExecutor {
 	return &ActionExecutor{}
 }
 
-// Execute executes an action with arguments
-func (ae *ActionExecutor) Execute(action string, args []interface{}) (string, error) {
+// GetAction retrieves an action function by name.
+//
+// Parameters:
+//   - action: Action name to retrieve
+//
+// Returns: Action function and boolean indicating if found
+//
+// Examples:
+//   - Get log action: fn, exists := GetAction("log")
+//   - Get assert action: fn, exists := GetAction("assert")
+//
+// Notes:
+//   - Returns nil function if action doesn't exist
+//   - Use exists boolean to check if action was found
+//   - Useful for dynamic action execution
+func GetAction(action string) (ActionFunc, bool) {
+	fn, ok := actionFuncs[action]
+	return fn, ok
+}
+
+// Execute executes an action with the provided arguments.
+//
+// Parameters:
+//   - action: Action name to execute
+//   - args: Array of arguments for the action
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: Action result string and error if any
+//
+// Examples:
+//   - Execute log: executor.Execute("log", []interface{}{"Hello World"}, false)
+//   - Execute assert: executor.Execute("assert", []interface{}{"value", "==", "expected"}, true)
+//
+// Notes:
+//   - Validates action exists before execution
+//   - Passes arguments to action function
+//   - Returns error for unknown actions
+//   - Silent mode respects verbosity settings across all actions
+func (ae *ActionExecutor) Execute(action string, args []interface{}, silent bool) (string, error) {
 	if fn, ok := actionFuncs[action]; ok {
-		return fn(args)
+		return fn(args, silent)
 	}
 	return "", fmt.Errorf("unknown action: %s", action)
 }
 
-// parseDuration parses duration from various formats
+// parseDuration parses duration from various formats (int, float, string).
+//
+// Parameters:
+//   - value: Duration value in various formats
+//
+// Returns: Parsed time.Duration and error if any
+//
+// Examples:
+//   - Integer seconds: 5 -> 5s
+//   - Float seconds: 0.5 -> 500ms
+//   - String duration: "2m30s" -> 2m30s
+//
+// Supported Formats:
+//   - Integer: Treated as seconds
+//   - Float: Treated as seconds (supports milliseconds)
+//   - String: Go duration format (e.g., "2m30s", "1h", "500ms")
+//
+// Notes:
+//   - Integer values are converted to seconds
+//   - Float values support sub-second precision
+//   - String format follows Go's time.ParseDuration
 func parseDuration(value interface{}) (time.Duration, error) {
 	switch v := value.(type) {
 	case int:

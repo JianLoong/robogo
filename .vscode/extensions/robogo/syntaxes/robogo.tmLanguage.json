@@ -66,7 +66,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.robogo",
-                    "match": "\\b(testcase|description|steps|variables|verbose|name|action|args|result|if|for|while|then|else|retry|attempts|backoff|continue_on_failure|condition|var|secrets)\\b"
+                    "match": "\\b(testcase|description|steps|variables|verbose|name|action|args|result|if|for|while|then|else|retry|attempts|backoff|continue_on_failure|condition|var|secrets|data_management|environments|data_sets|validation|setup|teardown|isolation|cleanup|environment|schema|required|unique|relations|version|overrides|mask_output|value|file)\\b"
                 }
             ]
         },
@@ -74,7 +74,7 @@
             "patterns": [
                 {
                     "name": "support.function.action.robogo",
-                    "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post|postgres|variable|control)\\b"
+                    "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post|postgres|variable|control|tdm)\\b"
                 }
             ]
         },

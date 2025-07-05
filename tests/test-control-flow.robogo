@@ -12,6 +12,8 @@ steps:
       then:
         - action: log
           args: ["If condition is true - this should execute"]
+        - action: assert
+          args: ["true", "==", "true", "If condition should be true"]
         - action: log
           args: ["Second step in then branch"]
       else:
@@ -25,6 +27,8 @@ steps:
       then:
         - action: log
           args: ["5 is greater than 3 - condition is true"]
+        - action: assert
+          args: ["5", ">", "3", "5 should be greater than 3"]
       else:
         - action: log
           args: ["This should not execute"]
@@ -35,15 +39,27 @@ steps:
     args: [10]
     result: random_num
 
+  - name: "Assert random number is within range"
+    action: assert
+    args: ["${random_num}", ">=", "0", "Random number should be >= 0"]
+  
+  - name: "Assert random number is less than 10"
+    action: assert
+    args: ["${random_num}", "<", "10", "Random number should be < 10"]
+
   - name: "If with variable comparison"
     if:
       condition: "${random_num} > 5"
       then:
         - action: log
           args: ["Random number ${random_num} is greater than 5"]
+        - action: assert
+          args: ["${random_num}", ">", "5", "Random number should be > 5"]
       else:
         - action: log
           args: ["Random number ${random_num} is 5 or less"]
+        - action: assert
+          args: ["${random_num}", "<=", "5", "Random number should be <= 5"]
 
   # For loop with range
   - name: "For loop with range"
@@ -52,6 +68,10 @@ steps:
       steps:
         - action: log
           args: ["For loop iteration ${iteration}"]
+        - action: assert
+          args: ["${iteration}", ">=", "1", "Iteration should be >= 1"]
+        - action: assert
+          args: ["${iteration}", "<=", "3", "Iteration should be <= 3"]
         - action: sleep
           args: [0.1]
 
@@ -62,6 +82,10 @@ steps:
       steps:
         - action: log
           args: ["Processing fruit ${index}: ${condition}"]
+        - action: assert
+          args: ["${index}", ">=", "0", "Array index should be >= 0"]
+        - action: assert
+          args: ["${index}", "<", "3", "Array index should be < 3"]
         - action: sleep
           args: [0.1]
 
@@ -73,9 +97,17 @@ steps:
       steps:
         - action: log
           args: ["Count-based loop iteration ${iteration}"]
+        - action: assert
+          args: ["${iteration}", ">=", "1", "Count iteration should be >= 1"]
+        - action: assert
+          args: ["${iteration}", "<=", "2", "Count iteration should be <= 2"]
         - action: get_random
           args: [100]
           result: loop_random
+        - action: assert
+          args: ["${loop_random}", ">=", "0", "Loop random should be >= 0"]
+        - action: assert
+          args: ["${loop_random}", "<", "100", "Loop random should be < 100"]
 
   # While loop
   - name: "Initialize counter"
@@ -90,6 +122,10 @@ steps:
       steps:
         - action: log
           args: ["While loop iteration ${iteration}"]
+        - action: assert
+          args: ["${iteration}", ">=", "1", "While iteration should be >= 1"]
+        - action: assert
+          args: ["${iteration}", "<=", "3", "While iteration should be <= 3"]
         - action: sleep
           args: [0.2]
 
@@ -100,14 +136,22 @@ steps:
       steps:
         - action: log
           args: ["Outer loop iteration ${iteration}"]
+        - action: assert
+          args: ["${iteration}", ">=", "1", "Nested loop iteration should be >= 1"]
+        - action: assert
+          args: ["${iteration}", "<=", "3", "Nested loop iteration should be <= 3"]
         - if:
             condition: "${iteration} == 2"
             then:
               - action: log
                 args: ["  Nested if: iteration is 2"]
+              - action: assert
+                args: ["${iteration}", "==", "2", "Nested if: iteration should be 2"]
             else:
               - action: log
                 args: ["  Nested if: iteration is not 2"]
+              - action: assert
+                args: ["${iteration}", "!=", "2", "Nested if: iteration should not be 2"]
 
   # Complex condition with string operations
   - name: "Get current time"
@@ -115,12 +159,18 @@ steps:
     args: ["time"]
     result: current_time
 
+  - name: "Assert time format is correct"
+    action: assert
+    args: ["${current_time}", "contains", ":", "Time should contain colon"]
+
   - name: "If with string contains"
     if:
       condition: "${current_time} contains :"
       then:
         - action: log
           args: ["Time contains colon: ${current_time}"]
+        - action: assert
+          args: ["${current_time}", "contains", ":", "Time should contain colon"]
       else:
         - action: log
           args: ["Time does not contain colon"]
@@ -134,6 +184,17 @@ steps:
           args: ["Loop iteration ${iteration}"]
         - action: assert
           args: ["${iteration}", ">", "0", "Iteration should be positive"]
+        - action: assert
+          args: ["${iteration}", "<=", "2", "Iteration should be <= 2"]
+
+  # Final validation
+  - name: "Final validation - verify all loops completed"
+    action: log
+    args: ["All control flow tests completed successfully"]
+  
+  - name: "Assert final success"
+    action: assert
+    args: ["true", "==", "true", "Control flow test should complete successfully"]
 
 # This file demonstrates:
 # - If statements with simple conditions
@@ -146,4 +207,5 @@ steps:
 # - Nested control flow
 # - Complex conditions with string operations
 # - Error handling in loops
-# - Variable substitution in control flow 
+# - Variable substitution in control flow
+# - Assertions to validate control flow behavior 

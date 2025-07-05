@@ -6,8 +6,44 @@ import (
 	"strings"
 )
 
-// ControlFlowAction handles if statements, for loops, and while loops
-func ControlFlowAction(args []interface{}) (string, error) {
+// ControlFlowAction handles conditional execution and loop control operations.
+//
+// Operations:
+//   - if: Evaluate a condition and return true/false
+//   - for: Handle for loop iterations (range, array, count)
+//   - while: Evaluate while loop conditions
+//
+// Parameters:
+//   - flowType: Control flow type (if, for, while)
+//   - condition: Condition to evaluate or loop specification
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: Result of condition evaluation or loop information
+//
+// Examples:
+//   - If condition: ["if", "${value} > 5"]
+//   - If string: ["if", "${response} contains 'success'"]
+//   - For range: ["for", "1..5"]
+//   - For array: ["for", "[item1, item2, item3]"]
+//   - For count: ["for", "3"]
+//   - While condition: ["while", "${counter} < 10"]
+//
+// Condition Operators:
+//   - Comparison: ==, !=, >, <, >=, <=
+//   - String: contains, starts_with, ends_with
+//   - Logical: &&, ||, !
+//
+// Loop Types:
+//   - Range: "1..5" (inclusive range)
+//   - Array: "[item1, item2, item3]" (array of items)
+//   - Count: "3" (simple count)
+//
+// Notes:
+//   - If conditions return boolean for use in if/else blocks
+//   - For loops support range, array, and count formats
+//   - While conditions return boolean for loop continuation
+//   - Use max_iterations to prevent infinite loops
+func ControlFlowAction(args []interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
 	}
@@ -16,7 +52,7 @@ func ControlFlowAction(args []interface{}) (string, error) {
 
 	switch flowType {
 	case "if":
-		return handleIfStatement(args[1:])
+		return handleIfStatement(args[1:], silent)
 	case "for":
 		return handleForLoop(args[1:])
 	case "while":
@@ -27,7 +63,7 @@ func ControlFlowAction(args []interface{}) (string, error) {
 }
 
 // handleIfStatement evaluates a condition and returns "true" or "false"
-func handleIfStatement(args []interface{}) (string, error) {
+func handleIfStatement(args []interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("if statement requires a condition")
 	}
@@ -38,7 +74,10 @@ func handleIfStatement(args []interface{}) (string, error) {
 		return "", fmt.Errorf("failed to evaluate condition '%s': %w", condition, err)
 	}
 
-	fmt.Printf("🔍 If condition '%s' evaluated to: %v\n", condition, result)
+	// Only print if not silent
+	if !silent {
+		fmt.Printf("🔍 If condition '%s' evaluated to: %v\n", condition, result)
+	}
 	return fmt.Sprintf("%v", result), nil
 }
 

@@ -7,8 +7,41 @@ import (
 	"strings"
 )
 
-func AssertAction(args []interface{}) (string, error) {
-
+// AssertAction validates conditions using various comparison operators and returns detailed results.
+//
+// Parameters:
+//   - actual: Actual value to compare
+//   - operator: Comparison operator (==, !=, >, <, >=, <=, contains, starts_with, ends_with)
+//   - expected: Expected value to compare against
+//   - message: Optional custom error message
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: Success message or detailed error with actual vs expected values
+//
+// Supported Operators:
+//   - Equality: ==, != (works with strings, numbers, booleans)
+//   - Numeric: >, <, >=, <= (numeric comparison)
+//   - String: contains, starts_with, ends_with (string operations)
+//   - Boolean: true, false (boolean validation)
+//
+// Examples:
+//   - String equality: ["response", "==", "success", "Response should be success"]
+//   - Numeric comparison: ["count", ">", "0", "Count should be positive"]
+//   - String contains: ["body", "contains", "error", "Body should contain error"]
+//   - Boolean check: ["is_valid", "==", "true", "Should be valid"]
+//   - Numeric range: ["age", ">=", "18", "Age should be 18 or older"]
+//
+// Error Messages:
+//   - Custom messages are displayed on failure
+//   - Default messages show actual vs expected values
+//   - Includes operator used in comparison
+//
+// Notes:
+//   - Supports automatic type conversion for numeric comparisons
+//   - String operations are case-sensitive
+//   - Boolean values can be strings ("true"/"false") or actual booleans
+//   - Use continue_on_failure to prevent test termination on assertion failure
+func AssertAction(args []interface{}, silent bool) (string, error) {
 	if len(args) < 3 {
 		return "", fmt.Errorf("assert action requires at least 3 arguments: value, operator, expected")
 	}
@@ -34,13 +67,13 @@ func AssertAction(args []interface{}) (string, error) {
 
 	// If both values can be converted to float, use numeric comparison
 	if valueOk && expectedOk {
-		return compareNumeric(valueFloat, expectedFloat, operator, msg)
+		return compareNumeric(valueFloat, expectedFloat, operator, msg, silent)
 	}
 
 	// Otherwise, use string comparison
 	valueStr := fmt.Sprintf("%v", value)
 	expectedStr := fmt.Sprintf("%v", expected)
-	return compareString(valueStr, expectedStr, operator, msg)
+	return compareString(valueStr, expectedStr, operator, msg, silent)
 }
 
 func handleModuloOperation(value interface{}, divisor interface{}, operator string, expected interface{}, msg string) (string, error) {
@@ -62,7 +95,7 @@ func handleModuloOperation(value interface{}, divisor interface{}, operator stri
 	resultFloat := float64(result)
 
 	// Compare result with expected value
-	return compareNumeric(resultFloat, expectedFloat, operator, msg)
+	return compareNumeric(resultFloat, expectedFloat, operator, msg, false)
 }
 
 func toFloat(v interface{}) (float64, bool) {
@@ -81,7 +114,7 @@ func toFloat(v interface{}) (float64, bool) {
 	return 0, false
 }
 
-func compareNumeric(value, expected float64, operator, msg string) (string, error) {
+func compareNumeric(value, expected float64, operator, msg string, silent bool) (string, error) {
 	var result bool
 
 	switch operator {
@@ -102,14 +135,26 @@ func compareNumeric(value, expected float64, operator, msg string) (string, erro
 	}
 
 	if !result {
-		return "", fmt.Errorf("assertion failed: %v %s %v - %s", value, operator, expected, msg)
+		// Create a clearer error message that doesn't include the success message
+		fullMsg := fmt.Sprintf("Assertion failed: %v %s %v", value, operator, expected)
+		if msg != "Assertion passed" {
+			// Only include custom message if it's not the default
+			fullMsg += fmt.Sprintf(" (%s)", msg)
+		}
+		if !silent {
+			fmt.Printf("❌ %s\n", fullMsg)
+		}
+		return "", fmt.Errorf(fullMsg)
 	}
 
-	fmt.Printf("✅ %s\n", msg)
+	msg = fmt.Sprintf("✅ %s", msg)
+	if !silent {
+		fmt.Printf("%s\n", msg)
+	}
 	return msg, nil
 }
 
-func compareString(value, expected, operator, msg string) (string, error) {
+func compareString(value, expected, operator, msg string, silent bool) (string, error) {
 	var result bool
 
 	switch operator {
@@ -156,9 +201,21 @@ func compareString(value, expected, operator, msg string) (string, error) {
 	}
 
 	if !result {
-		return "", fmt.Errorf("assertion failed: '%v' %s '%v' - %s", value, operator, expected, msg)
+		// Create a clearer error message that doesn't include the success message
+		fullMsg := fmt.Sprintf("Assertion failed: '%v' %s '%v'", value, operator, expected)
+		if msg != "Assertion passed" {
+			// Only include custom message if it's not the default
+			fullMsg += fmt.Sprintf(" (%s)", msg)
+		}
+		if !silent {
+			fmt.Printf("❌ %s\n", fullMsg)
+		}
+		return "", fmt.Errorf(fullMsg)
 	}
 
-	fmt.Printf("✅ %s\n", msg)
+	msg = fmt.Sprintf("✅ %s", msg)
+	if !silent {
+		fmt.Printf("%s\n", msg)
+	}
 	return msg, nil
 }

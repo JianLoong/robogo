@@ -11,7 +11,20 @@ import (
 	"github.com/your-org/robogo/internal/parser"
 )
 
-// TDMManager handles test data management operations
+// TDMManager handles test data management operations including data sets, environments, validation, and data generation.
+//
+// Features:
+//   - Data set management with schemas and validation
+//   - Environment-specific configurations
+//   - Data validation with custom rules
+//   - Test data generation with patterns
+//   - Variable management and isolation
+//
+// Examples:
+//   - Load data sets from test case configuration
+//   - Validate data against schemas
+//   - Generate test data with patterns like "user_{index}"
+//   - Manage environment-specific variables
 type TDMManager struct {
 	dataSets     map[string]*parser.DataSet
 	environments map[string]*parser.Environment
@@ -20,7 +33,14 @@ type TDMManager struct {
 	results      *parser.DataResults
 }
 
-// NewTDMManager creates a new TDM manager
+// NewTDMManager creates a new TDM manager instance.
+//
+// Returns: Initialized TDMManager with empty data structures
+//
+// Notes:
+//   - Initializes empty maps for data sets, environments, and variables
+//   - Creates empty validation and results structures
+//   - Ready to load data sets and environments from test cases
 func NewTDMManager() *TDMManager {
 	return &TDMManager{
 		dataSets:     make(map[string]*parser.DataSet),
@@ -34,7 +54,20 @@ func NewTDMManager() *TDMManager {
 	}
 }
 
-// LoadDataSets loads data sets into the manager
+// LoadDataSets loads data sets into the manager and makes them available as variables.
+//
+// Parameters:
+//   - dataSets: Array of DataSet configurations from test case
+//
+// Returns: Error if loading fails
+//
+// Examples:
+//   - Load from test case: tdm.LoadDataSets(testCase.DataManagement.DataSets)
+//
+// Notes:
+//   - Creates nested variable structure (e.g., "users.user1.name")
+//   - Records data set information for reporting
+//   - Supports versioning and metadata
 func (tdm *TDMManager) LoadDataSets(dataSets []parser.DataSet) error {
 	for i := range dataSets {
 		ds := &dataSets[i]
@@ -379,8 +412,44 @@ func (tdm *TDMManager) GetResults() *parser.DataResults {
 	return tdm.results
 }
 
-// TDM Action handler for test data management operations
-func TDMAction(args []interface{}) (string, error) {
+// TDMAction manages test data operations including data sets, environments, and validations.
+//
+// Parameters:
+//   - operation: TDM operation to perform (load, validate, get, set, list)
+//   - target: Target data set, environment, or variable name
+//   - value: Value to set or validation criteria
+//   - options: Additional options (format, encoding, etc.)
+//   - silent: Whether to suppress output (respects verbosity settings)
+//
+// Returns: JSON result with operation status and data
+//
+// Supported Operations:
+//   - "load": Load data set from file or source
+//   - "validate": Validate data against criteria
+//   - "get": Retrieve data set or variable value
+//   - "set": Set environment or variable value
+//   - "list": List available data sets or environments
+//
+// Examples:
+//   - Load data: ["load", "users.csv", "csv"]
+//   - Validate data: ["validate", "users", {"required_fields": ["id", "name"]}]
+//   - Get variable: ["get", "test_user"]
+//   - Set environment: ["set", "environment", "staging"]
+//   - List data sets: ["list", "datasets"]
+//
+// Use Cases:
+//   - Test data management and provisioning
+//   - Environment-specific data handling
+//   - Data validation and quality checks
+//   - Dynamic test data generation
+//   - Cross-environment testing
+//
+// Notes:
+//   - Supports multiple data formats (CSV, JSON, XML, YAML)
+//   - Environment-specific data isolation
+//   - Comprehensive validation framework
+//   - Integration with test variable system
+func TDMAction(args []interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("tdm action requires at least 1 argument: operation")
 	}
