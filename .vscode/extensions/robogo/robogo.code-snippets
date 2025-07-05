@@ -97,13 +97,57 @@
     ],
     "description": "Perform HTTP POST request"
   },
-  "Assert Values": {
+  "Assert with Operator": {
     "prefix": "robogo-assert",
     "body": [
       "- action: assert",
-      "  args: [\"${1:expected}\", \"${2:actual}\", \"${3:message}\"]"
+      "  args:",
+      "    - \"${1:value}\"",
+      "    - \"${2:==}\"",
+      "    - \"${3:expected}\"",
+      "    - \"${4:message}\""
     ],
-    "description": "Assert two values are equal"
+    "description": "Assert a condition using comparison operators (==, !=, >, <, >=, <=, contains, starts_with, ends_with)"
+  },
+  "Assert Greater Than": {
+    "prefix": "robogo-assert-gt",
+    "body": [
+      "- action: assert",
+      "  args:",
+      "    - \"${1:value}\"",
+      "    - \">\"",
+      "    - \"${2:expected}\"",
+      "    - \"${3:Value should be greater than expected}\""
+    ],
+    "description": "Assert that a value is greater than expected"
+  },
+  "Assert Contains": {
+    "prefix": "robogo-assert-contains",
+    "body": [
+      "- action: assert",
+      "  args:",
+      "    - \"${1:text}\"",
+      "    - \"contains\"",
+      "    - \"${2:substring}\"",
+      "    - \"${3:Text should contain substring}\""
+    ],
+    "description": "Assert that text contains a substring"
+  },
+  "Assert with Retry": {
+    "prefix": "robogo-assert-retry",
+    "body": [
+      "- action: assert",
+      "  args:",
+      "    - \"${1:value}\"",
+      "    - \"${2:==}\"",
+      "    - \"${3:expected}\"",
+      "    - \"${4:message}\"",
+      "  retry:",
+      "    attempts: ${5:3}",
+      "    delay: ${6:1s}",
+      "    backoff: ${7:exponential}"
+    ],
+    "description": "Assert with retry support for flaky conditions"
   },
   "Get Current Time": {
     "prefix": "robogo-get-time",

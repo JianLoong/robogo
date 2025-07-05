@@ -184,6 +184,28 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
             }
         }
 
+        // Autocomplete assertion operators in assert action context
+        if (linePrefix.includes('args:') && this.isInAssertContext(document, position)) {
+            const assertionOps = [
+                { name: '==', desc: 'Equal to' },
+                { name: '!=', desc: 'Not equal to' },
+                { name: '>', desc: 'Greater than' },
+                { name: '<', desc: 'Less than' },
+                { name: '>=', desc: 'Greater than or equal to' },
+                { name: '<=', desc: 'Less than or equal to' },
+                { name: 'contains', desc: 'String contains substring' },
+                { name: 'not_contains', desc: 'String does not contain substring' },
+                { name: 'starts_with', desc: 'String starts with prefix' },
+                { name: 'ends_with', desc: 'String ends with suffix' }
+            ];
+            for (const op of assertionOps) {
+                const item = new vscode.CompletionItem(op.name, vscode.CompletionItemKind.Operator);
+                item.detail = `Assertion operator: ${op.desc}`;
+                item.insertText = `"${op.name}"`;
+                items.push(item);
+            }
+        }
+
         // Check if we're at the start of a step (after "-")
         if (linePrefix.trim().endsWith('-') || linePrefix.trim() === '') {
             // Add action field completion
@@ -423,6 +445,18 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
         }
         return false;
     }
+
+    // Check if we're in an assert action context
+    private isInAssertContext(document: vscode.TextDocument, position: vscode.Position): boolean {
+        // Check current line and previous few lines for assert action
+        for (let i = Math.max(0, position.line - 3); i <= position.line; i++) {
+            const line = document.lineAt(i).text;
+            if (line.includes('action: assert')) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 class RobogoHoverProvider implements vscode.HoverProvider {
@@ -536,8 +570,8 @@ class RobogoHoverProvider implements vscode.HoverProvider {
             return [
                 {
                     Name: "assert",
-                    Description: "Assert two values are equal",
-                    Example: "- action: assert\n  args: [\"expected\", \"actual\", \"message\"]"
+                    Description: "Assert a condition using comparison operators (==, !=, >, <, >=, <=, contains, starts_with, ends_with)",
+                    Example: "- action: assert\n  args:\n    - \"value\"\n    - \">\"\n    - \"0\"\n    - \"Value should be positive\""
                 },
                 {
                     Name: "concat",

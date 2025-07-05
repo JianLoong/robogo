@@ -5,6 +5,27 @@ All notable changes to the Robogo VS Code Extension will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2024-01-XX
+
+### Added
+- **Enhanced Assertion Support**: Complete rewrite of assertion functionality with operator support
+  - Numeric comparisons: `==`, `!=`, `>`, `<`, `>=`, `<=`
+  - String comparisons: `==`, `!=`, `contains`, `not_contains`, `starts_with`, `ends_with`
+  - Proper YAML block-style syntax support for complex arguments
+  - Assertion operator autocompletion in VS Code
+  - Syntax highlighting for comparison operators
+- **New Code Snippets**:
+  - `robogo-assert-gt`: Assert greater than
+  - `robogo-assert-contains`: Assert string contains
+  - `robogo-assert-retry`: Assert with retry support
+- **Improved YAML Parsing**: Better support for block-style arrays vs inline arrays
+- **Enhanced Documentation**: Updated examples and descriptions for assertion usage
+
+### Fixed
+- YAML parsing issues with complex argument arrays
+- Assertion action not supporting comparison operators
+- Inconsistent argument passing in assertion contexts
+
 ## [0.3.0] - 2024-01-XX
 
 ### Added

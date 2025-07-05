@@ -45,8 +45,8 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 
 	ar.Register(ActionInfo{
 		Name:        "assert",
-		Description: "Assert two values are equal",
-		Example:     `- action: assert\n  args: ["expected", "actual", "message"]`,
+		Description: "Assert a condition using comparison operators (==, !=, >, <, >=, <=, contains, starts_with, ends_with)",
+		Example:     `- action: assert\n  args: ["value", ">", "0", "Value should be positive"]`,
 	})
 
 	ar.Register(ActionInfo{

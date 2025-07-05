@@ -1,8 +1,8 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, verbosity support, and test execution",
-  "version": "0.3.0",
+  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, assertion operators, retry support, and test execution",
+  "version": "0.4.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.60.0"

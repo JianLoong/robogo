@@ -88,6 +88,13 @@
       }
     },
     {
+      "name": "keyword.operator.comparison.robogo",
+      "match": "\\b(==|!=|>|<|>=|<=|contains|not_contains|starts_with|ends_with)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.comparison.robogo" }
+      }
+    },
+    {
       "name": "entity.name.tag.yaml",
       "match": "\\b\\w+:"
     },

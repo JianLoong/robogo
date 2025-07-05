@@ -1,0 +1,110 @@
+testcase: "Assert Action Test"
+description: "Test all supported assertion operators and edge cases"
+
+steps:
+  # Numeric assertions
+  - name: "Assert equal numbers"
+    action: assert
+    args:
+      - 1
+      - "=="
+      - 1
+
+  - name: "Assert not equal numbers"
+    action: assert
+    args:
+      - 1
+      - "!="
+      - 2
+
+  - name: "Assert greater"
+    action: assert
+    args:
+      - 2
+      - ">"
+      - 1
+
+  - name: "Assert less"
+    action: assert
+    args:
+      - 1
+      - "<"
+      - 2
+
+  - name: "Assert greater or equal"
+    action: assert
+    args:
+      - 2
+      - ">="
+      - 2
+
+  - name: "Assert less or equal"
+    action: assert
+    args:
+      - 2
+      - "<="
+      - 2
+
+  # String assertions
+  - name: "Assert string equal"
+    action: assert
+    args:
+      - "foo"
+      - "=="
+      - "foo"
+
+  - name: "Assert string not equal"
+    action: assert
+    args:
+      - "foo"
+      - "!="
+      - "bar"
+
+  - name: "Assert contains"
+    action: assert
+    args:
+      - "hello world"
+      - "contains"
+      - "world"
+
+  - name: "Assert not contains"
+    action: assert
+    args:
+      - "hello"
+      - "not_contains"
+      - "world"
+
+  - name: "Assert starts with"
+    action: assert
+    args:
+      - "foobar"
+      - "starts_with"
+      - "foo"
+
+  - name: "Assert ends with"
+    action: assert
+    args:
+      - "foobar"
+      - "ends_with"
+      - "bar"
+
+  # Edge cases (should fail)
+  - name: "Unsupported operator"
+    action: assert
+    args:
+      - 1
+      - "???"
+      - 1
+
+  - name: "Missing arguments"
+    action: assert
+    args:
+      - 1
+      - ">"
+
+  - name: "Type mismatch"
+    action: assert
+    args:
+      - 1
+      - "=="
+      - "one" 
