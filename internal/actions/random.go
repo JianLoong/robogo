@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"fmt"
@@ -21,4 +21,4 @@ func GetRandomAction(args []interface{}) (string, error) {
 	result := rand.Intn(max)
 	fmt.Printf("🎲 Random number (0-%d): %d\n", max-1, result)
 	return strconv.Itoa(result), nil
-} 
+}

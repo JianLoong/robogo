@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/your-org/robogo/internal/keywords"
+	"github.com/your-org/robogo/internal/actions"
 	"github.com/your-org/robogo/internal/parser"
 	"github.com/your-org/robogo/internal/runner"
 )
@@ -15,7 +15,7 @@ var (
 	version = "0.1.0"
 	commit  = "dev"
 	date    = "unknown"
-	
+
 	// CLI flags
 	outputFormat string
 )
@@ -36,7 +36,7 @@ It provides fast, extensible, and developer-friendly test automation with YAML-b
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			testFile := args[0]
-			
+
 			// Determine silent mode
 			silent := false
 			switch outputFormat {
@@ -68,15 +68,14 @@ It provides fast, extensible, and developer-friendly test automation with YAML-b
 		Short: "List available actions",
 		Long:  `List all available actions with their descriptions and examples.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registry := keywords.NewActionRegistry()
-			actions := registry.List()
-			jsonData, err := json.MarshalIndent(actions, "", "  ")
+			registry := actions.NewActionRegistry()
+			jsonData, err := json.MarshalIndent(registry.List(), "", "  ")
 			if err != nil {
 				return fmt.Errorf("failed to marshal actions: %w", err)
 			}
 			fmt.Println(string(jsonData))
-			fmt.Printf("\n📋 Available Actions (%d total):\n\n", len(actions))
-			for _, action := range actions {
+			fmt.Printf("\n📋 Available Actions (%d total):\n\n", len(registry.List()))
+			for _, action := range registry.List() {
 				fmt.Printf("- %s: %s\n  Example: %s\n\n", action.Name, action.Description, action.Example)
 			}
 			return nil
@@ -89,15 +88,15 @@ It provides fast, extensible, and developer-friendly test automation with YAML-b
 		Long:  `Get action completions for VS Code extension autocomplete.`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registry := keywords.NewActionRegistry()
-			
+			registry := actions.NewActionRegistry()
+
 			prefix := ""
 			if len(args) > 0 {
 				prefix = args[0]
 			}
-			
+
 			completions := registry.GetCompletions(prefix)
-			
+
 			if outputFormat == "json" {
 				jsonData, err := json.Marshal(completions)
 				if err != nil {
@@ -106,7 +105,7 @@ It provides fast, extensible, and developer-friendly test automation with YAML-b
 				fmt.Println(string(jsonData))
 				return nil
 			}
-			
+
 			fmt.Printf("🔍 Completions for '%s':\n", prefix)
 			for _, completion := range completions {
 				fmt.Printf("  %s\n", completion)
@@ -135,7 +134,7 @@ func outputConsole(result *parser.TestResult) error {
 	fmt.Printf("\n📊 Test Results:\n")
 	fmt.Printf("✅ Status: %s\n", result.Status)
 	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-	fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n", 
+	fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
 		result.TotalSteps, result.PassedSteps, result.FailedSteps)
 
 	if result.FailedSteps > 0 {
@@ -154,7 +153,7 @@ func outputJSON(result *parser.TestResult) error {
   "passed_steps": %d,
   "failed_steps": %d,
   "error_message": "%s"
-}`, 
+}`,
 		result.TestCase.Name,
 		result.Status,
 		result.Duration,
@@ -164,7 +163,7 @@ func outputJSON(result *parser.TestResult) error {
 		result.ErrorMessage)
 
 	fmt.Println(jsonOutput)
-	
+
 	if result.FailedSteps > 0 {
 		os.Exit(1)
 	}
@@ -190,7 +189,7 @@ func outputMarkdown(result *parser.TestResult) error {
 - **Description:** %s
 
 ## Step Results
-`, 
+`,
 		result.TestCase.Name,
 		statusIcon,
 		result.Status,
@@ -240,9 +239,9 @@ func outputMarkdown(result *parser.TestResult) error {
 	}
 
 	fmt.Print(markdown)
-	
+
 	if result.FailedSteps > 0 {
 		os.Exit(1)
 	}
 	return nil
-} 
+}

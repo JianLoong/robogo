@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"fmt"
@@ -16,4 +16,4 @@ func SleepAction(args []interface{}) (string, error) {
 	fmt.Printf("😴 Sleeping for %v\n", duration)
 	time.Sleep(duration)
 	return fmt.Sprintf("Slept for %v", duration), nil
-} 
+}

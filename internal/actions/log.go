@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import "fmt"
 
@@ -8,4 +8,4 @@ func LogAction(args []interface{}) (string, error) {
 	}
 	fmt.Println("📝", args[0])
 	return fmt.Sprintf("Logged: %v", args[0]), nil
-} 
+}

@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"sort"
@@ -22,10 +22,10 @@ func NewActionRegistry() *ActionRegistry {
 	registry := &ActionRegistry{
 		actions: make(map[string]ActionInfo),
 	}
-	
+
 	// Register built-in actions
 	registry.registerBuiltinActions()
-	
+
 	return registry
 }
 
@@ -109,12 +109,12 @@ func (ar *ActionRegistry) List() []ActionInfo {
 	for _, info := range ar.actions {
 		actions = append(actions, info)
 	}
-	
+
 	// Sort by name
 	sort.Slice(actions, func(i, j int) bool {
 		return actions[i].Name < actions[j].Name
 	})
-	
+
 	return actions
 }
 
@@ -126,7 +126,7 @@ func (ar *ActionRegistry) Search(prefix string) []ActionInfo {
 			matches = append(matches, info)
 		}
 	}
-	
+
 	return matches
 }
 
@@ -138,6 +138,6 @@ func (ar *ActionRegistry) GetCompletions(partial string) []string {
 			completions = append(completions, info.Name)
 		}
 	}
-	
+
 	return completions
-} 
+}

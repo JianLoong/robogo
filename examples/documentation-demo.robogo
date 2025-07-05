@@ -1,0 +1,64 @@
+# Robogo Documentation Demo
+# This file demonstrates the enhanced documentation features in the VS Code extension
+
+testcase: "Documentation Demo"
+description: "Demonstrating enhanced action documentation with parameters, examples, and related actions"
+
+steps:
+  # Hover over "assert" to see detailed parameter documentation
+  - name: "Test assertion with detailed docs"
+    action: assert
+    args: ["expected_value", "actual_value", "Custom assertion message"]
+    result: assertion_result
+
+  # Hover over "http" to see comprehensive HTTP documentation
+  - name: "HTTP request with SSL certificates"
+    action: http
+    args: 
+      - "GET"
+      - "https://secure-api.example.com/data"
+      - 
+        cert: "client.crt"
+        key: "client.key"
+        ca: "ca.crt"
+        Authorization: "Bearer ${token}"
+    result: secure_response
+
+  # Hover over "get_time" to see time format options
+  - name: "Get formatted timestamp"
+    action: get_time
+    args: ["iso"]
+    result: current_time
+
+  # Hover over "concat" to see string manipulation docs
+  - name: "Concatenate strings"
+    action: concat
+    args: ["Hello", " ", "World", "!", " Current time: ", "${current_time}"]
+    result: greeting_message
+
+  # Hover over "log" to see logging documentation
+  - name: "Log the greeting"
+    action: log
+    args: ["${greeting_message}"]
+
+  # Hover over "sleep" to see timing documentation
+  - name: "Wait before next action"
+    action: sleep
+    args: [1]
+
+  # Hover over "get_random" to see random number generation
+  - name: "Generate random number"
+    action: get_random
+    args: [1000]
+    result: random_id
+
+  # Hover over "length" to see string/array length docs
+  - name: "Get message length"
+    action: length
+    args: ["${greeting_message}"]
+    result: message_length
+
+  # Final assertion with all the data
+  - name: "Final validation"
+    action: assert
+    args: ["${message_length}", ">", "0", "Message should have positive length"] 

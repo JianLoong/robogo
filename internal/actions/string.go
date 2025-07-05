@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"fmt"
@@ -35,4 +35,4 @@ func LengthAction(args []interface{}) (string, error) {
 	result := strconv.Itoa(length)
 	fmt.Printf("📏 Length: %s\n", result)
 	return result, nil
-} 
+}

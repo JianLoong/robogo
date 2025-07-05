@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import "fmt"
 
@@ -15,4 +15,4 @@ func AssertAction(args []interface{}) (string, error) {
 	}
 	fmt.Printf("✅ %s\n", msg)
 	return msg, nil
-} 
+}

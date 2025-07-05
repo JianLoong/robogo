@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"crypto/tls"
@@ -23,12 +23,12 @@ type HTTPResponse struct {
 // loadCertificateData loads certificate data from either a file path or PEM content
 func loadCertificateData(input string) ([]byte, error) {
 	// Check if input looks like a file path (contains path separators or doesn't look like PEM)
-	if strings.Contains(input, "/") || strings.Contains(input, "\\") || 
-	   strings.Contains(input, ".") || !strings.Contains(input, "-----BEGIN") {
+	if strings.Contains(input, "/") || strings.Contains(input, "\\") ||
+		strings.Contains(input, ".") || !strings.Contains(input, "-----BEGIN") {
 		// Treat as file path
 		return ioutil.ReadFile(input)
 	}
-	
+
 	// Treat as PEM content
 	return []byte(input), nil
 }
@@ -39,12 +39,12 @@ func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to load certificate: %w", err)
 	}
-	
+
 	keyData, err := loadCertificateData(keyInput)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to load private key: %w", err)
 	}
-	
+
 	return tls.X509KeyPair(certData, keyData)
 }
 
@@ -219,7 +219,7 @@ func HTTPGetAction(args []interface{}) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("http_get action requires at least one argument: url")
 	}
-	
+
 	// Prepend "GET" method to args
 	newArgs := append([]interface{}{"GET"}, args...)
 	return HTTPAction(newArgs)
@@ -230,8 +230,8 @@ func HTTPPostAction(args []interface{}) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("http_post action requires at least 2 arguments: url and body")
 	}
-	
+
 	// Prepend "POST" method to args
 	newArgs := append([]interface{}{"POST"}, args...)
 	return HTTPAction(newArgs)
-} 
+}

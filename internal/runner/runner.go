@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/your-org/robogo/internal/keywords"
+	"github.com/your-org/robogo/internal/actions"
 	"github.com/your-org/robogo/internal/parser"
 )
 
@@ -43,15 +43,15 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 // runTestCase runs a single test case
 func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
 	startTime := time.Now()
-	
+
 	// Create action executor
-	executor := keywords.NewActionExecutor()
-	
+	executor := actions.NewActionExecutor()
+
 	// Initialize result
 	result := &parser.TestResult{
-		TestCase:   *testCase,
-		Status:     "PASSED",
-		TotalSteps: len(testCase.Steps),
+		TestCase:    *testCase,
+		Status:      "PASSED",
+		TotalSteps:  len(testCase.Steps),
 		StepResults: make([]parser.StepResult, 0, len(testCase.Steps)),
 	}
 
@@ -73,10 +73,10 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 		if !silent {
 			fmt.Printf("Step %d: %s\n", i+1, stepLabel)
 		}
-		
+
 		// Substitute variables in arguments
 		substitutedArgs := tr.substituteVariables(step.Args)
-		
+
 		// Execute the action
 		output, err := executor.Execute(step.Action, substitutedArgs)
 		stepDuration := time.Since(stepStart)
@@ -94,7 +94,7 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 			result.Status = "FAILED"
 			result.FailedSteps++
 			result.ErrorMessage = err.Error()
-			
+
 			if !silent {
 				fmt.Printf("❌ Step %d failed: %s\n", i+1, err.Error())
 			}
@@ -132,7 +132,7 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 // substituteVariables replaces ${variable} references with actual values
 func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
 	substituted := make([]interface{}, len(args))
-	
+
 	for i, arg := range args {
 		switch v := arg.(type) {
 		case string:
@@ -145,7 +145,7 @@ func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
 			substituted[i] = arg
 		}
 	}
-	
+
 	return substituted
 }
 
@@ -177,4 +177,4 @@ func (tr *TestRunner) substituteMap(m map[string]interface{}) map[string]interfa
 		}
 	}
 	return result
-} 
+}

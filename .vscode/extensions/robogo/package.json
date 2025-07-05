@@ -1,19 +1,29 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Robogo test automation framework support",
-  "version": "0.1.0",
+  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, and test execution",
+  "version": "0.2.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.60.0"
   },
   "categories": [
     "Programming Languages",
-    "Other"
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "robogo",
+    "test",
+    "automation",
+    "yaml",
+    "testing"
   ],
   "activationEvents": [
     "onLanguage:yaml",
-    "onLanguage:robogo"
+    "onLanguage:robogo",
+    "onCommand:robogo.runTest",
+    "onCommand:robogo.listActions"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -39,6 +49,36 @@
         "path": "./themes/robogo-dark.json"
       }
     ],
+    "commands": [
+      {
+        "command": "robogo.runTest",
+        "title": "Robogo: Run Test",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.listActions",
+        "title": "Robogo: List Actions",
+        "category": "Robogo"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "robogo.runTest",
+          "when": "resourceExtname == .robogo || resourceExtname == .yaml || resourceExtname == .yml"
+        },
+        {
+          "command": "robogo.listActions"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "robogo.runTest",
+          "when": "resourceExtname == .robogo || resourceExtname == .yaml || resourceExtname == .yml",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Robogo",
       "properties": {
@@ -46,6 +86,17 @@
           "type": "string",
           "default": "robogo",
           "description": "Path to the Robogo executable"
+        },
+        "robogo.outputFormat": {
+          "type": "string",
+          "enum": ["console", "json", "markdown"],
+          "default": "console",
+          "description": "Default output format for test execution"
+        },
+        "robogo.showDetailedDocumentation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show detailed parameter documentation in hover tooltips"
         }
       }
     }

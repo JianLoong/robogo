@@ -1,4 +1,4 @@
-package keywords
+package actions
 
 import (
 	"fmt"
@@ -10,16 +10,16 @@ type ActionFunc func([]interface{}) (string, error)
 type ActionExecutor struct{}
 
 var actionFuncs = map[string]ActionFunc{
-	"log":      LogAction,
-	"sleep":    SleepAction,
-	"assert":   AssertAction,
-	"get_time": GetTimeAction,
+	"log":        LogAction,
+	"sleep":      SleepAction,
+	"assert":     AssertAction,
+	"get_time":   GetTimeAction,
 	"get_random": GetRandomAction,
-	"concat":   ConcatAction,
-	"length":   LengthAction,
-	"http":     HTTPAction,
-	"http_get": HTTPGetAction,
-	"http_post": HTTPPostAction,
+	"concat":     ConcatAction,
+	"length":     LengthAction,
+	"http":       HTTPAction,
+	"http_get":   HTTPGetAction,
+	"http_post":  HTTPPostAction,
 }
 
 // NewActionExecutor creates a new action executor
@@ -47,4 +47,4 @@ func parseDuration(value interface{}) (time.Duration, error) {
 	default:
 		return 0, fmt.Errorf("unsupported duration format: %T", value)
 	}
-} 
+}
