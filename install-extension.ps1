@@ -14,7 +14,17 @@ if (!(Test-Path $vscodeExtensionsDir)) {
 
 # Define source and destination paths
 $sourceDir = ".vscode/extensions/robogo"
-$destDir = "$vscodeExtensionsDir\robogo.robogo-0.1.0"
+
+# Read version from package.json
+$packageJsonPath = "$sourceDir/package.json"
+if (Test-Path $packageJsonPath) {
+    $packageJson = Get-Content $packageJsonPath | ConvertFrom-Json
+    $version = $packageJson.version
+} else {
+    $version = "0.3.0"  # fallback version
+}
+
+$destDir = "$vscodeExtensionsDir\robogo.robogo-$version"
 
 # Check if source directory exists
 if (!(Test-Path $sourceDir)) {

@@ -104,6 +104,13 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "PostgreSQL database operations (query, execute, connect, close)",
 		Example:     `- action: postgres\n  args: ["query", "postgres://user:pass@localhost/db", "SELECT * FROM users"]\n  result: query_result`,
 	})
+
+	// Variable management actions
+	ar.Register(ActionInfo{
+		Name:        "variable",
+		Description: "Variable management operations (set_variable, get_variable, list_variables)",
+		Example:     `- action: variable\n  args: ["set_variable", "my_var", "my_value"]\n  result: set_result`,
+	})
 }
 
 // Register adds an action to the registry

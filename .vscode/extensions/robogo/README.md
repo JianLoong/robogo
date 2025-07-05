@@ -36,6 +36,31 @@ Enhanced support for the Robogo test automation framework with syntax highlighti
 - View action details and examples
 - Search and filter actions
 
+## New Features in v0.3.0
+
+- **Dynamic Variable Management**: Use the `variable` action to set, get, or list variables during test execution.
+- **File-based and Inline Secrets**: Load secrets from files (single value per file) or define inline secrets, with output masking.
+- **PostgreSQL Support**: Use the `postgres` action for database queries, execution, and connection management.
+- **Expanded Snippets**: Quickly scaffold tests, secrets, control flow, HTTP, and database actions with new code snippets.
+- **Action List Always Up-to-Date**: The extension fetches actions from the CLI (`robogo list`) for accurate autocompletion and documentation.
+
+## Snippets
+
+- `robogo-set-variable`: Set a variable dynamically
+- `robogo-file-secret`: Define a file-based secret (single value)
+- `robogo-inline-secret`: Define an inline secret
+- `robogo-postgres-query`: PostgreSQL query
+- `robogo-postgres-secret`: PostgreSQL query using secret variable
+- `robogo-control-if`: Control flow (if)
+- `robogo-control-for`: Control flow (for loop)
+- `robogo-http`, `robogo-http-get`, `robogo-http-post`: HTTP actions
+- `robogo-assert`, `robogo-get-time`, `robogo-sleep`, `robogo-log`: Utility actions
+- `robogo-test`: Complete test structure
+
+## Action List/Autocomplete
+
+The extension fetches actions from the CLI (`robogo completions` or `robogo list`) so it always stays up to date.
+
 ## Usage
 
 ### Getting Documentation
@@ -209,3 +234,33 @@ To contribute to this extension:
 ## License
 
 This extension is part of the Robogo project and follows the same license terms. 
+
+## Example Test Case
+
+```yaml
+testcase: "Variable and Secret Example"
+description: "Demonstrate variable and secret usage"
+
+variables:
+  vars:
+    db_host: "localhost"
+    db_port: "5432"
+    db_name: "postgres"
+    db_user: "postgres"
+  secrets:
+    db_password:
+      file: "secret.txt"
+      mask_output: true
+
+steps:
+  - name: "Set a dynamic variable"
+    action: variable
+    args: ["set_variable", "dynamic_var", "dynamic_value"]
+    result: set_result
+  - name: "Log dynamic variable"
+    action: log
+    args: ["Dynamic variable set result: ${set_result}"]
+  - name: "Show masked secret"
+    action: log
+    args: ["Database password: ${db_password}"]
+``` 

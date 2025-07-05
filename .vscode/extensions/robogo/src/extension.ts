@@ -207,7 +207,12 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
     private async getActions(): Promise<RobogoAction[]> {
         try {
             const config = vscode.workspace.getConfiguration('robogo');
-            const executablePath = config.get<string>('executablePath', 'robogo');
+            let executablePath = config.get<string>('executablePath', 'robogo');
+            
+            // Handle Windows executable extension
+            if (process.platform === 'win32' && !executablePath.endsWith('.exe')) {
+                executablePath = `${executablePath}.exe`;
+            }
             
             const { stdout } = await execAsync(`${executablePath} list --output json`);
             return JSON.parse(stdout);
@@ -516,7 +521,12 @@ class RobogoSignatureHelpProvider implements vscode.SignatureHelpProvider {
     private async getActions(): Promise<RobogoAction[]> {
         try {
             const config = vscode.workspace.getConfiguration('robogo');
-            const executablePath = config.get<string>('executablePath', 'robogo');
+            let executablePath = config.get<string>('executablePath', 'robogo');
+            
+            // Handle Windows executable extension
+            if (process.platform === 'win32' && !executablePath.endsWith('.exe')) {
+                executablePath = `${executablePath}.exe`;
+            }
             
             const { stdout } = await execAsync(`${executablePath} list --output json`);
             return JSON.parse(stdout);

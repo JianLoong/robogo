@@ -1,70 +1,107 @@
-# Test Robogo Variable Support
-# This file demonstrates variable assignment and usage
+# Test Variable Management Actions
+# This file demonstrates dynamic variable management in Robogo
 
-testcase: "Variable Support Test"
-description: "Test file to demonstrate variable assignment and usage"
+testcase: "Variable Management Test"
+description: "Test file to demonstrate variable actions"
+
+variables:
+  vars:
+    initial_value: "Hello"
+    counter: "0"
 
 steps:
-  # Get current timestamp and store in variable
-  - name: "Get current timestamp"
-    action: get_time
-    args: ["2006-01-02 15:04:05"]
-    result: timestamp
-  
-  # Log the timestamp
-  - name: "Log timestamp"
+  - name: "Show initial variables"
     action: log
-    args: ["Current timestamp: ${timestamp}"]
+    args: ["Initial value: ${initial_value}"]
   
-  # Get a random number
-  - name: "Get random number"
-    action: get_random
-    args: [100]
-    result: random_number
-  
-  # Log the random number
-  - name: "Log random number"
+  - name: "Show initial counter"
     action: log
-    args: ["Random number: ${random_number}"]
-  
-  # Concatenate strings and store result
-  - name: "Concatenate greeting"
-    action: concat
-    args: ["Hello", " ", "World", " ", "from", " ", "Robogo"]
-    result: greeting
-  
-  # Log the concatenated string
-  - name: "Log greeting"
+    args: ["Initial counter: ${counter}"]
+
+  - name: "Set a new variable"
+    action: variable
+    args: ["set_variable", "dynamic_var", "This is a dynamically set variable"]
+    result: set_result
+
+  - name: "Log set result"
     action: log
-    args: ["Greeting: ${greeting}"]
-  
-  # Get length of the greeting
-  - name: "Get greeting length"
-    action: length
-    args: ["${greeting}"]
-    result: greeting_length
-  
-  # Log the length
-  - name: "Log greeting length"
+    args: ["Set result: ${set_result}"]
+
+  - name: "Set variable with multiple arguments"
+    action: variable
+    args: ["set_variable", "multi_word_var", "Multiple", "words", "joined", "together"]
+    result: multi_set_result
+
+  - name: "Log multi-word set result"
     action: log
-    args: ["Greeting length: ${greeting_length}"]
-  
-  # Use variables in assertions
-  - name: "Assert greeting length"
-    action: assert
-    args: ["${greeting_length}", "23", "Greeting should be 23 characters long"]
-  
-  # Sleep using a variable
-  - name: "Wait 1 second"
-    action: sleep
-    args: [1]
-  
-  # Final log with multiple variables
-  - name: "Log final summary"
+    args: ["Multi-word set result: ${multi_set_result}"]
+
+  - name: "Update counter variable"
+    action: variable
+    args: ["set_variable", "counter", "5"]
+    result: counter_set_result
+
+  - name: "Log counter update result"
     action: log
-    args: ["Test completed at ${timestamp} with random number ${random_number}"]
+    args: ["Counter update result: ${counter_set_result}"]
+
+  - name: "Set a numeric variable"
+    action: variable
+    args: ["set_variable", "numeric_var", "42"]
+    result: numeric_set_result
+
+  - name: "Log numeric set result"
+    action: log
+    args: ["Numeric set result: ${numeric_set_result}"]
+
+  - name: "Try to get a variable (placeholder)"
+    action: variable
+    args: ["get_variable", "dynamic_var"]
+    result: get_result
+
+  - name: "Log get result"
+    action: log
+    args: ["Get result: ${get_result}"]
+
+  - name: "Try to list variables (placeholder)"
+    action: variable
+    args: ["list_variables"]
+    result: list_result
+
+  - name: "Log list result"
+    action: log
+    args: ["List result: ${list_result}"]
+
+  - name: "Final message"
+    action: log
+    args: ["🔧 Variable management test completed!"]
+
+# Variable Action Usage:
+#
+# Set a variable:
+#   - action: variable
+#     args: ["set_variable", "var_name", "value"]
+#     result: result_var
+#
+# Set variable with multiple words:
+#   - action: variable
+#     args: ["set_variable", "var_name", "word1", "word2", "word3"]
+#     result: result_var
+#
+# Get a variable (placeholder):
+#   - action: variable
+#     args: ["get_variable", "var_name"]
+#     result: result_var
+#
+# List all variables (placeholder):
+#   - action: variable
+#     args: ["list_variables"]
+#     result: result_var
+#
+# Note: get_variable and list_variables are placeholders.
+# Use ${variable_name} syntax for variable substitution instead.
 
 # Comments should be highlighted
-# Variables: ${timestamp}, ${random_number}, ${greeting}
-# Actions: log, sleep, assert, get_time, get_random, concat, length
+# Variables: ${initial_value}, ${counter}, ${set_result}, ${multi_set_result}, ${counter_set_result}, ${numeric_set_result}, ${get_result}, ${list_result}
+# Actions: log, variable
 # Keywords: testcase, description, steps, action, args, result 

@@ -2,7 +2,7 @@
   "name": "robogo",
   "displayName": "Robogo",
   "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, and test execution",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.60.0"
@@ -17,7 +17,11 @@
     "test",
     "automation",
     "yaml",
-    "testing"
+    "testing",
+    "postgresql",
+    "database",
+    "secrets",
+    "variables"
   ],
   "activationEvents": [
     "onLanguage:yaml",
@@ -99,7 +103,13 @@
           "description": "Show detailed parameter documentation in hover tooltips"
         }
       }
-    }
+    },
+    "snippets": [
+      {
+        "language": "yaml",
+        "path": "./robogo.code-snippets"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

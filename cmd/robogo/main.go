@@ -25,7 +25,17 @@ func main() {
 		Use:   "robogo",
 		Short: "Robogo - A modern, git-driven test automation framework",
 		Long: `Robogo is a modern, git-driven test automation framework written in Go.
-It provides fast, extensible, and developer-friendly test automation with YAML-based test cases.`,
+It provides fast, extensible, and developer-friendly test automation with YAML-based test cases.
+
+Key Features:
+- Dynamic variable management with the 'variable' action (set_variable, get_variable, list_variables)
+- Secure secret management: supports inline and file-based secrets (single value per file)
+- PostgreSQL database actions (connect, query, execute, close)
+- Control flow: if, for, while loops
+- Secret masking in output for security
+- URL encoding for PostgreSQL connection strings
+- Comprehensive test coverage
+`,
 		Version: fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date),
 	}
 
@@ -131,7 +141,7 @@ It provides fast, extensible, and developer-friendly test automation with YAML-b
 
 // outputConsole outputs results in console format
 func outputConsole(result *parser.TestResult) error {
-	fmt.Printf("\n📊 Test Results:\n")
+	fmt.Printf("\n�� Test Results:\n")
 	fmt.Printf("✅ Status: %s\n", result.Status)
 	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
 	fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
