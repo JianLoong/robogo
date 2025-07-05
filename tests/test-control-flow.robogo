@@ -1,0 +1,149 @@
+# Test Control Flow Features
+# This file demonstrates if statements and for loops in Robogo
+
+testcase: "Control Flow Test"
+description: "Test file to demonstrate if statements, for loops, and while loops"
+
+steps:
+  # Basic if statement
+  - name: "Simple if statement"
+    if:
+      condition: "true"
+      then:
+        - action: log
+          args: ["If condition is true - this should execute"]
+        - action: log
+          args: ["Second step in then branch"]
+      else:
+        - action: log
+          args: ["This should not execute"]
+
+  # If statement with comparison
+  - name: "If with comparison"
+    if:
+      condition: "5 > 3"
+      then:
+        - action: log
+          args: ["5 is greater than 3 - condition is true"]
+      else:
+        - action: log
+          args: ["This should not execute"]
+
+  # If statement with variables
+  - name: "Get random number"
+    action: get_random
+    args: [10]
+    result: random_num
+
+  - name: "If with variable comparison"
+    if:
+      condition: "${random_num} > 5"
+      then:
+        - action: log
+          args: ["Random number ${random_num} is greater than 5"]
+      else:
+        - action: log
+          args: ["Random number ${random_num} is 5 or less"]
+
+  # For loop with range
+  - name: "For loop with range"
+    for:
+      condition: "1..3"
+      steps:
+        - action: log
+          args: ["For loop iteration ${iteration}"]
+        - action: sleep
+          args: [0.1]
+
+  # For loop with array
+  - name: "For loop with array"
+    for:
+      condition: "[apple,banana,cherry]"
+      steps:
+        - action: log
+          args: ["Processing fruit ${index}: ${condition}"]
+        - action: sleep
+          args: [0.1]
+
+  # For loop with count
+  - name: "For loop with count"
+    for:
+      condition: "2"
+      max_iterations: 5
+      steps:
+        - action: log
+          args: ["Count-based loop iteration ${iteration}"]
+        - action: get_random
+          args: [100]
+          result: loop_random
+
+  # While loop
+  - name: "Initialize counter"
+    action: log
+    args: ["Starting while loop test"]
+    result: counter
+
+  - name: "While loop"
+    while:
+      condition: "${iteration} <= 3"
+      max_iterations: 10
+      steps:
+        - action: log
+          args: ["While loop iteration ${iteration}"]
+        - action: sleep
+          args: [0.2]
+
+  # Nested control flow
+  - name: "Nested if in for loop"
+    for:
+      condition: "1..3"
+      steps:
+        - action: log
+          args: ["Outer loop iteration ${iteration}"]
+        - if:
+            condition: "${iteration} == 2"
+            then:
+              - action: log
+                args: ["  Nested if: iteration is 2"]
+            else:
+              - action: log
+                args: ["  Nested if: iteration is not 2"]
+
+  # Complex condition with string operations
+  - name: "Get current time"
+    action: get_time
+    args: ["time"]
+    result: current_time
+
+  - name: "If with string contains"
+    if:
+      condition: "${current_time} contains :"
+      then:
+        - action: log
+          args: ["Time contains colon: ${current_time}"]
+      else:
+        - action: log
+          args: ["Time does not contain colon"]
+
+  # Error handling in loops
+  - name: "For loop with potential error"
+    for:
+      condition: "1..2"
+      steps:
+        - action: log
+          args: ["Loop iteration ${iteration}"]
+        - action: assert
+          args: ["${iteration}", ">", "0", "Iteration should be positive"]
+
+# This file demonstrates:
+# - If statements with simple conditions
+# - If statements with comparisons
+# - If statements with variables
+# - For loops with ranges (1..3)
+# - For loops with arrays ([item1,item2,item3])
+# - For loops with counts (number)
+# - While loops with conditions
+# - Nested control flow
+# - Complex conditions with string operations
+# - Error handling in loops
+# - Variable substitution in control flow 

@@ -90,6 +90,20 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "Perform HTTP POST request",
 		Example:     `- action: http_post\n  args: ["https://api.example.com/users", '{"name": "John"}']\n  result: response`,
 	})
+
+	// Control flow actions
+	ar.Register(ActionInfo{
+		Name:        "control",
+		Description: "Control flow operations (if, for, while)",
+		Example:     `- action: control\n  args: ["if", "condition"]\n  result: condition_result`,
+	})
+
+	// Database actions
+	ar.Register(ActionInfo{
+		Name:        "postgres",
+		Description: "PostgreSQL database operations (query, execute, connect, close)",
+		Example:     `- action: postgres\n  args: ["query", "postgres://user:pass@localhost/db", "SELECT * FROM users"]\n  result: query_result`,
+	})
 }
 
 // Register adds an action to the registry

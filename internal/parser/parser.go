@@ -38,9 +38,9 @@ func ParseTestFile(filename string) (*TestCase, error) {
 // isValidTestFile checks if the file has a valid extension
 func isValidTestFile(filename string) bool {
 	ext := strings.ToLower(filename)
-	return strings.HasSuffix(ext, ".yaml") || 
-		   strings.HasSuffix(ext, ".yml") || 
-		   strings.HasSuffix(ext, ".robogo")
+	return strings.HasSuffix(ext, ".yaml") ||
+		strings.HasSuffix(ext, ".yml") ||
+		strings.HasSuffix(ext, ".robogo")
 }
 
 // validateTestCase validates a test case
@@ -54,10 +54,18 @@ func validateTestCase(tc *TestCase) error {
 	}
 
 	for i, step := range tc.Steps {
-		if step.Action == "" {
-			return fmt.Errorf("step %d: action is required", i+1)
+		// Check if step has any control flow or regular action
+		hasControlFlow := step.If != nil || step.For != nil || step.While != nil
+		hasAction := step.Action != ""
+
+		if !hasControlFlow && !hasAction {
+			return fmt.Errorf("step %d: must have either an action or control flow (if/for/while)", i+1)
+		}
+
+		if hasControlFlow && hasAction {
+			return fmt.Errorf("step %d: cannot have both action and control flow", i+1)
 		}
 	}
 
 	return nil
-} 
+}

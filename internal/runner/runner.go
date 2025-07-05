@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,13 +13,15 @@ import (
 
 // TestRunner runs test cases
 type TestRunner struct {
-	variables map[string]interface{} // Store variables for the test case
+	variables     map[string]interface{} // Store variables for the test case
+	secretManager *actions.SecretManager // Secret manager for handling secrets
 }
 
 // NewTestRunner creates a new test runner
 func NewTestRunner() *TestRunner {
 	return &TestRunner{
-		variables: make(map[string]interface{}),
+		variables:     make(map[string]interface{}),
+		secretManager: actions.NewSecretManager(),
 	}
 }
 
@@ -43,6 +46,9 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 // runTestCase runs a single test case
 func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
 	startTime := time.Now()
+
+	// Initialize variables from test case
+	tr.initializeVariables(testCase)
 
 	// Create action executor
 	executor := actions.NewActionExecutor()
@@ -74,17 +80,71 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 			fmt.Printf("Step %d: %s\n", i+1, stepLabel)
 		}
 
-		// Substitute variables in arguments
-		substitutedArgs := tr.substituteVariables(step.Args)
+		// Handle control flow structures
+		if step.If != nil {
+			if err := tr.executeIfStatement(step.If, executor, silent); err != nil {
+				result.Status = "FAILED"
+				result.FailedSteps++
+				result.ErrorMessage = err.Error()
+				if !silent {
+					fmt.Printf("❌ Step %d (if statement) failed: %s\n", i+1, err.Error())
+				}
+			} else {
+				result.PassedSteps++
+				if !silent {
+					fmt.Printf("✅ Step %d (if statement) completed in %v\n", i+1, time.Since(stepStart))
+				}
+			}
+			continue
+		}
 
-		// Execute the action
+		if step.For != nil {
+			if err := tr.executeForLoop(step.For, executor, silent); err != nil {
+				result.Status = "FAILED"
+				result.FailedSteps++
+				result.ErrorMessage = err.Error()
+				if !silent {
+					fmt.Printf("❌ Step %d (for loop) failed: %s\n", i+1, err.Error())
+				}
+			} else {
+				result.PassedSteps++
+				if !silent {
+					fmt.Printf("✅ Step %d (for loop) completed in %v\n", i+1, time.Since(stepStart))
+				}
+			}
+			continue
+		}
+
+		if step.While != nil {
+			if err := tr.executeWhileLoop(step.While, executor, silent); err != nil {
+				result.Status = "FAILED"
+				result.FailedSteps++
+				result.ErrorMessage = err.Error()
+				if !silent {
+					fmt.Printf("❌ Step %d (while loop) failed: %s\n", i+1, err.Error())
+				}
+			} else {
+				result.PassedSteps++
+				if !silent {
+					fmt.Printf("✅ Step %d (while loop) completed in %v\n", i+1, time.Since(stepStart))
+				}
+			}
+			continue
+		}
+
+		// Execute regular step
+		substitutedArgs := tr.substituteVariables(step.Args)
 		output, err := executor.Execute(step.Action, substitutedArgs)
 		stepDuration := time.Since(stepStart)
+
+		// Mask secrets in output for display
+		maskedOutput := tr.secretManager.MaskSecretsInString(output)
+
 		stepResult := parser.StepResult{
 			Step:      step,
 			Status:    "PASSED",
 			Duration:  stepDuration,
-			Output:    output,
+			Output:    maskedOutput, // Use masked output for display
 			Timestamp: time.Now(),
 		}
 
@@ -101,15 +161,24 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 		} else {
 			result.PassedSteps++
 			if !silent {
-				fmt.Printf("✅ Step %d completed in %v\n", stepDuration)
+				// For log actions, mask the message before displaying
+				if step.Action == "log" && len(step.Args) > 0 {
+					message := fmt.Sprintf("%v", step.Args[0])
+					maskedMessage := tr.secretManager.MaskSecretsInString(message)
+					fmt.Printf("📝 %s\n", maskedMessage)
+				} else {
+					fmt.Printf("✅ Step %d completed in %v\n", i+1, stepDuration)
+				}
 			}
 		}
 
-		// Store result in variable if specified
+		// Store result in variable if specified (store actual value, not masked)
 		if step.Result != "" {
-			tr.variables[step.Result] = output
+			tr.variables[step.Result] = output // Store actual output
 			if !silent {
-				fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, output)
+				// Display masked version
+				maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
+				fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, maskedValue)
 			}
 		}
 
@@ -127,6 +196,196 @@ func (tr *TestRunner) runTestCase(testCase *parser.TestCase, silent bool) (*pars
 	}
 
 	return result, nil
+}
+
+// initializeVariables initializes variables from the test case
+func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
+	// Initialize regular variables
+	if testCase.Variables.Regular != nil {
+		for name, value := range testCase.Variables.Regular {
+			tr.variables[name] = value
+		}
+	}
+
+	// Initialize secret variables (inline or file)
+	if testCase.Variables.Secrets != nil {
+		secretMap := make(map[string]interface{})
+		for name, secret := range testCase.Variables.Secrets {
+			secretMap[name] = map[string]interface{}{
+				"value":       secret.Value,
+				"file":        secret.File,
+				"mask_output": secret.MaskOutput,
+			}
+		}
+
+		// Resolve secrets (inline or file)
+		if err := tr.secretManager.ResolveSecrets(secretMap); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to resolve secrets: %v\n", err)
+		}
+
+		// Add resolved secrets to variables
+		for name := range testCase.Variables.Secrets {
+			if value, exists := tr.secretManager.GetSecret(name); exists {
+				tr.variables[name] = value
+			}
+		}
+	}
+}
+
+// executeIfStatement executes an if/else block
+func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool) error {
+	// Evaluate condition
+	condition := tr.substituteString(ifBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"if", condition})
+	if err != nil {
+		return fmt.Errorf("failed to evaluate if condition: %w", err)
+	}
+
+	// Determine which branch to execute
+	var stepsToExecute []parser.Step
+	if output == "true" {
+		stepsToExecute = ifBlock.Then
+		if !silent {
+			fmt.Printf("🔍 If condition '%s' is true, executing 'then' branch (%d steps)\n", condition, len(stepsToExecute))
+		}
+	} else {
+		stepsToExecute = ifBlock.Else
+		if !silent {
+			fmt.Printf("🔍 If condition '%s' is false, executing 'else' branch (%d steps)\n", condition, len(stepsToExecute))
+		}
+	}
+
+	// Execute the selected branch
+	return tr.executeSteps(stepsToExecute, executor, silent)
+}
+
+// executeForLoop executes a for loop
+func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool) error {
+	// Evaluate loop condition to get iteration count
+	condition := tr.substituteString(forBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"for", condition})
+	if err != nil {
+		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
+	}
+
+	iterations, err := strconv.Atoi(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse iteration count: %w", err)
+	}
+
+	maxIterations := forBlock.MaxIterations
+	if maxIterations > 0 && iterations > maxIterations {
+		iterations = maxIterations
+		if !silent {
+			fmt.Printf("⚠️  Limiting iterations to %d (max_iterations)\n", maxIterations)
+		}
+	}
+
+	if !silent {
+		fmt.Printf("🔄 For loop: executing %d iterations\n", iterations)
+	}
+
+	// Execute the loop body for each iteration
+	for i := 0; i < iterations; i++ {
+		if !silent {
+			fmt.Printf("  🔄 Iteration %d/%d\n", i+1, iterations)
+		}
+
+		// Set iteration variable
+		tr.variables["iteration"] = i + 1
+		tr.variables["index"] = i
+
+		if err := tr.executeSteps(forBlock.Steps, executor, silent); err != nil {
+			return fmt.Errorf("iteration %d failed: %w", i+1, err)
+		}
+	}
+
+	return nil
+}
+
+// executeWhileLoop executes a while loop
+func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool) error {
+	iteration := 0
+	maxIterations := whileBlock.MaxIterations
+	if maxIterations <= 0 {
+		maxIterations = 1000 // Default max iterations to prevent infinite loops
+	}
+
+	for {
+		iteration++
+		if iteration > maxIterations {
+			return fmt.Errorf("while loop exceeded maximum iterations (%d)", maxIterations)
+		}
+
+		// Evaluate condition
+		condition := tr.substituteString(whileBlock.Condition)
+		output, err := executor.Execute("control", []interface{}{"while", condition})
+		if err != nil {
+			return fmt.Errorf("failed to evaluate while condition: %w", err)
+		}
+
+		if output != "true" {
+			if !silent {
+				fmt.Printf("🔄 While loop: condition '%s' is false, exiting after %d iterations\n", condition, iteration-1)
+			}
+			break
+		}
+
+		if !silent {
+			fmt.Printf("  🔄 While iteration %d\n", iteration)
+		}
+
+		// Set iteration variable
+		tr.variables["iteration"] = iteration
+
+		// Execute loop body
+		if err := tr.executeSteps(whileBlock.Steps, executor, silent); err != nil {
+			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
+		}
+	}
+
+	return nil
+}
+
+// executeSteps executes a slice of steps
+func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.ActionExecutor, silent bool) error {
+	for _, step := range steps {
+		// Handle nested control flow
+		if step.If != nil {
+			if err := tr.executeIfStatement(step.If, executor, silent); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if step.For != nil {
+			if err := tr.executeForLoop(step.For, executor, silent); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if step.While != nil {
+			if err := tr.executeWhileLoop(step.While, executor, silent); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Execute regular step
+		substitutedArgs := tr.substituteVariables(step.Args)
+		output, err := executor.Execute(step.Action, substitutedArgs)
+		if err != nil {
+			return fmt.Errorf("step '%s' failed: %w", step.Name, err)
+		}
+
+		// Store result in variable if specified
+		if step.Result != "" {
+			tr.variables[step.Result] = output
+		}
+	}
+
+	return nil
 }
 
 // substituteVariables replaces ${variable} references with actual values
@@ -159,6 +418,21 @@ func (tr *TestRunner) substituteString(s string) string {
 		}
 		return match // Return original if variable not found
 	})
+}
+
+// substituteStringForDisplay replaces ${variable} references and masks secrets for display
+func (tr *TestRunner) substituteStringForDisplay(s string) string {
+	re := regexp.MustCompile(`\$\{([^}]+)\}`)
+	result := re.ReplaceAllStringFunc(s, func(match string) string {
+		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
+		if value, exists := tr.variables[varName]; exists {
+			return fmt.Sprintf("%v", value)
+		}
+		return match // Return original if variable not found
+	})
+
+	// Mask secrets in the result for display only
+	return tr.secretManager.MaskSecretsInString(result)
 }
 
 // substituteMap substitutes variables in map values

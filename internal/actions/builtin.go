@@ -20,6 +20,8 @@ var actionFuncs = map[string]ActionFunc{
 	"http":       HTTPAction,
 	"http_get":   HTTPGetAction,
 	"http_post":  HTTPPostAction,
+	"control":    ControlFlowAction,
+	"postgres":   PostgresAction,
 }
 
 // NewActionExecutor creates a new action executor

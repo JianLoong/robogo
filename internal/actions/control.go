@@ -1,0 +1,222 @@
+package actions
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// ControlFlowAction handles if statements, for loops, and while loops
+func ControlFlowAction(args []interface{}) (string, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
+	}
+
+	flowType := strings.ToLower(fmt.Sprintf("%v", args[0]))
+
+	switch flowType {
+	case "if":
+		return handleIfStatement(args[1:])
+	case "for":
+		return handleForLoop(args[1:])
+	case "while":
+		return handleWhileLoop(args[1:])
+	default:
+		return "", fmt.Errorf("unknown control flow type: %s", flowType)
+	}
+}
+
+// handleIfStatement evaluates a condition and returns "true" or "false"
+func handleIfStatement(args []interface{}) (string, error) {
+	if len(args) < 1 {
+		return "", fmt.Errorf("if statement requires a condition")
+	}
+
+	condition := fmt.Sprintf("%v", args[0])
+	result, err := evaluateCondition(condition)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate condition '%s': %w", condition, err)
+	}
+
+	fmt.Printf("🔍 If condition '%s' evaluated to: %v\n", condition, result)
+	return fmt.Sprintf("%v", result), nil
+}
+
+// handleForLoop handles for loop iterations
+func handleForLoop(args []interface{}) (string, error) {
+	if len(args) < 1 {
+		return "", fmt.Errorf("for loop requires a range or array")
+	}
+
+	rangeSpec := fmt.Sprintf("%v", args[0])
+
+	// Handle different range formats
+	if strings.Contains(rangeSpec, "..") {
+		// Range format: "1..5" or "start..end"
+		return handleRangeLoop(rangeSpec)
+	} else if strings.HasPrefix(rangeSpec, "[") && strings.HasSuffix(rangeSpec, "]") {
+		// Array format: "[1,2,3,4,5]"
+		return handleArrayLoop(rangeSpec)
+	} else {
+		// Try to parse as number for count-based loop
+		return handleCountLoop(rangeSpec)
+	}
+}
+
+// handleWhileLoop handles while loop condition evaluation
+func handleWhileLoop(args []interface{}) (string, error) {
+	if len(args) < 1 {
+		return "", fmt.Errorf("while loop requires a condition")
+	}
+
+	condition := fmt.Sprintf("%v", args[0])
+	result, err := evaluateCondition(condition)
+	if err != nil {
+		return "", fmt.Errorf("failed to evaluate while condition '%s': %w", condition, err)
+	}
+
+	fmt.Printf("🔄 While condition '%s' evaluated to: %v\n", condition, result)
+	return fmt.Sprintf("%v", result), nil
+}
+
+// evaluateCondition evaluates a condition string and returns boolean result
+func evaluateCondition(condition string) (bool, error) {
+	// Handle common comparison operators
+	operators := []string{"==", "!=", ">=", "<=", ">", "<", "contains", "starts_with", "ends_with"}
+
+	for _, op := range operators {
+		if strings.Contains(condition, " "+op+" ") {
+			parts := strings.Split(condition, " "+op+" ")
+			if len(parts) != 2 {
+				return false, fmt.Errorf("invalid condition format: %s", condition)
+			}
+
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+
+			return compareValues(left, right, op)
+		}
+	}
+
+	// If no operator found, treat as boolean value
+	return parseBoolean(condition)
+}
+
+// compareValues compares two values using the specified operator
+func compareValues(left, right, operator string) (bool, error) {
+	switch operator {
+	case "==":
+		return left == right, nil
+	case "!=":
+		return left != right, nil
+	case "contains":
+		return strings.Contains(left, right), nil
+	case "starts_with":
+		return strings.HasPrefix(left, right), nil
+	case "ends_with":
+		return strings.HasSuffix(left, right), nil
+	case ">", ">=", "<", "<=":
+		// Try numeric comparison
+		leftNum, leftErr := strconv.ParseFloat(left, 64)
+		rightNum, rightErr := strconv.ParseFloat(right, 64)
+
+		if leftErr != nil || rightErr != nil {
+			// Fall back to string comparison
+			switch operator {
+			case ">":
+				return left > right, nil
+			case ">=":
+				return left >= right, nil
+			case "<":
+				return left < right, nil
+			case "<=":
+				return left <= right, nil
+			}
+		}
+
+		switch operator {
+		case ">":
+			return leftNum > rightNum, nil
+		case ">=":
+			return leftNum >= rightNum, nil
+		case "<":
+			return leftNum < rightNum, nil
+		case "<=":
+			return leftNum <= rightNum, nil
+		}
+	}
+
+	return false, fmt.Errorf("unsupported operator: %s", operator)
+}
+
+// parseBoolean parses a string as a boolean value
+func parseBoolean(value string) (bool, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+
+	switch value {
+	case "true", "1", "yes", "on":
+		return true, nil
+	case "false", "0", "no", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("cannot parse as boolean: %s", value)
+	}
+}
+
+// handleRangeLoop handles range-based loops (e.g., "1..5")
+func handleRangeLoop(rangeSpec string) (string, error) {
+	parts := strings.Split(rangeSpec, "..")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid range format: %s", rangeSpec)
+	}
+
+	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return "", fmt.Errorf("invalid start value in range: %s", parts[0])
+	}
+
+	end, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return "", fmt.Errorf("invalid end value in range: %s", parts[1])
+	}
+
+	if start > end {
+		return "", fmt.Errorf("start value cannot be greater than end value: %d > %d", start, end)
+	}
+
+	fmt.Printf("🔄 For loop range: %d to %d (iterations: %d)\n", start, end, end-start+1)
+	return fmt.Sprintf("%d", end-start+1), nil
+}
+
+// handleArrayLoop handles array-based loops (e.g., "[1,2,3,4,5]")
+func handleArrayLoop(arraySpec string) (string, error) {
+	// Simple array parsing - remove brackets and split by comma
+	content := strings.TrimPrefix(strings.TrimSuffix(arraySpec, "]"), "[")
+	items := strings.Split(content, ",")
+
+	// Count non-empty items
+	count := 0
+	for _, item := range items {
+		if strings.TrimSpace(item) != "" {
+			count++
+		}
+	}
+
+	fmt.Printf("🔄 For loop array: %s (items: %d)\n", arraySpec, count)
+	return fmt.Sprintf("%d", count), nil
+}
+
+// handleCountLoop handles count-based loops (e.g., "5" for 5 iterations)
+func handleCountLoop(countSpec string) (string, error) {
+	count, err := strconv.Atoi(strings.TrimSpace(countSpec))
+	if err != nil {
+		return "", fmt.Errorf("invalid count value: %s", countSpec)
+	}
+
+	if count < 0 {
+		return "", fmt.Errorf("count cannot be negative: %d", count)
+	}
+
+	fmt.Printf("🔄 For loop count: %d iterations\n", count)
+	return fmt.Sprintf("%d", count), nil
+}
