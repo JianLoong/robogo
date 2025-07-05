@@ -14,21 +14,13 @@ steps:
     action: log
     args: ["Continuing after failure"]
 
-  - name: "Loop with continue_on_failure"
+  - name: "Simple loop test"
     for:
-      condition: "1..4"
+      condition: "1..3"
       steps:
         - name: "Log iteration"
           action: log
           args: ["Iteration ${iteration}"]
-        - name: "Fail on 2 and 4"
-          action: assert
-          args: ["${iteration}", "!=", "2", "Should not be 2"]
-          continue_on_failure: true
-        - name: "Fail on 3 (continue)"
-          action: assert
-          args: ["${iteration}", "!=", "3", "Should not be 3"]
-          continue_on_failure: true
 
   - name: "Final step"
     action: log

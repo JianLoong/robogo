@@ -1,8 +1,8 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, assertion operators, retry support, and test execution",
-  "version": "0.4.1",
+  "description": "Enhanced support for Robogo test automation framework - syntax highlighting, autocompletion, validation, and test execution",
+  "version": "0.5.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.60.0"
@@ -38,8 +38,13 @@
     "languages": [
       {
         "id": "robogo",
-        "aliases": ["Robogo", "robogo"],
-        "extensions": [".robogo"],
+        "aliases": [
+          "Robogo",
+          "robogo"
+        ],
+        "extensions": [
+          ".robogo"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -48,13 +53,6 @@
         "language": "robogo",
         "scopeName": "source.robogo",
         "path": "./syntaxes/robogo.tmLanguage.json"
-      }
-    ],
-    "themes": [
-      {
-        "label": "Robogo Dark",
-        "uiTheme": "vs-dark",
-        "path": "./themes/robogo-dark.json"
       }
     ],
     "commands": [
@@ -97,7 +95,11 @@
         },
         "robogo.outputFormat": {
           "type": "string",
-          "enum": ["console", "json", "markdown"],
+          "enum": [
+            "console",
+            "json",
+            "markdown"
+          ],
           "default": "console",
           "description": "Default output format for test execution"
         },
@@ -120,7 +122,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "build": "npm run compile && npm run package"
+    "build": "npm run compile && npm run package",
+    "dev": "npm run watch",
+    "test": "npm run compile && code --extensionDevelopmentPath=."
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
@@ -131,4 +135,4 @@
     "@types/js-yaml": "^4.0.5",
     "typescript": "^4.5.0"
   }
-} 
+}

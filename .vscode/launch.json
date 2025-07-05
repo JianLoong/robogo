@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Extension",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/.vscode/extensions/robogo"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/.vscode/extensions/robogo/out/**/*.js"
+            ],
+            "preLaunchTask": "npm: compile"
+        },
+        {
+            "name": "Extension Tests",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/.vscode/extensions/robogo",
+                "--extensionTestsPath=${workspaceFolder}/.vscode/extensions/robogo/out/test/suite/index"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/.vscode/extensions/robogo/out/test/**/*.js"
+            ],
+            "preLaunchTask": "npm: compile"
+        }
+    ]
+}
