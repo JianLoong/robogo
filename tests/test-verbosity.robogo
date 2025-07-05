@@ -1,0 +1,93 @@
+# Test Verbosity Features
+# This file demonstrates the new verbosity capabilities in Robogo
+
+testcase: "Verbosity Test"
+description: "Test file to demonstrate verbosity levels and output"
+
+# Global verbosity setting (applies to all steps unless overridden)
+verbose: "basic"
+
+steps:
+  # Basic verbose output (inherits from global setting)
+  - name: "Basic verbose log"
+    action: log
+    args: ["This step will show basic verbose output"]
+  
+  # Override with detailed verbosity
+  - name: "Detailed verbose HTTP request"
+    action: http_get
+    args: ["https://httpbin.org/get"]
+    verbose: "detailed"
+    result: get_response
+  
+  # Override with debug verbosity
+  - name: "Debug verbose variable operation"
+    action: variable
+    args: ["set_variable", "test_var", "debug_value"]
+    verbose: "debug"
+    result: set_result
+  
+  # Disable verbosity for this step
+  - name: "Silent operation"
+    action: log
+    args: ["This step will be silent (no verbose output)"]
+    verbose: false
+  
+  # Use boolean true for basic verbosity
+  - name: "Boolean verbose"
+    action: sleep
+    args: [0.5]
+    verbose: true
+  
+  # HTTP with custom headers and verbose output
+  - name: "Verbose HTTP with headers"
+    action: http
+    args: ["POST", "https://httpbin.org/post", '{"test": "data"}', {"Content-Type": "application/json"}]
+    verbose: "detailed"
+    result: post_response
+  
+  # String operations with verbose output
+  - name: "Verbose string concatenation"
+    action: concat
+    args: ["Hello", " ", "World", " ", "from", " ", "Robogo"]
+    verbose: "detailed"
+    result: greeting
+  
+  # Time operations with verbose output
+  - name: "Verbose time operation"
+    action: get_time
+    args: ["iso"]
+    verbose: "detailed"
+    result: timestamp
+  
+  # Assertions with verbose output
+  - name: "Verbose assertion"
+    action: assert
+    args: ["${greeting}", "Hello World from Robogo", "Greeting should match expected"]
+    verbose: "detailed"
+  
+  # Random number with verbose output
+  - name: "Verbose random number"
+    action: get_random
+    args: [100]
+    verbose: "debug"
+    result: random_num
+  
+  # Final summary
+  - name: "Final summary"
+    action: log
+    args: ["Verbosity test completed! Check the output above for different verbosity levels."]
+
+# Verbosity Levels Demonstrated:
+#
+# 1. Global verbosity: "basic" - applies to all steps unless overridden
+# 2. Step-level verbosity: "detailed" - overrides global setting
+# 3. Boolean verbosity: true (same as "basic")
+# 4. Disabled verbosity: false - turns off verbose output
+# 5. Debug verbosity: "debug" - maximum detail level
+#
+# Expected Output:
+# - Basic: Shows action name and duration
+# - Detailed: Shows args, duration, and output
+# - Debug: Shows everything plus verbosity level
+# - False: No verbose output (normal operation) 

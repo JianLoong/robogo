@@ -1,0 +1,97 @@
+# Test Retry Functionality
+# This file demonstrates retry mechanisms for different scenarios
+
+testcase: "Retry Mechanism Test"
+description: "Test various retry configurations and scenarios"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org"
+    retry_delay: 1s
+    max_retries: 3
+
+steps:
+  - name: "Basic retry with fixed delay"
+    action: http
+    args: ["GET", "${base_url}/status/500"]
+    retry:
+      attempts: 3
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["5xx"]
+    result: "basic_retry_result"
+
+  - name: "Exponential backoff retry"
+    action: http
+    args: ["GET", "${base_url}/status/503"]
+    retry:
+      attempts: 4
+      delay: 1s
+      backoff: "exponential"
+      max_delay: 10s
+      conditions: ["5xx"]
+    result: "exp_retry_result"
+
+  - name: "Linear backoff with jitter"
+    action: http
+    args: ["GET", "${base_url}/status/502"]
+    retry:
+      attempts: 3
+      delay: 2s
+      backoff: "linear"
+      jitter: true
+      conditions: ["5xx"]
+    result: "linear_retry_result"
+
+  - name: "Retry on rate limiting"
+    action: http
+    args: ["GET", "${base_url}/status/429"]
+    retry:
+      attempts: 2
+      delay: 3s
+      backoff: "fixed"
+      conditions: ["rate_limit", "4xx"]
+    result: "rate_limit_result"
+
+  - name: "Retry on connection errors (simulated)"
+    action: http
+    args: ["GET", "https://invalid-domain-that-does-not-exist-12345.com"]
+    retry:
+      attempts: 2
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["connection_error"]
+    result: "connection_retry_result"
+
+  - name: "Successful request (no retry needed)"
+    action: http
+    args: ["GET", "${base_url}/status/200"]
+    retry:
+      attempts: 3
+      delay: 1s
+      conditions: ["5xx"]
+    result: "success_result"
+
+  - name: "Log retry summary"
+    action: log
+    args: ["Retry tests completed. Check results above for retry behavior."]
+
+  - name: "Assert retry results"
+    action: assert
+    args: ["${basic_retry_result}", "contains", "500", "Basic retry should have attempted 500 status"]
+
+  - name: "Test with minimal retry config"
+    action: http
+    args: ["GET", "${base_url}/status/500"]
+    retry:
+      attempts: 2
+    result: "minimal_retry_result"
+
+  - name: "Test retry with all conditions"
+    action: http
+    args: ["GET", "${base_url}/status/503"]
+    retry:
+      attempts: 2
+      delay: 1s
+      conditions: ["all"]
+    result: "all_conditions_result" 
