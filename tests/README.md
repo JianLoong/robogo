@@ -22,14 +22,19 @@ This directory contains example `.robogo` test files that demonstrate the featur
 
 You can run any of these test files with the Robogo CLI:
 
-```sh
-robogo run examples/tests/test-variables.robogo
-robogo run examples/tests/test-time-formats.robogo
-robogo run examples/tests/test-syntax.robogo
-robogo run examples/tests/test-http.robogo
-```
+```bash
+# Run individual test files
+./robogo run tests/test-variables.robogo
+./robogo run tests/test-time-formats.robogo
+./robogo run tests/test-syntax.robogo
+./robogo run tests/test-http.robogo
 
-You can also run all tests in this directory with a simple script or loop.
+# Run all tests in this directory
+for test in tests/*.robogo; do
+  echo "Running $test..."
+  ./robogo run "$test"
+done
+```
 
 ## Creating Your Own Test Files
 
@@ -39,10 +44,12 @@ You can also run all tests in this directory with a simple script or loop.
 4. Use the `result` field to store the output of an action in a variable.
 5. Reference variables in later steps using `${variable}` syntax.
 6. Use built-in actions like `log`, `sleep`, `assert`, `get_time`, `get_random`, `concat`, `length`, and HTTP actions.
-7. Save your file with a `.robogo` extension.
+7. Save your file with a `.robogo`, `.yaml`, or `.yml` extension.
 
 ### Example
 ```yaml
+testcase: "My Test Case"
+description: "Description of what this test does"
 steps:
   - name: "Get current timestamp"
     action: get_time
@@ -69,6 +76,37 @@ Each step can have the following fields:
 - **Keep names concise** but informative.
 - **Use action verbs** to describe the step's purpose.
 
+## Available Actions
+
+Robogo provides the following built-in actions:
+
+### Basic Operations
+- **`log`** - Output messages to console
+- **`sleep`** - Pause execution for a specified duration
+- **`assert`** - Verify conditions and values
+
+### Time and Random
+- **`get_time`** - Get current timestamp with various formats
+- **`get_random`** - Generate random numbers
+
+### String Operations
+- **`concat`** - Concatenate strings
+- **`length`** - Get length of strings or arrays
+
+### HTTP Operations
+- **`http`** - Generic HTTP requests with mTLS support
+- **`http_get`** - Simplified GET requests
+- **`http_post`** - Simplified POST requests
+
+For detailed documentation on each action, see [Built-in Actions Reference](../docs/actions.md).
+
+## File Extensions
+
+Robogo supports multiple file extensions for test cases:
+- `.robogo` - Robogo-specific format
+- `.yaml` - Standard YAML format
+- `.yml` - Standard YAML format
+
 ## Best Practices
 
 - **Use descriptive step names** for clarity and better reporting.
@@ -78,10 +116,41 @@ Each step can have the following fields:
 - **Leverage variables** to avoid repeating logic or values.
 - **Use the VS Code extension** for syntax highlighting, autocompletion, and documentation.
 - **Keep test cases focused**: one test case per file is recommended for clarity and maintainability.
+- **Use proper YAML indentation** to avoid parsing errors.
+
+## Output Formats
+
+You can run tests with different output formats:
+
+```bash
+# Console output (default)
+./robogo run tests/test-variables.robogo
+
+# JSON output
+./robogo run tests/test-variables.robogo --output json
+
+# Markdown output
+./robogo run tests/test-variables.robogo --output markdown
+```
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. **Check syntax**: Ensure proper YAML indentation and structure
+2. **Verify actions**: Use `./robogo list` to see available actions
+3. **Check file extension**: Use `.robogo`, `.yaml`, or `.yml`
+4. **Validate variables**: Ensure variables are defined before use
+5. **Review logs**: Check console output for error messages
+
+For more detailed troubleshooting, see the [Troubleshooting Guide](../docs/troubleshooting.md).
 
 ## More Information
 
-- See the main project README for a full list of available actions and advanced features.
-- For custom actions or advanced usage, refer to the documentation or source code.
+- **[Main Documentation](../docs/README.md)** - Complete documentation index
+- **[Quick Start Guide](../docs/quickstart.md)** - Get started in 5 minutes
+- **[Test Case Writing Guide](../docs/test-cases.md)** - How to write effective test cases
+- **[Built-in Actions Reference](../docs/actions.md)** - Complete action documentation
+- **[CLI Reference](../docs/cli-reference.md)** - Command-line interface documentation
 
 Feel free to use these files as templates for your own tests or to explore the capabilities of Robogo! 

@@ -1,10 +1,10 @@
 # Quick Start Guide
 
-Get up and running with Gobot in 5 minutes! This guide will walk you through creating and running your first test case.
+Get up and running with Robogo in 5 minutes! This guide will walk you through creating and running your first test case.
 
 ## Prerequisites
 
-- Gobot installed (see [Installation Guide](installation.md))
+- Robogo installed (see [Installation Guide](installation.md))
 - Basic familiarity with YAML syntax
 
 ## Step 1: Create Your First Test Case
@@ -13,33 +13,61 @@ Create a file called `hello-world.yaml` with the following content:
 
 ```yaml
 testcase: "Hello World Test"
-description: "A simple test to verify Gobot is working"
+description: "A simple test to verify Robogo is working"
 steps:
-  - keyword: log
-    args: ["Hello from Gobot!"]
-  - keyword: log
-    args: ["Current time is: ${datetime.now()}"]
-  - keyword: assert
-    args: [true, "This test should always pass"]
+  - action: log
+    args: ["Hello from Robogo!"]
+  - action: log
+    args: ["This is a simple test case"]
+  - action: sleep
+    args: [1]
+  - action: assert
+    args: [true, true, "This should always pass"]
+  - action: log
+    args: ["Test completed successfully!"]
 ```
 
 ## Step 2: Run Your Test
 
-Execute the test case using the Gobot CLI:
+Execute the test case using the Robogo CLI:
 
 ```bash
-gobot run hello-world.yaml
+./robogo run hello-world.yaml
 ```
 
 You should see output similar to:
 
 ```
-🚀 Gobot v1.0.0
-📋 Running test case: Hello World Test
-   📝 Step 1: log - Hello from Gobot!
-   📝 Step 2: log - Current time is: 2024-01-15T10:30:00Z
-   ✅ Step 3: assert - This test should always pass
-✅ Test completed successfully in 0.05s
+🚀 Running test case: Hello World Test
+📋 Description: A simple test to verify Robogo is working
+📝 Steps: 5
+
+Step 1: log
+📝 Hello from Robogo!
+✅ Step 1 completed in 123.45µs
+
+Step 2: log
+📝 This is a simple test case
+✅ Step 2 completed in 45.67µs
+
+Step 3: sleep
+😴 Sleeping for 1s
+✅ Step 3 completed in 1.000123s
+
+Step 4: assert
+✅ This should always pass
+✅ Step 4 completed in 23.45µs
+
+Step 5: log
+📝 Test completed successfully!
+✅ Step 5 completed in 34.56µs
+
+🏁 Test completed in 1.000227s
+
+📊 Test Results:
+✅ Status: PASSED
+⏱️  Duration: 1.000227s
+📝 Steps: 5 total, 5 passed, 0 failed
 ```
 
 ## Step 3: Create a More Complex Test
@@ -50,134 +78,169 @@ Let's create a test that demonstrates more features. Create `api-test.yaml`:
 testcase: "API Health Check"
 description: "Test API endpoint health"
 steps:
-  - keyword: log
+  - action: log
     args: ["Starting API health check"]
   
-  - keyword: http_request
-    args:
-      url: "https://httpbin.org/status/200"
-      method: "GET"
-      timeout: 10
+  - action: http_get
+    args: ["https://httpbin.org/status/200"]
+    result: response
   
-  - keyword: assert
+  - action: assert
     args: ["${response.status_code}", "==", 200]
   
-  - keyword: log
+  - action: log
     args: ["API health check completed successfully"]
 ```
 
 Run this test:
 
 ```bash
-gobot run api-test.yaml
+./robogo run api-test.yaml
 ```
 
-## Step 4: Using Environment Variables
+## Step 4: Using Variables
 
-Create a test that uses environment variables for configuration:
+Create a test that uses variables for storing and referencing data:
 
 ```yaml
-testcase: "Environment Variable Test"
-description: "Demonstrate environment variable usage"
+testcase: "Variable Test"
+description: "Demonstrate variable usage"
 steps:
-  - keyword: log
-    args: ["User: ${USER}"]
-  - keyword: log
-    args: ["Home directory: ${HOME}"]
-  - keyword: assert
-    args: ["${USER}", "!=", ""]
+  - action: get_time
+    args: ["iso"]
+    result: timestamp
+  
+  - action: log
+    args: ["Current timestamp: ${timestamp}"]
+  
+  - action: get_random
+    args: [100]
+    result: random_number
+  
+  - action: log
+    args: ["Random number: ${random_number}"]
+  
+  - action: assert
+    args: ["${random_number}", ">=", 0]
 ```
 
-Set an environment variable and run:
+Run this test:
 
 ```bash
-export CUSTOM_VAR="Hello from environment"
-gobot run env-test.yaml
+./robogo run variable-test.yaml
 ```
 
-## Step 5: Git Integration
+## Step 5: String Operations
 
-Test Gobot's git integration by running a test from a repository:
-
-```bash
-# Run a test from a public repository
-gobot run --repo https://github.com/your-org/test-examples.git --branch main --path examples/basic
-```
-
-## Step 6: Parallel Execution
-
-Create multiple test cases and run them in parallel:
+Create a test that demonstrates string manipulation:
 
 ```yaml
-# parallel-tests.yaml
-testcases:
-  - name: "Test A"
-    steps:
-      - keyword: log
-        args: ["Running test A"]
-      - keyword: sleep
-        args: [1]
-      - keyword: assert
-        args: [true]
+testcase: "String Operations Test"
+description: "Demonstrate string operations"
+steps:
+  - action: concat
+    args: ["Hello", " ", "World", "!"]
+    result: greeting
   
-  - name: "Test B"
-    steps:
-      - keyword: log
-        args: ["Running test B"]
-      - keyword: sleep
-        args: [1]
-      - keyword: assert
-        args: [true]
-
-parallel: true
-max_workers: 2
+  - action: log
+    args: ["Greeting: ${greeting}"]
+  
+  - action: length
+    args: ["${greeting}"]
+    result: greeting_length
+  
+  - action: log
+    args: ["Greeting length: ${greeting_length}"]
+  
+  - action: assert
+    args: ["${greeting_length}", "==", 12]
 ```
 
-Run with parallel execution:
+## Step 6: HTTP Operations with mTLS
 
-```bash
-gobot run parallel-tests.yaml
+Create a test that demonstrates HTTP operations with mutual TLS:
+
+```yaml
+testcase: "HTTP mTLS Test"
+description: "Test HTTP requests with mutual TLS"
+steps:
+  - action: log
+    args: ["Starting HTTP mTLS test"]
+  
+  - action: http
+    args: 
+      - "GET"
+      - "https://secure.example.com/api/health"
+      - 
+        cert: "${CLIENT_CERT_PATH}"
+        key: "${CLIENT_KEY_PATH}"
+        ca: "${CA_CERT_PATH}"
+        Authorization: "Bearer ${API_TOKEN}"
+    result: response
+  
+  - action: log
+    args: ["Response status: ${response.status_code}"]
+  
+  - action: assert
+    args: ["${response.status_code}", "==", 200]
 ```
 
-## Step 7: View Test Results
+## Step 7: View Test Results in Different Formats
 
-Gobot provides detailed output by default. For different formats:
+Robogo provides multiple output formats:
 
 ```bash
 # JSON output
-gobot run hello-world.yaml --output json
+./robogo run hello-world.yaml --output json
 
-# JUnit XML (for CI/CD integration)
-gobot run hello-world.yaml --output junit
+# Markdown output
+./robogo run hello-world.yaml --output markdown
 
-# Verbose output with timing
-gobot run hello-world.yaml --verbose
+# Console output (default)
+./robogo run hello-world.yaml --output console
 ```
 
-## Step 8: Configuration
+## Step 8: List Available Actions
 
-Create a configuration file for your project:
-
-```yaml
-# .gobot.yaml
-defaults:
-  timeout: 30s
-  retry_attempts: 3
-
-environments:
-  development:
-    base_url: "http://localhost:8080"
-    log_level: "debug"
-  
-  production:
-    base_url: "https://api.example.com"
-    log_level: "info"
-```
-
-Run with specific environment:
+Explore what actions are available:
 
 ```bash
-gobot run api-test.yaml --env production
+# List all actions
+./robogo list
+
+# Get completions for autocomplete
+./robogo completions http
+```
+
+## Step 9: Run Multiple Test Cases
+
+Create a test suite with multiple test cases:
+
+```yaml
+# test-suite.yaml
+testcase: "Basic Functionality Test"
+description: "Test basic Robogo functionality with various actions"
+steps:
+  - action: log
+    args: ["Starting basic functionality test"]
+  
+  - action: sleep
+    args: [0.5]
+  
+  - action: assert
+    args: ["hello", "hello", "String comparison should pass"]
+  
+  - action: assert
+    args: [42, 42, "Number comparison should pass"]
+  
+  - action: log
+    args: ["All basic assertions passed!"]
+  
+  - action: sleep
+    args: [0.5]
+  
+  - action: log
+    args: ["Basic functionality test completed"]
 ```
 
 ## What You've Learned
@@ -185,57 +248,39 @@ gobot run api-test.yaml --env production
 In this quick start, you've:
 
 ✅ Created and ran your first test case  
-✅ Used built-in keywords (log, assert, http_request)  
-✅ Worked with environment variables  
-✅ Explored git integration  
-✅ Run tests in parallel  
+✅ Used built-in actions (log, sleep, assert, http_get)  
+✅ Worked with variables and result storage  
+✅ Explored string operations  
+✅ Made HTTP requests with mTLS support  
 ✅ Generated different output formats  
-✅ Used configuration files  
+✅ Listed available actions  
 
 ## Next Steps
 
 Now that you're familiar with the basics:
 
 1. **Read the [Test Case Writing Guide](test-cases.md)** for best practices
-2. **Explore [Built-in Keywords](keywords.md)** for more functionality
-3. **Learn about [Git Integration](git-integration.md)** for team workflows
-4. **Check out [Secret Management](secrets.md)** for secure credential handling
-5. **Review [Parallel Execution](parallel.md)** for performance optimization
+2. **Explore [Built-in Actions](actions.md)** for more functionality
+3. **Check out the [examples](../examples/)** directory for more sample test cases
+4. **Read the [Contributing Guide](../CONTRIBUTING.md)** if you want to contribute
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Test fails with "keyword not found"**
-- Check the [Built-in Keywords](keywords.md) reference
-- Ensure correct YAML syntax
+**"unknown action" error**
+- Check the action name spelling
+- Use `./robogo list` to see available actions
+- Ensure you're using the correct syntax
 
-**HTTP request fails**
+**HTTP request failures**
+- Check your network connection
 - Verify the URL is accessible
-- Check network connectivity
-- Review timeout settings
+- For mTLS, ensure certificate paths are correct
 
-**Environment variable not found**
-- Ensure the variable is set: `echo $VARIABLE_NAME`
-- Use `${VARIABLE_NAME:-default}` for defaults
+**Variable substitution issues**
+- Use `${variable_name}` syntax
+- Ensure variables are set before use
+- Check for typos in variable names
 
-**Git integration issues**
-- Verify repository URL is correct
-- Check authentication if using private repos
-- Ensure the specified path exists
-
-### Getting Help
-
-- Check the [Troubleshooting Guide](troubleshooting.md)
-- Search [GitHub Issues](https://github.com/your-org/gobot/issues)
-- Ask in [GitHub Discussions](https://github.com/your-org/gobot/discussions)
-
-## Examples Repository
-
-For more examples and advanced use cases, check out our [examples repository](https://github.com/your-org/gobot-examples) which includes:
-
-- API testing patterns
-- Database testing
-- UI automation examples
-- CI/CD integration samples
-- Performance testing scenarios 
+For more help, see the [Troubleshooting Guide](troubleshooting.md). 

@@ -1,25 +1,25 @@
-# Gobot Documentation
+# Robogo Documentation
 
-Welcome to the Gobot documentation! This guide will help you get started with Gobot, a modern, git-driven test automation framework written in Go.
+Welcome to the Robogo documentation! This guide will help you get started with Robogo, a modern, git-driven test automation framework written in Go.
 
 ## 📚 Documentation Sections
 
 ### 🚀 Getting Started
-- **[Installation Guide](installation.md)** - How to install and set up Gobot
+- **[Installation Guide](installation.md)** - How to install and set up Robogo
 - **[Quick Start](quickstart.md)** - Your first test case in 5 minutes
 - **[CLI Reference](cli-reference.md)** - Complete command-line interface documentation
 
 ### 📖 User Guides
 - **[Test Case Writing](test-cases.md)** - How to write effective test cases in YAML
-- **[Built-in Keywords](keywords.md)** - Reference for all built-in keywords
+- **[Built-in Actions](actions.md)** - Reference for all built-in actions
 - **[Git Integration](git-integration.md)** - Using Git repositories for test management
 - **[Secret Management](secrets.md)** - Secure handling of credentials and secrets
 - **[Parallel Execution](parallel.md)** - Running tests in parallel for faster execution
 
 ### 🔧 Advanced Topics
-- **[Plugin Development](plugins.md)** - Creating custom keywords and plugins
+- **[Plugin Development](plugins.md)** - Creating custom actions and plugins
 - **[mTLS Configuration](mtls.md)** - Setting up mutual TLS for secure communications
-- **[CI/CD Integration](ci-cd.md)** - Integrating Gobot into your CI/CD pipeline
+- **[CI/CD Integration](ci-cd.md)** - Integrating Robogo into your CI/CD pipeline
 - **[Performance Tuning](performance.md)** - Optimizing test execution performance
 
 ### 🏗️ Architecture
@@ -28,9 +28,9 @@ Welcome to the Gobot documentation! This guide will help you get started with Go
 - **[Plugin API](plugin-api.md)** - Plugin development API reference
 
 ### 🛠️ Development
-- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to Gobot
+- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to Robogo
 - **[Development Setup](development.md)** - Setting up the development environment
-- **[Testing Guide](testing.md)** - Running and writing tests for Gobot
+- **[Testing Guide](testing.md)** - Running and writing tests for Robogo
 - **[Release Process](releases.md)** - How releases are managed
 
 ### 📋 Reference
@@ -47,9 +47,9 @@ Welcome to the Gobot documentation! This guide will help you get started with Go
 3. Read **[Test Case Writing](test-cases.md)** for best practices
 
 ### For Experienced Users
-1. Check **[Built-in Keywords](keywords.md)** for available functionality
-2. Explore **[Git Integration](git-integration.md)** for team workflows
-3. Review **[Parallel Execution](parallel.md)** for performance optimization
+1. Check **[Built-in Actions](actions.md)** for available functionality
+2. Explore **[CLI Reference](cli-reference.md)** for command options
+3. Review **[Troubleshooting](troubleshooting.md)** for common issues
 
 ### For Developers
 1. Set up **[Development Environment](development.md)**
@@ -66,7 +66,7 @@ All code examples in this documentation:
 - Are updated with each release
 
 ### Version Information
-- Documentation is versioned with Gobot releases
+- Documentation is versioned with Robogo releases
 - Breaking changes are clearly marked
 - Migration guides are provided for major version updates
 
@@ -78,10 +78,10 @@ We welcome contributions to improve our documentation:
 
 ## 🔗 External Resources
 
-- **[GitHub Repository](https://github.com/your-org/gobot)** - Source code and issues
-- **[Discussions](https://github.com/your-org/gobot/discussions)** - Community discussions
-- **[Releases](https://github.com/your-org/gobot/releases)** - Latest releases and changelog
-- **[Examples Repository](https://github.com/your-org/gobot-examples)** - Sample test cases and configurations
+- **[GitHub Repository](https://github.com/your-org/robogo)** - Source code and issues
+- **[Discussions](https://github.com/your-org/robogo/discussions)** - Community discussions
+- **[Releases](https://github.com/your-org/robogo/releases)** - Latest releases and changelog
+- **[Examples Repository](https://github.com/your-org/robogo-examples)** - Sample test cases and configurations
 
 ## 📞 Support
 
@@ -92,6 +92,6 @@ We welcome contributions to improve our documentation:
 
 ---
 
-**Last Updated**: [Current Date]  
-**Gobot Version**: [Current Version]  
-**Documentation Version**: [Doc Version] 
+**Last Updated**: December 2024  
+**Robogo Version**: 0.1.0  
+**Documentation Version**: 1.0.0 

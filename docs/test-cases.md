@@ -1,24 +1,22 @@
 # Test Case Writing Guide
 
-Learn how to write effective, maintainable test cases using Gobot's YAML-based syntax.
+Learn how to write effective, maintainable test cases using Robogo's YAML-based syntax.
 
 ## Test Case Structure
 
-A basic Gobot test case consists of:
+A basic Robogo test case consists of:
 
 ```yaml
 testcase: "Test Case Name"
 description: "Optional description of what this test does"
-tags: ["api", "smoke", "critical"]  # Optional tags for categorization
 timeout: 30s  # Optional timeout for the entire test case
 steps:
-  - keyword: log
+  - action: log
     args: ["Starting test"]
-  - keyword: http_request
-    args:
-      url: "https://api.example.com/health"
-      method: "GET"
-  - keyword: assert
+  - action: http_get
+    args: ["https://api.example.com/health"]
+    result: response
+  - action: assert
     args: ["${response.status_code}", "==", 200]
 ```
 
@@ -37,49 +35,40 @@ description: |
   for better readability
 
 # Lists
-tags:
-  - api
-  - smoke
-  - critical
+steps:
+  - action: log
+    args: ["First step"]
+  - action: sleep
+    args: [1]
 
 # Nested objects
 steps:
-  - keyword: http_request
+  - action: http
     args:
-      url: "https://api.example.com"
-      method: "POST"
-      headers:
+      - "POST"
+      - "https://api.example.com"
+      - 
         Content-Type: "application/json"
         Authorization: "${API_TOKEN}"
 ```
 
-### Environment Variables
+### Variable Substitution
 
-Use `${VARIABLE_NAME}` syntax to reference environment variables:
-
-```yaml
-testcase: "API Test with Environment Variables"
-steps:
-  - keyword: log
-    args: ["Using API URL: ${API_BASE_URL}"]
-  - keyword: http_request
-    args:
-      url: "${API_BASE_URL}/health"
-      headers:
-        Authorization: "Bearer ${API_TOKEN}"
-```
-
-### Default Values
-
-Provide default values for environment variables:
+Use `${variable_name}` syntax to reference variables:
 
 ```yaml
+testcase: "Variable Test"
 steps:
-  - keyword: log
-    args: ["User: ${USER:-anonymous}"]
-  - keyword: http_request
-    args:
-      url: "${API_URL:-https://api.example.com}/health"
+  - action: get_time
+    args: ["iso"]
+    result: timestamp
+  
+  - action: log
+    args: ["Current time: ${timestamp}"]
+  
+  - action: http_get
+    args: ["${API_BASE_URL}/health"]
+    result: response
 ```
 
 ## Step Types
@@ -88,38 +77,41 @@ steps:
 
 ```yaml
 steps:
-  - keyword: log
+  - action: log
     args: ["Simple message"]
   
-  - keyword: log
+  - action: log
     args: ["Formatted message with value: ${VALUE}"]
-  
-  - keyword: log
-    args: ["Debug message"]
-    level: "debug"  # debug, info, warn, error
 ```
 
 ### 2. HTTP Request Steps
 
 ```yaml
 steps:
-  - keyword: http_request
+  # Simple GET request
+  - action: http_get
+    args: ["https://api.example.com/users"]
+    result: response
+  
+  # Simple POST request
+  - action: http_post
+    args: 
+      - "https://api.example.com/users"
+      - '{"name": "John Doe", "email": "john@example.com"}'
+    result: response
+  
+  # Advanced HTTP request with mTLS
+  - action: http
     args:
-      url: "https://api.example.com/users"
-      method: "POST"
-      headers:
+      - "POST"
+      - "https://secure.example.com/api/users"
+      - 
+        cert: "${CLIENT_CERT_PATH}"
+        key: "${CLIENT_KEY_PATH}"
+        ca: "${CA_CERT_PATH}"
         Content-Type: "application/json"
-        Authorization: "Bearer ${TOKEN}"
-      body: |
-        {
-          "name": "John Doe",
-          "email": "john@example.com"
-        }
-      timeout: 30
-      mtls:
-        client_cert: "${CLIENT_CERT_PATH}"
-        client_key: "${CLIENT_KEY_PATH}"
-        ca_cert: "${CA_CERT_PATH}"
+        Authorization: "Bearer ${API_TOKEN}"
+    result: response
 ```
 
 ### 3. Assertion Steps
@@ -127,145 +119,171 @@ steps:
 ```yaml
 steps:
   # Simple boolean assertion
-  - keyword: assert
-    args: [true, "This should always be true"]
+  - action: assert
+    args: [true, true, "This should always be true"]
   
   # Value comparison
-  - keyword: assert
+  - action: assert
     args: ["${response.status_code}", "==", 200]
   
-  # String contains
-  - keyword: assert
-    args: ["${response.body}", "contains", "success"]
+  # String comparison
+  - action: assert
+    args: ["hello", "hello", "String comparison should pass"]
   
-  # Numeric comparison
-  - keyword: assert
-    args: ["${response.time}", "<", 1000]
-  
-  # Custom assertion with message
-  - keyword: assert
-    args: ["${user_count}", ">", 0, "User count should be positive"]
+  # Number comparison
+  - action: assert
+    args: [42, 42, "Number comparison should pass"]
 ```
 
-### 4. File Operations
+### 4. Time and Random Operations
 
 ```yaml
 steps:
-  # Read file
-  - keyword: file_read
-    args: ["config.json"]
+  # Get current time
+  - action: get_time
+    args: ["iso"]  # iso, datetime, date, time, timestamp, unix, unix_ms
+    result: timestamp
   
-  # Write file
-  - keyword: file_write
-    args: ["output.txt", "Test results"]
+  # Get random number
+  - action: get_random
+    args: [100]  # Generate random number 0-99
+    result: random_number
   
-  # Check file exists
-  - keyword: file_exists
-    args: ["important-file.txt"]
-  
-  # Delete file
-  - keyword: file_delete
-    args: ["temp-file.txt"]
+  # Sleep for duration
+  - action: sleep
+    args: [1]  # Sleep for 1 second
 ```
 
-### 5. Sleep/Delay
+### 5. String Operations
 
 ```yaml
 steps:
-  - keyword: sleep
-    args: [5]  # Sleep for 5 seconds
+  # Concatenate strings
+  - action: concat
+    args: ["Hello", " ", "World", "!"]
+    result: greeting
   
-  - keyword: sleep
-    args: [1000]  # Sleep for 1000 milliseconds
+  # Get string length
+  - action: length
+    args: ["${greeting}"]
+    result: greeting_length
 ```
 
 ## Advanced Patterns
 
-### 1. Test Setup and Teardown
+### 1. Variable Management
+
+Store and reuse values across steps:
 
 ```yaml
-testcase: "User Management Test"
-setup:
-  - keyword: log
-    args: ["Setting up test environment"]
-  - keyword: http_request
-    args:
-      url: "${API_URL}/setup"
-      method: "POST"
-
+testcase: "Variable Management Test"
 steps:
-  - keyword: http_request
-    args:
-      url: "${API_URL}/users"
-      method: "GET"
-
-teardown:
-  - keyword: log
-    args: ["Cleaning up test environment"]
-  - keyword: http_request
-    args:
-      url: "${API_URL}/cleanup"
-      method: "POST"
+  - action: get_time
+    args: ["iso"]
+    result: start_time
+  
+  - action: log
+    args: ["Test started at: ${start_time}"]
+  
+  - action: http_get
+    args: ["https://api.example.com/health"]
+    result: health_response
+  
+  - action: assert
+    args: ["${health_response.status_code}", "==", 200]
+  
+  - action: get_time
+    args: ["iso"]
+    result: end_time
+  
+  - action: log
+    args: ["Test completed. Start: ${start_time}, End: ${end_time}"]
 ```
 
-### 2. Conditional Steps
+### 2. Conditional Logic
+
+Use assertions to create conditional behavior:
 
 ```yaml
 testcase: "Conditional Test"
 steps:
-  - keyword: http_request
-    args:
-      url: "${API_URL}/status"
-      method: "GET"
+  - action: http_get
+    args: ["https://api.example.com/status"]
+    result: status_response
   
-  - keyword: if
-    condition: "${response.status_code} == 200"
-    then:
-      - keyword: log
-        args: ["Service is healthy"]
-      - keyword: assert
-        args: ["${response.body}", "contains", "ok"]
-    else:
-      - keyword: log
-        args: ["Service is unhealthy"]
-      - keyword: assert
-        args: [false, "Service should be healthy"]
+  - action: assert
+    args: ["${status_response.status_code}", "==", 200, "API should be healthy"]
+  
+  - action: log
+    args: ["API is healthy, proceeding with test"]
+  
+  # Continue with more steps only if API is healthy
+  - action: http_post
+    args: 
+      - "https://api.example.com/data"
+      - '{"test": "data"}'
+    result: post_response
 ```
 
-### 3. Loops
+### 3. Error Handling
+
+Robogo automatically handles errors and stops execution:
 
 ```yaml
-testcase: "Loop Test"
+testcase: "Error Handling Test"
 steps:
-  - keyword: foreach
-    items: ["user1", "user2", "user3"]
-    as: "username"
-    do:
-      - keyword: log
-        args: ["Processing user: ${username}"]
-      - keyword: http_request
-        args:
-          url: "${API_URL}/users/${username}"
-          method: "GET"
-      - keyword: assert
-        args: ["${response.status_code}", "==", 200]
+  - action: log
+    args: ["Starting test with error handling"]
+  
+  - action: http_get
+    args: ["https://invalid-url-that-will-fail.com"]
+    result: response
+  
+  # This step will not execute if the previous step fails
+  - action: log
+    args: ["This message will not appear if the HTTP request fails"]
 ```
 
-### 4. Variable Assignment
+### 4. Complex HTTP Requests
 
 ```yaml
-testcase: "Variable Test"
+testcase: "Complex HTTP Test"
 steps:
-  - keyword: set
-    args: ["base_url", "https://api.example.com"]
+  - action: log
+    args: ["Testing complex HTTP operations"]
   
-  - keyword: set
-    args: ["user_id", "12345"]
-  
-  - keyword: http_request
+  # GET request with custom headers
+  - action: http
     args:
-      url: "${base_url}/users/${user_id}"
-      method: "GET"
+      - "GET"
+      - "https://api.example.com/users"
+      - 
+        Authorization: "Bearer ${API_TOKEN}"
+        Accept: "application/json"
+        User-Agent: "Robogo-Test/1.0"
+    result: users_response
+  
+  - action: assert
+    args: ["${users_response.status_code}", "==", 200]
+  
+  # POST request with JSON body
+  - action: http
+    args:
+      - "POST"
+      - "https://api.example.com/users"
+      - 
+        Content-Type: "application/json"
+        Authorization: "Bearer ${API_TOKEN}"
+      - |
+        {
+          "name": "Test User",
+          "email": "test@example.com",
+          "role": "tester"
+        }
+    result: create_response
+  
+  - action: assert
+    args: ["${create_response.status_code}", "==", 201]
 ```
 
 ## Best Practices
@@ -273,224 +291,197 @@ steps:
 ### 1. Naming Conventions
 
 ```yaml
-# Good: Descriptive names
-testcase: "User API - Create User Successfully"
-testcase: "Database - Verify User Persistence"
-testcase: "Authentication - Login with Valid Credentials"
+# Good: Descriptive test case names
+testcase: "API User Creation Test"
+testcase: "Database Connection Validation"
+testcase: "Authentication Flow Test"
 
-# Bad: Vague names
-testcase: "Test 1"
-testcase: "API Test"
-testcase: "Check Something"
+# Good: Clear step descriptions
+steps:
+  - action: log
+    args: ["Starting user creation test"]
+  - action: http_post
+    args: ["${API_URL}/users", '{"name": "John"}']
+    result: user_response
 ```
 
-### 2. Organization
+### 2. Variable Organization
 
 ```yaml
-# Group related test cases
-testcases:
-  - name: "User Management - Create"
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/users"
-          method: "POST"
-          body: '{"name": "John", "email": "john@example.com"}'
+testcase: "Organized Variable Test"
+steps:
+  # Group related operations
+  - action: get_time
+    args: ["iso"]
+    result: test_start_time
   
-  - name: "User Management - Read"
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/users/1"
-          method: "GET"
+  - action: log
+    args: ["Test started at: ${test_start_time}"]
   
-  - name: "User Management - Update"
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/users/1"
-          method: "PUT"
-          body: '{"name": "John Updated"}'
-```
-
-### 3. Error Handling
-
-```yaml
-testcase: "Robust API Test"
-steps:
-  - keyword: http_request
-    args:
-      url: "${API_URL}/health"
-      method: "GET"
-      timeout: 30
-      retry_attempts: 3
-      retry_delay: 5
+  # Use descriptive variable names
+  - action: http_get
+    args: ["${API_BASE_URL}/health"]
+    result: health_check_response
   
-  - keyword: assert
-    args: ["${response.status_code}", "in", [200, 201, 202]]
-    message: "Expected successful status code"
+  - action: assert
+    args: ["${health_check_response.status_code}", "==", 200]
 ```
 
-### 4. Documentation
+### 3. Error Messages
 
 ```yaml
-testcase: "Complex Business Logic Test"
-description: |
-  This test verifies the complete user registration workflow:
-  1. Creates a new user account
-  2. Sends verification email
-  3. Verifies email confirmation
-  4. Checks user permissions
-  5. Validates profile data
-
-tags:
-  - critical
-  - user-management
-  - e2e
-
-author: "team@example.com"
-created: "2024-01-15"
-last_updated: "2024-01-15"
+steps:
+  # Good: Descriptive error messages
+  - action: assert
+    args: ["${response.status_code}", "==", 200, "API should return 200 OK"]
+  
+  - action: assert
+    args: ["${user_count}", ">", 0, "User count should be positive"]
+  
+  # Good: Context in log messages
+  - action: log
+    args: ["API health check passed with status: ${response.status_code}"]
 ```
 
-### 5. Reusability
+### 4. Test Structure
 
 ```yaml
-# Create reusable test components
-components:
-  login:
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/login"
-          method: "POST"
-          body: '{"username": "${USERNAME}", "password": "${PASSWORD}"}'
-      - keyword: assert
-        args: ["${response.status_code}", "==", 200]
-
-testcase: "User Dashboard Access"
+testcase: "Well-Structured Test"
+description: "Test API user management functionality"
 steps:
-  - keyword: include
-    args: ["login"]
-  - keyword: http_request
-    args:
-      url: "${API_URL}/dashboard"
-      method: "GET"
-      headers:
-        Authorization: "Bearer ${response.body.token}"
+  # Setup phase
+  - action: log
+    args: ["Setting up test environment"]
+  
+  - action: http_get
+    args: ["${API_URL}/health"]
+    result: health_response
+  
+  - action: assert
+    args: ["${health_response.status_code}", "==", 200, "API should be healthy"]
+  
+  # Test phase
+  - action: log
+    args: ["Creating test user"]
+  
+  - action: http_post
+    args: 
+      - "${API_URL}/users"
+      - '{"name": "Test User", "email": "test@example.com"}'
+    result: create_response
+  
+  - action: assert
+    args: ["${create_response.status_code}", "==", 201, "User should be created successfully"]
+  
+  # Cleanup phase
+  - action: log
+    args: ["Test completed successfully"]
 ```
 
-## Validation
+## Common Patterns
 
-### YAML Schema Validation
-
-Gobot validates test cases against a schema. Common validation errors:
+### 1. API Testing
 
 ```yaml
-# ❌ Invalid: Missing required field
+testcase: "API End-to-End Test"
 steps:
-  - keyword: log  # Missing args
-
-# ✅ Valid
-steps:
-  - keyword: log
-    args: ["Message"]
-
-# ❌ Invalid: Wrong data type
-steps:
-  - keyword: sleep
-    args: "5"  # Should be number, not string
-
-# ✅ Valid
-steps:
-  - keyword: sleep
-    args: [5]
+  - action: log
+    args: ["Starting API end-to-end test"]
+  
+  # Health check
+  - action: http_get
+    args: ["${API_URL}/health"]
+    result: health_response
+  
+  - action: assert
+    args: ["${health_response.status_code}", "==", 200]
+  
+  # Create resource
+  - action: http_post
+    args: 
+      - "${API_URL}/resources"
+      - '{"name": "Test Resource"}'
+    result: create_response
+  
+  - action: assert
+    args: ["${create_response.status_code}", "==", 201]
+  
+  # Retrieve resource
+  - action: http_get
+    args: ["${API_URL}/resources/1"]
+    result: get_response
+  
+  - action: assert
+    args: ["${get_response.status_code}", "==", 200]
 ```
 
-### Custom Validation
+### 2. Data Validation
 
 ```yaml
-testcase: "Validated Test"
-validation:
-  required_env_vars:
-    - API_URL
-    - API_TOKEN
-  required_files:
-    - config.json
-  min_timeout: 10s
-  max_timeout: 300s
-
+testcase: "Data Validation Test"
 steps:
-  - keyword: log
-    args: ["Test with validation"]
+  - action: http_get
+    args: ["${API_URL}/users"]
+    result: users_response
+  
+  - action: assert
+    args: ["${users_response.status_code}", "==", 200]
+  
+  # Validate response structure (basic)
+  - action: assert
+    args: ["${users_response.body}", "contains", "users"]
+  
+  - action: log
+    args: ["Data validation completed"]
 ```
 
-## Examples
-
-### Complete API Test Suite
+### 3. Performance Testing
 
 ```yaml
-# api-tests.yaml
-testcases:
-  - name: "API Health Check"
-    description: "Verify API is responding"
-    tags: ["smoke", "health"]
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/health"
-          method: "GET"
-      - keyword: assert
-        args: ["${response.status_code}", "==", 200]
-      - keyword: assert
-        args: ["${response.body.status}", "==", "healthy"]
-
-  - name: "User Authentication"
-    description: "Test user login functionality"
-    tags: ["auth", "critical"]
-    setup:
-      - keyword: set
-        args: ["test_user", "test@example.com"]
-      - keyword: set
-        args: ["test_password", "password123"]
-    
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/auth/login"
-          method: "POST"
-          body: |
-            {
-              "email": "${test_user}",
-              "password": "${test_password}"
-            }
-      - keyword: assert
-        args: ["${response.status_code}", "==", 200]
-      - keyword: assert
-        args: ["${response.body.token}", "!=", ""]
-    
-    teardown:
-      - keyword: log
-        args: ["Cleaning up test data"]
-
-  - name: "Data Validation"
-    description: "Test input validation"
-    tags: ["validation"]
-    steps:
-      - keyword: http_request
-        args:
-          url: "${API_URL}/users"
-          method: "POST"
-          body: '{"email": "invalid-email"}'
-      - keyword: assert
-        args: ["${response.status_code}", "==", 400]
-      - keyword: assert
-        args: ["${response.body.error}", "contains", "Invalid email"]
+testcase: "Performance Test"
+steps:
+  - action: get_time
+    args: ["unix_ms"]
+    result: start_time
+  
+  - action: http_get
+    args: ["${API_URL}/heavy-operation"]
+    result: response
+  
+  - action: get_time
+    args: ["unix_ms"]
+    result: end_time
+  
+  - action: assert
+    args: ["${response.status_code}", "==", 200]
+  
+  # Calculate duration (basic)
+  - action: log
+    args: ["Operation completed in ${end_time} - ${start_time} ms"]
 ```
 
-## Next Steps
+## Troubleshooting
 
-- Read the [Built-in Keywords](keywords.md) reference
-- Learn about [Git Integration](git-integration.md) for team workflows
-- Explore [Parallel Execution](parallel.md) for performance
-- Check out [Plugin Development](plugins.md) for custom keywords 
+### Common Issues
+
+**"unknown action" error**
+- Check action name spelling
+- Use `./robogo list` to see available actions
+- Ensure correct YAML syntax
+
+**Variable not found**
+- Check variable name spelling
+- Ensure variable is set before use
+- Use `${variable_name}` syntax
+
+**HTTP request failures**
+- Verify URL is accessible
+- Check network connectivity
+- For mTLS, ensure certificate paths are correct
+
+**Assertion failures**
+- Check expected vs actual values
+- Verify data types match
+- Use descriptive error messages
+
+For more help, see the [Troubleshooting Guide](troubleshooting.md). 

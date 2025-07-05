@@ -1,10 +1,10 @@
 # Installation Guide
 
-This guide will help you install and set up Gobot on your system.
+This guide will help you install and set up Robogo on your system.
 
 ## Prerequisites
 
-Before installing Gobot, ensure you have the following:
+Before installing Robogo, ensure you have the following:
 
 - **Go 1.21 or later** - [Download from golang.org](https://golang.org/dl/)
 - **Git** - For version control and test case management
@@ -12,82 +12,83 @@ Before installing Gobot, ensure you have the following:
 
 ## Installation Methods
 
-### Method 1: Go Install (Recommended)
+### Method 1: From Source (Recommended)
 
-The easiest way to install Gobot is using Go's `install` command:
-
-```bash
-go install github.com/your-org/gobot/cmd/gobot@latest
-```
-
-This will:
-- Download the latest version of Gobot
-- Compile it for your platform
-- Install it to your `$GOPATH/bin` directory
-
-### Method 2: From Source
-
-If you want to build from source or contribute to development:
+The easiest way to install Robogo is to build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/gobot.git
-cd gobot
+git clone https://github.com/your-org/robogo.git
+cd robogo
+
+# Install dependencies
+go mod download
 
 # Build the binary
-go build -o gobot cmd/gobot/main.go
+go build -o robogo cmd/robogo/main.go
 
-# Install to your system
-sudo mv gobot /usr/local/bin/
+# Install to your system (optional)
+sudo mv robogo /usr/local/bin/
 ```
+
+### Method 2: Go Install
+
+You can also install using Go's `install` command:
+
+```bash
+go install github.com/your-org/robogo/cmd/robogo@latest
+```
+
+This will:
+- Download the latest version of Robogo
+- Compile it for your platform
+- Install it to your `$GOPATH/bin` directory
 
 ### Method 3: Docker (Development)
 
 For development or if you prefer containerized execution:
 
 ```bash
-# Pull the latest image
-docker pull your-org/gobot:latest
+# Build the Docker image
+docker build -t robogo .
 
-# Run Gobot in a container
-docker run --rm -v $(pwd):/workspace your-org/gobot:latest run testcases/example.yaml
+# Run Robogo in a container
+docker run --rm -v $(pwd):/workspace robogo run testcases/hello-world.yaml
 ```
 
 ## Verification
 
-After installation, verify that Gobot is working correctly:
+After installation, verify that Robogo is working correctly:
 
 ```bash
 # Check version
-gobot version
+./robogo --version
 
 # Expected output:
-# Gobot v1.0.0
-# Build: 2024-01-15T10:30:00Z
-# Go: go1.21.5
+# robogo version 0.1.0 (commit: dev, date: unknown)
 ```
 
 ## Configuration
 
 ### Environment Variables
 
-Gobot uses environment variables for configuration. Set these in your shell profile:
+Robogo uses environment variables for configuration. Set these in your shell profile:
 
 ```bash
 # Add to ~/.bashrc, ~/.zshrc, or ~/.profile
-export GOBOT_CONFIG_PATH="$HOME/.gobot/config.yaml"
-export GOBOT_LOG_LEVEL="info"
-export GOBOT_CACHE_DIR="$HOME/.gobot/cache"
+export ROBOGO_CONFIG_PATH="$HOME/.robogo/config.yaml"
+export ROBOGO_LOG_LEVEL="info"
+export ROBOGO_CACHE_DIR="$HOME/.robogo/cache"
 ```
 
 ### Configuration File
 
-Create a configuration file at `~/.gobot/config.yaml`:
+Create a configuration file at `~/.robogo/config.yaml`:
 
 ```yaml
-# Gobot Configuration
+# Robogo Configuration
 log_level: info
-cache_dir: ~/.gobot/cache
+cache_dir: ~/.robogo/cache
 timeout: 300s
 
 # Git settings
@@ -117,12 +118,11 @@ security:
 sudo apt update
 sudo apt install golang-go
 
-# Install Gobot
-go install github.com/your-org/gobot/cmd/gobot@latest
-
-# Add to PATH if needed
-echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
-source ~/.bashrc
+# Clone and build Robogo
+git clone https://github.com/your-org/robogo.git
+cd robogo
+go build -o robogo cmd/robogo/main.go
+sudo mv robogo /usr/local/bin/
 ```
 
 #### CentOS/RHEL/Fedora
@@ -130,8 +130,11 @@ source ~/.bashrc
 # Install Go if not already installed
 sudo dnf install golang
 
-# Install Gobot
-go install github.com/your-org/gobot/cmd/gobot@latest
+# Clone and build Robogo
+git clone https://github.com/your-org/robogo.git
+cd robogo
+go build -o robogo cmd/robogo/main.go
+sudo mv robogo /usr/local/bin/
 ```
 
 ### macOS
@@ -141,15 +144,21 @@ go install github.com/your-org/gobot/cmd/gobot@latest
 # Install Go if not already installed
 brew install go
 
-# Install Gobot
-go install github.com/your-org/gobot/cmd/gobot@latest
+# Clone and build Robogo
+git clone https://github.com/your-org/robogo.git
+cd robogo
+go build -o robogo cmd/robogo/main.go
+sudo mv robogo /usr/local/bin/
 ```
 
 #### Manual Installation
 ```bash
 # Download and install Go from golang.org
-# Then install Gobot
-go install github.com/your-org/gobot/cmd/gobot@latest
+# Then clone and build Robogo
+git clone https://github.com/your-org/robogo.git
+cd robogo
+go build -o robogo cmd/robogo/main.go
+sudo mv robogo /usr/local/bin/
 ```
 
 ### Windows
@@ -159,8 +168,11 @@ go install github.com/your-org/gobot/cmd/gobot@latest
 # Install Go if not already installed
 choco install golang
 
-# Install Gobot
-go install github.com/your-org/gobot/cmd/gobot@latest
+# Clone and build Robogo
+git clone https://github.com/your-org/robogo.git
+cd robogo
+go build -o robogo.exe cmd/robogo/main.go
+# Add to PATH or move to a directory in PATH
 ```
 
 #### Manual Installation
@@ -168,9 +180,11 @@ go install github.com/your-org/gobot/cmd/gobot@latest
 2. Install Go following the official instructions
 3. Open PowerShell and run:
    ```powershell
-   go install github.com/your-org/gobot/cmd/gobot@latest
+   git clone https://github.com/your-org/robogo.git
+   cd robogo
+   go build -o robogo.exe cmd/robogo/main.go
    ```
-4. Add `%GOPATH%\bin` to your PATH environment variable
+4. Add the directory containing `robogo.exe` to your PATH environment variable
 
 ## Development Setup
 
@@ -187,8 +201,8 @@ For contributors and developers:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/gobot.git
-cd gobot
+git clone https://github.com/your-org/robogo.git
+cd robogo
 
 # Install dependencies
 go mod download
@@ -200,60 +214,32 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 # Run tests
 go test ./...
 
-# Build
-go build -o gobot cmd/gobot/main.go
+# Build the binary
+go build -o robogo cmd/robogo/main.go
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### "command not found: gobot"
-- Ensure Go is installed and in your PATH
-- Check that `$GOPATH/bin` is in your PATH
-- Verify the installation with `go list -f '{{.Dir}}' github.com/your-org/gobot/cmd/gobot`
+#### "command not found: robogo"
+- Ensure the binary is in your PATH
+- Try running with `./robogo` from the project directory
+- Check that the build was successful
+
+#### "go: module github.com/your-org/robogo: not found"
+- This is expected for local development
+- The module name is a placeholder and should be updated for your organization
 
 #### Permission Denied
-- On Linux/macOS: `chmod +x $(go env GOPATH)/bin/gobot`
-- On Windows: Run PowerShell as Administrator
-
-#### Network Issues
-- Check your internet connection
-- Verify proxy settings if behind a corporate firewall
-- Try using a different DNS server
-
-#### Go Version Issues
-- Ensure you have Go 1.21 or later: `go version`
-- Update Go if needed: [golang.org/dl](https://golang.org/dl/)
-
-### Getting Help
-
-If you encounter issues:
-
-1. Check the [Troubleshooting Guide](troubleshooting.md)
-2. Search [GitHub Issues](https://github.com/your-org/gobot/issues)
-3. Ask in [GitHub Discussions](https://github.com/your-org/gobot/discussions)
-4. Report a new issue with detailed information
+- Use `sudo` when moving the binary to system directories
+- Ensure the binary has execute permissions: `chmod +x robogo`
 
 ## Next Steps
 
-After successful installation:
+After installation:
 
-1. Follow the [Quick Start Guide](quickstart.md) to run your first test
-2. Read the [CLI Reference](cli-reference.md) to learn all available commands
-3. Explore [Test Case Writing](test-cases.md) for best practices
-
-## Uninstallation
-
-To remove Gobot:
-
-```bash
-# Remove the binary
-rm $(go env GOPATH)/bin/gobot
-
-# Remove configuration (optional)
-rm -rf ~/.gobot
-
-# Remove cache (optional)
-rm -rf ~/.gobot/cache
-``` 
+1. **Run your first test**: `./robogo run testcases/hello-world.yaml`
+2. **Explore the CLI**: `./robogo --help`
+3. **List available actions**: `./robogo list`
+4. **Read the [Quick Start Guide](quickstart.md)** for your first test case 
