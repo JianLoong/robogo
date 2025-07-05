@@ -482,6 +482,7 @@ Comprehensive documentation available in the [docs/](docs/) directory:
 
 - **[TDM Implementation Guide](docs/tdm-implementation.md)** - Complete Test Data Management system documentation
 - **[TDM Evaluation Summary](docs/tdm-evaluation-summary.md)** - TDM system analysis and evaluation
+- **[Framework Comparison](docs/framework-comparison.md)** - Robogo vs Robot Framework, Selenium, Postman, and others
 - **[Actions Reference](docs/actions.md)** - Complete list of available actions with examples
 - **[Quick Start Guide](docs/quickstart.md)** - Get started quickly with Robogo
 - **[Test Cases Guide](docs/test-cases.md)** - Writing effective test cases
