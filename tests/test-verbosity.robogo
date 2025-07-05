@@ -23,7 +23,7 @@ steps:
   # Override with debug verbosity
   - name: "Debug verbose variable operation"
     action: variable
-    args: ["set_variable", "test_var", "debug_value"]
+    args: ["set", "test_var", "debug_value"]
     verbose: "debug"
     result: set_result
   

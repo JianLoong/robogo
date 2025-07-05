@@ -95,4 +95,92 @@ steps:
       attempts: 2
       delay: 1s
       conditions: ["all"]
-    result: "all_conditions_result" 
+    result: "all_conditions_result"
+
+# Indent all additional retry scenarios by two spaces so they are part of the steps list.
+# Remove the comment '# --- Additional Retry Scenarios ---'.
+
+  - name: "Retry failing postgres query"
+    action: postgres
+    args: ["query", "postgres://invalid:invalid@localhost:5432/invalid", "SELECT * FROM non_existent_table"]
+    retry:
+      attempts: 2
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["error"]
+    result: db_retry_result
+    continue_on_failure: true
+
+  - name: "Retry successful postgres query (should not retry)"
+    action: postgres
+    args: ["query", "postgres://user:pass@localhost:5432/postgres", "SELECT 1"]
+    retry:
+      attempts: 2
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["error"]
+    result: db_success_result
+
+  - name: "Retry variable set with missing args"
+    action: variable
+    args: ["set"]
+    retry:
+      attempts: 2
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["set requires variable_name and value"]
+    result: var_retry_result
+    continue_on_failure: true
+
+  - name: "Retry concat with missing args"
+    action: concat
+    args: ["only_one"]
+    retry:
+      attempts: 2
+      delay: 1s
+      backoff: "fixed"
+      conditions: ["concat action requires at least 2 arguments"]
+    result: concat_retry_result
+    continue_on_failure: true
+
+  - name: "Retry with attempts 1 (should not retry)"
+    action: http
+    args: ["GET", "https://httpbin.org/status/500"]
+    retry:
+      attempts: 1
+      delay: 1s
+      conditions: ["5xx"]
+    result: single_attempt_result
+    continue_on_failure: true
+
+  - name: "Retry with non-matching condition (should not retry)"
+    action: http
+    args: ["GET", "https://httpbin.org/status/500"]
+    retry:
+      attempts: 3
+      delay: 1s
+      conditions: ["timeout"]
+    result: non_matching_condition_result
+    continue_on_failure: true
+
+  - name: "Retry with linear backoff"
+    action: http
+    args: ["GET", "https://httpbin.org/status/502"]
+    retry:
+      attempts: 3
+      delay: 1s
+      backoff: "linear"
+      conditions: ["5xx"]
+    result: linear_backoff_result
+    continue_on_failure: true
+
+  - name: "Retry with exponential backoff"
+    action: http
+    args: ["GET", "https://httpbin.org/status/503"]
+    retry:
+      attempts: 3
+      delay: 1s
+      backoff: "exponential"
+      conditions: ["5xx"]
+    result: exponential_backoff_result
+    continue_on_failure: true 

@@ -20,7 +20,7 @@ steps:
 
   - name: "Set a new variable"
     action: variable
-    args: ["set_variable", "dynamic_var", "This is a dynamically set variable"]
+    args: ["set", "dynamic_var", "This is a dynamically set variable"]
     result: set_result
 
   - name: "Log set result"
@@ -29,7 +29,7 @@ steps:
 
   - name: "Set variable with multiple arguments"
     action: variable
-    args: ["set_variable", "multi_word_var", "Multiple", "words", "joined", "together"]
+    args: ["set", "multi_word_var", "Multiple", "words", "joined", "together"]
     result: multi_set_result
 
   - name: "Log multi-word set result"
@@ -38,7 +38,7 @@ steps:
 
   - name: "Update counter variable"
     action: variable
-    args: ["set_variable", "counter", "5"]
+    args: ["set", "counter", "5"]
     result: counter_set_result
 
   - name: "Log counter update result"
@@ -47,7 +47,7 @@ steps:
 
   - name: "Set a numeric variable"
     action: variable
-    args: ["set_variable", "numeric_var", "42"]
+    args: ["set", "numeric_var", "42"]
     result: numeric_set_result
 
   - name: "Log numeric set result"
@@ -56,7 +56,7 @@ steps:
 
   - name: "Try to get a variable (placeholder)"
     action: variable
-    args: ["get_variable", "dynamic_var"]
+    args: ["get", "dynamic_var"]
     result: get_result
 
   - name: "Log get result"
@@ -65,7 +65,7 @@ steps:
 
   - name: "Try to list variables (placeholder)"
     action: variable
-    args: ["list_variables"]
+    args: ["list"]
     result: list_result
 
   - name: "Log list result"
@@ -80,25 +80,25 @@ steps:
 #
 # Set a variable:
 #   - action: variable
-#     args: ["set_variable", "var_name", "value"]
+#     args: ["set", "var_name", "value"]
 #     result: result_var
 #
 # Set variable with multiple words:
 #   - action: variable
-#     args: ["set_variable", "var_name", "word1", "word2", "word3"]
+#     args: ["set", "var_name", "word1", "word2", "word3"]
 #     result: result_var
 #
 # Get a variable (placeholder):
 #   - action: variable
-#     args: ["get_variable", "var_name"]
+#     args: ["get", "var_name"]
 #     result: result_var
 #
 # List all variables (placeholder):
 #   - action: variable
-#     args: ["list_variables"]
+#     args: ["list"]
 #     result: result_var
 #
-# Note: get_variable and list_variables are placeholders.
+# Note: get and list are placeholders.
 # Use ${variable_name} syntax for variable substitution instead.
 
 # Comments should be highlighted

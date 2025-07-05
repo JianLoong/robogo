@@ -144,7 +144,7 @@ data_management:
     
     - name: "Build connection string"
       action: variable
-      args: ["set_variable", "db_connection_string", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable"]
+      args: ["set", "db_connection_string", "postgres://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable"]
       result: setup_connection_string
     
     - name: "Test database connection"
@@ -294,12 +294,12 @@ steps:
       steps:
         - name: "Create user with generated data"
           action: variable
-          args: ["set_variable", "current_user_name", "user_${iteration}"]
+          args: ["set", "current_user_name", "user_${iteration}"]
           result: user_name_result
         
         - name: "Create user email"
           action: variable
-          args: ["set_variable", "current_user_email", "${current_user_name}@example.com"]
+          args: ["set", "current_user_email", "${current_user_name}@example.com"]
           result: user_email_result
         
         - name: "Log user creation"
@@ -327,7 +327,7 @@ steps:
   
   - name: "Create unique test identifier"
     action: variable
-    args: ["set_variable", "test_identifier", "test_${isolation_timestamp}"]
+    args: ["set", "test_identifier", "test_${isolation_timestamp}"]
     result: identifier_result
   
   - name: "Log isolation test"

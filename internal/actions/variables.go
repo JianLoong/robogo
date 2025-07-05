@@ -15,19 +15,19 @@ func VariableAction(args []interface{}) (string, error) {
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
 
 	switch operation {
-	case "set", "set_variable":
+	case "set":
 		if len(args) < 3 {
-			return "", fmt.Errorf("set_variable requires variable_name and value")
+			return "", fmt.Errorf("set requires variable_name and value")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
 		return setVariable(variableName, args[2:])
-	case "get", "get_variable":
+	case "get":
 		if len(args) < 2 {
-			return "", fmt.Errorf("get_variable requires variable_name")
+			return "", fmt.Errorf("get requires variable_name")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
 		return getVariable(variableName)
-	case "list", "list_variables":
+	case "list":
 		return listVariables()
 	default:
 		return "", fmt.Errorf("unknown variable operation: %s", operation)
@@ -37,7 +37,7 @@ func VariableAction(args []interface{}) (string, error) {
 // setVariable sets a variable value
 func setVariable(name string, args []interface{}) (string, error) {
 	if len(args) == 0 {
-		return "", fmt.Errorf("set_variable requires a value")
+		return "", fmt.Errorf("set requires a value")
 	}
 
 	// Convert the value to a string representation
@@ -55,7 +55,7 @@ func setVariable(name string, args []interface{}) (string, error) {
 
 	// Create result object
 	result := map[string]interface{}{
-		"operation": "set_variable",
+		"operation": "set",
 		"name":      name,
 		"value":     value,
 		"status":    "success",
@@ -72,10 +72,10 @@ func setVariable(name string, args []interface{}) (string, error) {
 // getVariable gets a variable value (placeholder - actual implementation would need access to runner variables)
 func getVariable(name string) (string, error) {
 	result := map[string]interface{}{
-		"operation": "get_variable",
+		"operation": "get",
 		"name":      name,
 		"status":    "not_implemented",
-		"message":   "get_variable requires access to runner variables - use ${variable_name} syntax instead",
+		"message":   "get requires access to runner variables - use ${variable_name} syntax instead",
 	}
 
 	jsonResult, err := json.Marshal(result)
@@ -89,9 +89,9 @@ func getVariable(name string) (string, error) {
 // listVariables lists all variables (placeholder - actual implementation would need access to runner variables)
 func listVariables() (string, error) {
 	result := map[string]interface{}{
-		"operation": "list_variables",
+		"operation": "list",
 		"status":    "not_implemented",
-		"message":   "list_variables requires access to runner variables - not yet implemented",
+		"message":   "list requires access to runner variables - not yet implemented",
 	}
 
 	jsonResult, err := json.Marshal(result)
