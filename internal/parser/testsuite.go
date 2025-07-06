@@ -14,6 +14,7 @@ type TestSuite struct {
 	Teardown    []Step                 `yaml:"teardown,omitempty"`
 	Parallel    bool                   `yaml:"parallel,omitempty"`
 	Options     map[string]interface{} `yaml:"options,omitempty"`
+	FailFast    bool                   `yaml:"fail_fast,omitempty"`
 }
 
 // TestCaseReference represents a test case file reference with optional overrides

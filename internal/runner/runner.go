@@ -1,14 +1,9 @@
 package runner
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,17 +14,21 @@ import (
 
 // TestRunner runs test cases
 type TestRunner struct {
-	variables     map[string]interface{} // Store variables for the test case
-	secretManager *actions.SecretManager // Secret manager for handling secrets
-	tdmManager    *actions.TDMManager    // TDM manager for test data management
+	variableManager *VariableManager       // Variable management
+	outputCapture   *OutputCapture         // Output capture
+	retryManager    *RetryManager          // Retry logic
+	secretManager   *actions.SecretManager // Secret manager for handling secrets
+	tdmManager      *actions.TDMManager    // TDM manager for test data management
 }
 
 // NewTestRunner creates a new test runner
 func NewTestRunner() *TestRunner {
 	return &TestRunner{
-		variables:     make(map[string]interface{}),
-		secretManager: actions.NewSecretManager(),
-		tdmManager:    actions.NewTDMManager(),
+		variableManager: NewVariableManager(),
+		outputCapture:   NewOutputCapture(),
+		retryManager:    NewRetryManager(),
+		secretManager:   actions.NewSecretManager(),
+		tdmManager:      actions.NewTDMManager(),
 	}
 }
 
@@ -125,6 +124,10 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 		results = append(results, result)
 	}
 
+	if !silent {
+		PrintParallelFiles(len(files), config.MaxConcurrency)
+	}
+
 	return results, nil
 }
 
@@ -148,158 +151,32 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 
 // RunTestCase runs a test case and returns the result
 func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-
 	tr := NewTestRunner()
-	tr.initializeVariables(testCase)
-	tr.initializeTDM(testCase)
 
-	// Initialize template context if templates are defined
-	if testCase.Templates != nil && len(testCase.Templates) > 0 {
-		actions.SetTemplateContext(testCase.Templates)
-		if !silent {
-			fmt.Printf("📄 Loaded %d templates: %s\n", len(testCase.Templates), getTemplateNames(testCase.Templates))
-		}
-	}
+	// Create execution engine
+	engine := NewExecutionEngine(tr)
 
-	// Create action executor
-	executor := actions.NewActionExecutor()
-
-	result := &parser.TestResult{
-		TestCase:    testCase,
-		Status:      "PASSED",
-		StepResults: make([]parser.StepResult, 0),
-		DataResults: &parser.DataResults{
-			Validations: make([]parser.ValidationResult, 0),
-			DataSets:    make(map[string]parser.DataSetInfo),
-		},
-	}
-
-	startTime := time.Now()
-
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	outC := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		io.Copy(&buf, r)
-		outC <- buf.String()
-	}()
-
-	defer func() {
-		w.Close()
-		os.Stdout = oldStdout // Restore stdout
-		result.CapturedOutput = <-outC
-	}()
-
-	if !silent {
-		fmt.Printf("🚀 Running test case: %s\n", testCase.Name)
-		if testCase.Description != "" {
-			fmt.Printf("📋 Description: %s\n", testCase.Description)
-		}
-		fmt.Printf("📝 Steps: %d\n\n", len(testCase.Steps))
-	}
-
-	// Execute TDM setup if configured
-	if testCase.DataManagement != nil && len(testCase.DataManagement.Setup) > 0 {
-		if !silent {
-			fmt.Printf("🔧 Executing TDM setup...\n")
-		}
-		tr.executeSteps(testCase.DataManagement.Setup, executor, nil, silent, &result.StepResults, "TDM Setup: ", testCase)
-		result.DataResults.SetupStatus = "COMPLETED"
-	}
-
-	var err error
-	err = tr.executeStepsWithConfig(testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
+	// Execute the test case using the engine
+	result, err := engine.ExecuteTestCase(testCase, silent)
 	if err != nil {
-		// Error occurred during step execution
-	}
-
-	// Execute TDM teardown if configured
-	if testCase.DataManagement != nil && len(testCase.DataManagement.Teardown) > 0 {
-		if !silent {
-			fmt.Printf("🧹 Executing TDM teardown...\n")
-		}
-		tr.executeSteps(testCase.DataManagement.Teardown, executor, nil, silent, &result.StepResults, "TDM Teardown: ", testCase)
-		result.DataResults.TeardownStatus = "COMPLETED"
-	}
-
-	result.Duration = time.Since(startTime)
-	result.TotalSteps = len(result.StepResults)
-	result.PassedSteps = 0
-	result.FailedSteps = 0
-	result.SkippedSteps = 0
-
-	for _, sr := range result.StepResults {
-		switch sr.Status {
-		case "PASSED":
-			result.PassedSteps++
-		case "FAILED":
-			result.FailedSteps++
-		case "SKIPPED":
-			result.SkippedSteps++
-		}
-	}
-
-	// Determine test case status
-	if result.SkippedSteps > 0 {
-		result.Status = "SKIPPED"
-		// Set error message from the first skipped step
-		for _, sr := range result.StepResults {
-			if sr.Status == "SKIPPED" {
-				result.ErrorMessage = sr.Error
-				break
-			}
-		}
-	} else if result.FailedSteps > 0 {
-		result.Status = "FAILED"
-		// Only set ErrorMessage if a non-continue-on-failure step failed
-		for _, sr := range result.StepResults {
-			if sr.Status == "FAILED" && !sr.Step.ContinueOnFailure {
-				if sr.Error != "" {
-					result.ErrorMessage = sr.Error
-				} else {
-					result.ErrorMessage = "Test failed due to step failure."
-				}
-				break
-			}
-		}
-	} else {
-		result.Status = "PASSED"
-	}
-
-	if !silent {
-		fmt.Printf("\n🏁 Test completed in %v\n", result.Duration)
-		fmt.Printf("\n📊 Test Results:\n")
-		fmt.Printf("✅ Status: %s\n", result.Status)
-		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n", len(result.StepResults), result.PassedSteps, result.FailedSteps)
-	}
-
-	// Only return error if a non-continue-on-failure step failed
-	if result.Status == "FAILED" && result.ErrorMessage != "" {
-		return result, fmt.Errorf(result.ErrorMessage)
-	}
-	// Don't return error for skipped tests
-	if result.Status == "SKIPPED" {
-		return result, nil
+		// RunTestCase returns an error when the test fails, but we still want to return the result
+		// The error just indicates test failure, not a fatal error
+		return result, nil // Return the result, not the error
 	}
 	return result, nil
 }
 
 // executeSteps executes a slice of steps, collecting StepResults recursively
-func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
-	return tr.executeStepsWithConfig(steps, executor, parentLoop, silent, stepResults, context, testCase, nil)
+func executeSteps(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	return executeStepsWithConfig(tr, steps, executor, parentLoop, silent, stepResults, context, testCase, nil)
 }
 
 // executeStepsWithConfig executes steps with parallelism configuration
-func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
+func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
 	// Check if parallel step execution is enabled
 	config := parser.MergeParallelConfig(parallelConfig)
 	if config.Enabled && config.Steps && len(steps) > 1 {
-		return tr.executeStepsParallel(steps, executor, parentLoop, silent, stepResults, context, testCase, config)
+		return executeStepsParallel(tr, steps, executor, parentLoop, silent, stepResults, context, testCase, config)
 	}
 
 	// Execute steps sequentially (original behavior)
@@ -307,24 +184,24 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 
 		stepContext := context
 		if parentLoop != nil {
-			iteration := tr.variables["iteration"]
+			iteration, _ := tr.variableManager.GetVariable("iteration")
 			stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
 		}
 
 		if step.If != nil {
-			if err := tr.executeIfStatement(step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
+			if err := executeIfStatement(tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
 				return err
 			}
 			continue
 		}
 		if step.For != nil {
-			if err := tr.executeForLoop(step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
+			if err := executeForLoop(tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
 				return err
 			}
 			continue
 		}
 		if step.While != nil {
-			if err := tr.executeWhileLoop(step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
+			if err := executeWhileLoop(tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
 				return err
 			}
 			continue
@@ -335,11 +212,11 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 			stepLabel = step.Action
 		}
 		if !silent {
-			fmt.Printf("Step %d: %s\n", len(*stepResults)+1, stepLabel)
+			PrintStepStart(len(*stepResults)+1, stepLabel)
 		}
 
 		substitutedArgs := tr.substituteVariables(step.Args)
-		output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, silent)
+		output, err := executeStepWithRetry(tr, step, substitutedArgs, executor, silent)
 		stepDuration := time.Since(stepStart)
 
 		// Get verbosity level for this step
@@ -361,16 +238,16 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 
 		// Handle expect_error property
 		if step.ExpectError != nil {
-			expectErr := tr.validateExpectedError(step.ExpectError, err, output, silent)
+			expectErr := validateExpectedError(tr, step.ExpectError, err, output, silent)
 			if expectErr != nil {
 				stepResult.Status = "FAILED"
 				stepResult.Error = expectErr.Error()
 				if !silent {
-					fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
+					PrintStepFailed(len(*stepResults)+1, expectErr.Error())
 				}
 			} else {
 				if !silent {
-					fmt.Printf("✅ Error expectation passed\n")
+					PrintStepErrorExpectationPassed(len(*stepResults) + 1)
 				}
 			}
 		} else if err != nil {
@@ -379,30 +256,29 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 				stepResult.Status = "SKIPPED"
 				stepResult.Error = err.Error()
 				if !silent {
-					fmt.Printf("⏭️  Step %d skipped: %s\n", len(*stepResults)+1, err.Error())
+					PrintStepSkipped(len(*stepResults)+1, err.Error())
 				}
 			} else {
 				// Normal error handling (no expect_error)
 				stepResult.Status = "FAILED"
 				stepResult.Error = err.Error()
 				if !silent {
-					fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
+					PrintStepFailed(len(*stepResults)+1, err.Error())
 				}
 			}
 		} else {
 			if !silent {
 				// Display verbose output if enabled
 				if verboseOutput != "" {
-					fmt.Print(verboseOutput)
+					PrintStepVerboseOutput(verboseOutput)
 				} else {
 					// For log actions, mask the message before displaying
 					if step.Action == "log" && len(step.Args) > 0 {
 						message := fmt.Sprintf("%v", substitutedArgs[0])
 						maskedMessage := tr.secretManager.MaskSecretsInString(message)
-						fmt.Printf("📝 %s\n", maskedMessage)
-					} else {
-						fmt.Printf("✅ Step %d completed in %v\n", len(*stepResults)+1, stepDuration)
+						PrintStepLog(maskedMessage)
 					}
+					// Removed completion message - no need to report "completed in X seconds"
 				}
 			}
 		}
@@ -420,7 +296,7 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 			if step.ContinueOnFailure {
 				// Log and continue to next step
 				if !silent {
-					fmt.Printf("⚠️  Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
+					PrintStepContinueOnFailure(stepResult.Step.Name)
 				}
 				continue
 			} else {
@@ -430,11 +306,11 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 
 		// Store result in variable if specified (store actual value, not masked)
 		if step.Result != "" {
-			tr.variables[step.Result] = output // Store actual output
+			tr.variableManager.SetVariable(step.Result, output) // Store actual output
 			if !silent {
 				// Display masked version
 				maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
-				fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, maskedValue)
+				PrintStepResultStored(step.Result, maskedValue)
 			}
 		}
 	}
@@ -442,19 +318,19 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 }
 
 // executeStepsParallel executes independent steps in parallel
-func (tr *TestRunner) executeStepsParallel(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig) error {
+func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig) error {
 	// Group steps into parallel and sequential groups
 	stepGroups := parser.GroupIndependentSteps(steps)
 
 	if !silent {
-		fmt.Printf("📊 Executing %d step groups (parallel execution enabled)\n", len(stepGroups))
+		PrintParallelStepGroups(len(stepGroups))
 	}
 
 	for groupIdx, group := range stepGroups {
 		if len(group) == 1 {
 			// Single step - execute sequentially
 			step := group[0]
-			stepResult, err := tr.executeSingleStep(step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
+			stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
 			if err != nil {
 				return err
 			}
@@ -462,10 +338,10 @@ func (tr *TestRunner) executeStepsParallel(steps []parser.Step, executor *action
 		} else {
 			// Multiple independent steps - execute in parallel
 			if !silent {
-				fmt.Printf("⚡ Executing %d steps in parallel (group %d)\n", len(group), groupIdx+1)
+				PrintParallelSteps(len(group), groupIdx)
 			}
 
-			if err := tr.executeStepGroupParallel(group, executor, parentLoop, silent, stepResults, context, testCase, config, groupIdx); err != nil {
+			if err := executeStepGroupParallel(tr, group, executor, parentLoop, silent, stepResults, context, testCase, config, groupIdx); err != nil {
 				return err
 			}
 		}
@@ -475,7 +351,7 @@ func (tr *TestRunner) executeStepsParallel(steps []parser.Step, executor *action
 }
 
 // executeStepGroupParallel executes a group of independent steps in parallel
-func (tr *TestRunner) executeStepGroupParallel(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int) error {
+func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int) error {
 	var wg sync.WaitGroup
 	resultsChan := make(chan *parser.StepResult, len(steps))
 	errorsChan := make(chan error, len(steps))
@@ -491,7 +367,7 @@ func (tr *TestRunner) executeStepGroupParallel(steps []parser.Step, executor *ac
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			stepResult, err := tr.executeSingleStep(step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
+			stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
 			if err != nil {
 				errorsChan <- fmt.Errorf("step %d failed: %w", stepIdx+1, err)
 				return
@@ -519,217 +395,9 @@ func (tr *TestRunner) executeStepGroupParallel(steps []parser.Step, executor *ac
 	return nil
 }
 
-// executeSingleStep executes a single step and returns the result
-func (tr *TestRunner) executeSingleStep(step parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, groupIdx int) (*parser.StepResult, error) {
-	stepContext := context
-	if parentLoop != nil {
-		iteration := tr.variables["iteration"]
-		stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
-	}
-
-	if step.If != nil {
-		if err := tr.executeIfStatement(step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
-			return nil, err
-		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
-	}
-	if step.For != nil {
-		if err := tr.executeForLoop(step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
-			return nil, err
-		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
-	}
-	if step.While != nil {
-		if err := tr.executeWhileLoop(step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
-			return nil, err
-		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
-	}
-
-	stepStart := time.Now()
-	stepLabel := step.Name
-	if stepLabel == "" {
-		stepLabel = step.Action
-	}
-	if !silent {
-		fmt.Printf("Step %d: %s\n", len(*stepResults)+1, stepLabel)
-	}
-
-	substitutedArgs := tr.substituteVariables(step.Args)
-	output, err := tr.executeStepWithRetry(step, substitutedArgs, executor, silent)
-	stepDuration := time.Since(stepStart)
-
-	// Get verbosity level for this step
-	verbosityLevel := parser.GetVerbosityLevel(&step, testCase)
-
-	// Mask secrets in output for display
-	maskedOutput := tr.secretManager.MaskSecretsInString(output)
-
-	// Format verbose output if enabled
-	verboseOutput := parser.FormatVerboseOutput(verbosityLevel, step.Action, substitutedArgs, maskedOutput, stepDuration.String())
-
-	stepResult := parser.StepResult{
-		Step:      step,
-		Status:    "PASSED",
-		Duration:  stepDuration,
-		Output:    maskedOutput,
-		Timestamp: time.Now(),
-	}
-
-	// Handle expect_error property
-	if step.ExpectError != nil {
-		expectErr := tr.validateExpectedError(step.ExpectError, err, output, silent)
-		if expectErr != nil {
-			stepResult.Status = "FAILED"
-			stepResult.Error = expectErr.Error()
-			if !silent {
-				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
-			}
-		} else {
-			if !silent {
-				fmt.Printf("✅ Error expectation passed\n")
-			}
-		}
-	} else if err != nil {
-		// Normal error handling (no expect_error)
-		stepResult.Status = "FAILED"
-		stepResult.Error = err.Error()
-		if !silent {
-			fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
-		}
-	} else {
-		if !silent {
-			// Display verbose output if enabled
-			if verboseOutput != "" {
-				fmt.Print(verboseOutput)
-			} else {
-				// For log actions, mask the message before displaying
-				if step.Action == "log" && len(step.Args) > 0 {
-					message := fmt.Sprintf("%v", substitutedArgs[0])
-					maskedMessage := tr.secretManager.MaskSecretsInString(message)
-					fmt.Printf("📝 %s\n", maskedMessage)
-				} else {
-					fmt.Printf("✅ Step %d completed in %v\n", len(*stepResults)+1, stepDuration)
-				}
-			}
-		}
-	}
-
-	// Add context to step name for reporting
-	if step.Name != "" {
-		stepResult.Step.Name = stepContext + step.Name
-	} else if stepContext != "" {
-		stepResult.Step.Name = stepContext + fmt.Sprintf("Step%d", groupIdx+1)
-	}
-
-	// Store result in variable if specified (store actual value, not masked)
-	if step.Result != "" {
-		tr.variables[step.Result] = output // Store actual output
-		if !silent {
-			// Display masked version
-			maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
-			fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, maskedValue)
-		}
-	}
-
-	return &stepResult, nil
-}
-
-// executeIfStatement executes an if/else block, collecting StepResults
-func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
-	condition := tr.substituteString(ifBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"if", condition}, map[string]interface{}{}, silent)
-	if err != nil {
-		return fmt.Errorf("failed to evaluate if condition: %w", err)
-	}
-	var stepsToExecute []parser.Step
-	if output == "true" {
-		stepsToExecute = ifBlock.Then
-	} else {
-		stepsToExecute = ifBlock.Else
-	}
-	return tr.executeSteps(stepsToExecute, executor, nil, silent, stepResults, context, testCase)
-}
-
-// executeForLoop executes a for loop, collecting StepResults
-func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
-	condition := tr.substituteString(forBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"for", condition}, map[string]interface{}{}, silent)
-	if err != nil {
-		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
-	}
-	iterations, err := strconv.Atoi(output)
-	if err != nil {
-		return fmt.Errorf("failed to parse iteration count: %w", err)
-	}
-	maxIterations := forBlock.MaxIterations
-	if maxIterations > 0 && iterations > maxIterations {
-		iterations = maxIterations
-	}
-	for i := 0; i < iterations; i++ {
-		tr.variables["iteration"] = i + 1
-		tr.variables["index"] = i
-		if err := tr.executeSteps(forBlock.Steps, executor, forBlock, silent, stepResults, context, testCase); err != nil {
-			return fmt.Errorf("iteration %d failed: %w", i+1, err)
-		}
-	}
-	return nil
-}
-
-// executeWhileLoop executes a while loop, collecting StepResults
-func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
-	iteration := 0
-	maxIterations := whileBlock.MaxIterations
-	if maxIterations <= 0 {
-		maxIterations = 1000
-	}
-	for {
-		iteration++
-		if iteration > maxIterations {
-			return fmt.Errorf("while loop exceeded maximum iterations (%d)", maxIterations)
-		}
-		tr.variables["iteration"] = iteration
-		condition := tr.substituteString(whileBlock.Condition)
-		output, err := executor.Execute("control", []interface{}{"while", condition}, map[string]interface{}{}, silent)
-		if err != nil {
-			return fmt.Errorf("failed to evaluate while condition: %w", err)
-		}
-		if output != "true" {
-			break
-		}
-		if err := tr.executeSteps(whileBlock.Steps, executor, whileBlock, silent, stepResults, context, testCase); err != nil {
-			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
-		}
-	}
-	return nil
-}
-
 // initializeVariables initializes variables from the test case
 func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
-	if testCase.Variables.Regular != nil {
-		for name, value := range testCase.Variables.Regular {
-			tr.variables[name] = value
-		}
-	}
-	if testCase.Variables.Secrets != nil {
-		secretMap := make(map[string]interface{})
-		for name, secret := range testCase.Variables.Secrets {
-			secretMap[name] = map[string]interface{}{
-				"value":       secret.Value,
-				"file":        secret.File,
-				"mask_output": secret.MaskOutput,
-			}
-		}
-		if err := tr.secretManager.ResolveSecrets(secretMap); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to resolve secrets: %v\n", err)
-		}
-		for name := range testCase.Variables.Secrets {
-			if value, exists := tr.secretManager.GetSecret(name); exists {
-				tr.variables[name] = value
-			}
-		}
-	}
-
+	tr.variableManager.InitializeVariables(testCase)
 }
 
 // initializeTDM initializes test data management
@@ -739,128 +407,52 @@ func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
 	}
 	if len(testCase.DataManagement.DataSets) > 0 {
 		if err := tr.tdmManager.LoadDataSets(testCase.DataManagement.DataSets); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to load data sets: %v\n", err)
+			PrintWarning("Failed to load data sets: %v", err)
 		}
 	}
 	if len(testCase.Environments) > 0 {
 		if err := tr.tdmManager.LoadEnvironments(testCase.Environments); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to load environments: %v\n", err)
+			PrintWarning("Failed to load environments: %v", err)
 		}
 	}
 	if testCase.DataManagement.Environment != "" {
 		if err := tr.tdmManager.SetEnvironment(testCase.DataManagement.Environment); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to set environment '%s': %v\n", testCase.DataManagement.Environment, err)
+			PrintWarning("Failed to set environment '%s': %v", testCase.DataManagement.Environment, err)
 		}
 	}
 	if len(testCase.DataManagement.Validation) > 0 {
 		validationResults := tr.tdmManager.ValidateData(testCase.DataManagement.Validation)
 		for _, result := range validationResults {
 			if result.Status == "FAILED" {
-				fmt.Printf("❌ Data validation failed: %s - %s\n", result.Name, result.Message)
+				PrintDataValidationFailure(result.Name, result.Message)
 			} else if result.Status == "WARNING" {
-				fmt.Printf("⚠️  Data validation warning: %s - %s\n", result.Name, result.Message)
+				PrintDataValidationWarning(result.Name, result.Message)
 			}
 		}
 	}
 	for name, value := range tr.tdmManager.GetAllVariables() {
-		tr.variables[name] = value
+		tr.variableManager.SetVariable(name, value)
 	}
 }
 
 // substituteVariables replaces ${variable} references with actual values
 func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
-	substituted := make([]interface{}, len(args))
-
-	for i, arg := range args {
-		switch v := arg.(type) {
-		case string:
-			substituted[i] = tr.substituteString(v)
-		case []interface{}:
-			substituted[i] = tr.substituteVariables(v)
-		case map[string]interface{}:
-			substituted[i] = tr.substituteMap(v)
-		default:
-			substituted[i] = arg
-		}
-	}
-
-	return substituted
+	return tr.variableManager.SubstituteVariables(args)
 }
 
 // substituteString replaces ${variable} references in a string
 func (tr *TestRunner) substituteString(s string) string {
-	re := regexp.MustCompile(`\$\{([^}]+)\}`)
-	return re.ReplaceAllStringFunc(s, func(match string) string {
-		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
-		if value, ok := tr.resolveDotNotation(varName); ok {
-			return fmt.Sprintf("%v", value)
-		}
-		return match // Return original if variable not found
-	})
+	return tr.variableManager.substituteString(s)
 }
 
 // resolveDotNotation resolves variables with dot notation (e.g., response.status_code)
 func (tr *TestRunner) resolveDotNotation(varName string) (interface{}, bool) {
-	// First, check for the full key (flat variable)
-	if value, exists := tr.variables[varName]; exists {
-		return value, true
-	}
-	// Fallback to dot notation logic
-	parts := strings.Split(varName, ".")
-	value, exists := tr.variables[parts[0]]
-	if !exists {
-		return nil, false
-	}
-	if len(parts) == 1 {
-		return value, true
-	}
-	// Try to parse JSON string to map if needed
-	var m map[string]interface{}
-	switch v := value.(type) {
-	case string:
-		if err := json.Unmarshal([]byte(v), &m); err == nil {
-			value = m
-		} else {
-			return v, true // not JSON, return as is
-		}
-	case map[string]interface{}:
-		m = v
-	default:
-		return value, true
-	}
-	// Traverse the map for each field
-	for _, field := range parts[1:] {
-		if m2, ok := value.(map[string]interface{}); ok {
-			if v, ok := m2[field]; ok {
-				value = v
-				// If nested JSON string, try to parse again
-				if s, isStr := v.(string); isStr && json.Valid([]byte(s)) {
-					var nested map[string]interface{}
-					if err := json.Unmarshal([]byte(s), &nested); err == nil {
-						value = nested
-					}
-				}
-			} else {
-				return nil, false
-			}
-		} else {
-			return nil, false
-		}
-	}
-	return value, true
+	return tr.variableManager.resolveDotNotation(varName)
 }
 
 // substituteStringForDisplay replaces ${variable} references and masks secrets for display
 func (tr *TestRunner) substituteStringForDisplay(s string) string {
-	re := regexp.MustCompile(`\$\{([^}]+)\}`)
-	result := re.ReplaceAllStringFunc(s, func(match string) string {
-		varName := strings.TrimPrefix(strings.TrimSuffix(match, "}"), "${")
-		if value, exists := tr.variables[varName]; exists {
-			return fmt.Sprintf("%v", value)
-		}
-		return match // Return original if variable not found
-	})
-
+	result := tr.variableManager.substituteStringForDisplay(s)
 	// Mask secrets in the result for display only
 	return tr.secretManager.MaskSecretsInString(result)
 }
@@ -881,181 +473,4 @@ func (tr *TestRunner) substituteMap(m map[string]interface{}) map[string]interfa
 		}
 	}
 	return result
-}
-
-// executeStepWithRetry executes a step with retry logic if configured
-func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (string, error) {
-	// If no retry configuration, execute normally
-	if step.Retry == nil {
-		return executor.Execute(step.Action, args, map[string]interface{}{}, silent)
-	}
-
-	// Validate retry configuration
-	if err := parser.ValidateRetryConfig(step.Retry); err != nil {
-		return "", fmt.Errorf("invalid retry configuration: %w", err)
-	}
-
-	// Merge with defaults
-	retryConfig := parser.MergeRetryConfig(step.Retry)
-
-	// Initialize retry result
-	retryResult := parser.RetryResult{
-		RetryLogs: make([]string, 0),
-	}
-
-	startTime := time.Now()
-	var lastError error
-	var lastOutput string
-
-	// Execute with retries
-	for attempt := 1; attempt <= retryConfig.Attempts; attempt++ {
-		// Execute the action
-		output, err := executor.Execute(step.Action, args, map[string]interface{}{}, silent)
-		lastOutput = output
-
-		// If successful, return immediately
-		if err == nil {
-			retryResult.Success = true
-			retryResult.Attempts = attempt
-			retryResult.TotalTime = time.Since(startTime)
-
-			if attempt > 1 && !silent {
-				fmt.Printf("✅ %s\n", parser.FormatRetrySummary(retryResult, false))
-			}
-			return output, nil
-		}
-
-		lastError = err
-
-		// Check if we should retry based on conditions
-		if !parser.ShouldRetry(err, output, retryConfig.Conditions) {
-			break
-		}
-
-		// If this is the last attempt, don't retry
-		if attempt == retryConfig.Attempts {
-			break
-		}
-
-		// Calculate delay for next attempt
-		delay := parser.CalculateDelay(retryConfig.Delay, attempt, retryConfig.Backoff, retryConfig.MaxDelay, retryConfig.Jitter)
-
-		// Log retry attempt
-		retryLog := parser.FormatRetryLog(attempt, retryConfig.Attempts, delay, err, false)
-		retryResult.RetryLogs = append(retryResult.RetryLogs, retryLog)
-
-		if !silent {
-			fmt.Printf("%s\n", retryLog)
-		}
-
-		// Wait before next attempt
-		time.Sleep(delay)
-	}
-
-	// All attempts failed
-	retryResult.Success = false
-	retryResult.Attempts = retryConfig.Attempts
-	retryResult.TotalTime = time.Since(startTime)
-	retryResult.LastError = lastError
-	retryResult.LastOutput = lastOutput
-
-	if !silent {
-		fmt.Printf("❌ %s\n", parser.FormatRetrySummary(retryResult, false))
-	}
-
-	return lastOutput, lastError
-}
-
-// validateExpectedError validates that an error occurred as expected
-func (tr *TestRunner) validateExpectedError(expectError interface{}, actualErr error, output string, silent bool) error {
-	var errorType string
-	var expectedMessage string
-
-	// Parse expect_error configuration
-	switch v := expectError.(type) {
-	case string:
-		// Simple string format - check if it's "any" or default to "contains"
-		if v == "any" {
-			errorType = "any"
-			expectedMessage = ""
-		} else {
-			errorType = "contains"
-			expectedMessage = v
-		}
-	case map[string]interface{}:
-		// Detailed configuration
-		if t, ok := v["type"].(string); ok {
-			errorType = t
-		} else {
-			errorType = "any" // Default to any if type not specified
-		}
-		if msg, ok := v["message"].(string); ok {
-			expectedMessage = msg
-		}
-	default:
-		return fmt.Errorf("invalid expect_error format: must be string or object")
-	}
-
-	// If no error occurred but we expected one, that's a failure
-	if actualErr == nil {
-		if errorType == "any" {
-			return fmt.Errorf("expected any error but action succeeded with result: '%s'", output)
-		}
-		return fmt.Errorf("expected error but action succeeded with result: '%s'", output)
-	}
-
-	actualErrorMsg := actualErr.Error()
-
-	// Validate the error based on error_type
-	var result bool
-
-	switch errorType {
-	case "any":
-		// Any error is acceptable
-		result = true
-	case "contains":
-		result = strings.Contains(actualErrorMsg, expectedMessage)
-	case "not_contains":
-		result = !strings.Contains(actualErrorMsg, expectedMessage)
-	case "matches":
-		// Regex pattern matching
-		matched, err := regexp.MatchString(expectedMessage, actualErrorMsg)
-		if err != nil {
-			return fmt.Errorf("invalid regex pattern '%s': %v", expectedMessage, err)
-		}
-		result = matched
-	case "not_matches":
-		// Regex pattern not matching
-		matched, err := regexp.MatchString(expectedMessage, actualErrorMsg)
-		if err != nil {
-			return fmt.Errorf("invalid regex pattern '%s': %v", expectedMessage, err)
-		}
-		result = !matched
-	case "exact":
-		result = actualErrorMsg == expectedMessage
-	case "starts_with":
-		result = strings.HasPrefix(actualErrorMsg, expectedMessage)
-	case "ends_with":
-		result = strings.HasSuffix(actualErrorMsg, expectedMessage)
-	default:
-		return fmt.Errorf("unsupported error type: %s (supported: any, contains, not_contains, matches, not_matches, exact, starts_with, ends_with)", errorType)
-	}
-
-	if !result {
-		if errorType == "any" {
-			return fmt.Errorf("error expectation failed: expected any error but got '%s'", actualErrorMsg)
-		}
-		return fmt.Errorf("error expectation failed: '%s' %s '%s'", actualErrorMsg, errorType, expectedMessage)
-	}
-
-	return nil
-}
-
-// getTemplateNames returns a comma-separated list of template names
-func getTemplateNames(templates map[string]string) string {
-	names := make([]string, 0, len(templates))
-	for name := range templates {
-		names = append(names, name)
-	}
-	return strings.Join(names, ", ")
 }

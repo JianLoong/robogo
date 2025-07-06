@@ -1,8 +1,0 @@
-testsuite: "Large Test Suite"
-description: "Suite with 5 test cases to verify reporting accuracy"
-testcases:
-  - file: "test-pass.robogo"
-  - file: "test-fail.robogo"
-  - file: "test-skip.robogo"
-  - file: "test-pass.robogo"
-  - file: "test-fail.robogo" 

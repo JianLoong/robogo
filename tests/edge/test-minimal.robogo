@@ -1,9 +1,0 @@
-# Minimal Test
-
-testcase: "Minimal Test"
-description: "A minimal test with a single log step."
-
-steps:
-  - name: "Log hello"
-    action: log
-    args: ["Hello from minimal test!"] 

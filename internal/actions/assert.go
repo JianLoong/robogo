@@ -3,8 +3,9 @@ package actions
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
+
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // AssertAction validates conditions using various comparison operators and returns detailed results.
@@ -42,12 +43,17 @@ import (
 //   - Boolean values can be strings ("true"/"false") or actual booleans
 //   - Use continue_on_failure to prevent test termination on assertion failure
 func AssertAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
-	if len(args) < 3 {
-		return "", fmt.Errorf("assert action requires at least 3 arguments: value, operator, expected")
+	parser := util.NewArgParser(args, options)
+
+	if err := parser.RequireMinArgs(3); err != nil {
+		return "", util.NewExecutionError("assert action requires at least 3 arguments: value, operator, expected", err, "assert")
 	}
 
 	value := args[0]
-	operator := fmt.Sprintf("%v", args[1])
+	operator, err := parser.GetString(1)
+	if err != nil {
+		return "", util.NewExecutionError("operator must be a string", err, "assert")
+	}
 	expected := args[2]
 
 	// Get custom message if provided
@@ -99,19 +105,8 @@ func handleModuloOperation(value interface{}, divisor interface{}, operator stri
 }
 
 func toFloat(v interface{}) (float64, bool) {
-	switch val := v.(type) {
-	case float64:
-		return val, true
-	case int:
-		return float64(val), true
-	case int64:
-		return float64(val), true
-	case string:
-		if f, err := strconv.ParseFloat(val, 64); err == nil {
-			return f, true
-		}
-	}
-	return 0, false
+	f, err := util.ToFloat(v)
+	return f, err == nil
 }
 
 func compareNumeric(value, expected float64, operator, msg string, silent bool) (string, error) {
@@ -144,7 +139,7 @@ func compareNumeric(value, expected float64, operator, msg string, silent bool) 
 		if !silent {
 			fmt.Printf("❌ %s\n", fullMsg)
 		}
-		return "", fmt.Errorf(fullMsg)
+		return "", util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
 	msg = fmt.Sprintf("✅ %s", msg)
@@ -210,7 +205,7 @@ func compareString(value, expected, operator, msg string, silent bool) (string, 
 		if !silent {
 			fmt.Printf("❌ %s\n", fullMsg)
 		}
-		return "", fmt.Errorf(fullMsg)
+		return "", util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
 	msg = fmt.Sprintf("✅ %s", msg)

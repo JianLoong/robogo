@@ -1,0 +1,13 @@
+testcase: "User Create"
+description: "A test that always passes."
+steps:
+  - name: "Log create"
+    action: log
+    args: ["User created!"]
+  - name: "Assert true"
+    action: assert
+    args:
+      - 1
+      - "=="
+      - 1
+      - "Basic numeric equality should work" 

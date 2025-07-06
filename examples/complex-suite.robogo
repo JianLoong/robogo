@@ -1,0 +1,35 @@
+testsuite: "Complex Suite"
+description: "A more advanced Robogo test suite with E2E test."
+parallel: true
+options:
+  max_concurrency: 3
+
+variables:
+  regular:
+    api_url: "https://api.example.com"
+    default_user: "suiteuser"
+  secrets:
+    api_key:
+      file: "secret.txt"
+      mask_output: true
+
+setup:
+  - name: "Suite Setup"
+    action: log
+    args: ["Setting up the complex suite"]
+  - name: "Set API URL"
+    action: variable
+    args: ["set", "api_url", "https://api.example.com/v2"]
+
+testcases:
+  - file: e2e-simple.robogo
+  - file: test-secret.robogo
+  - file: test-postgres.robogo
+
+teardown:
+  - name: "Suite Teardown"
+    action: log
+    args: ["Cleaning up after complex suite"]
+
+
+

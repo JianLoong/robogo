@@ -1,6 +1,0 @@
-testcase: "Always Pass"
-description: "This test always passes"
-steps:
-  - name: "Assert true is true"
-    action: assert
-    args: ["true", "==", "true", "Should pass"] 

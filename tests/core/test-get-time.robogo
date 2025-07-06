@@ -1,8 +1,8 @@
 # Test Get Time Action
-# This file tests all supported formats of the get_time action
+# This file tests all supported formats of the get_time action, including relative time
 
 testcase: "Get Time Action Test"
-description: "Covers all built-in and custom formats for get_time action"
+description: "Covers all built-in, custom, and relative formats for get_time action"
 
 steps:
   # ISO 8601 format
@@ -148,7 +148,53 @@ steps:
     action: assert
     args: ["${local_time}", "!=", "", "Local time should not be empty"]
 
+  # --- Relative time tests ---
+  # Control: now
+  - name: "Get current time (relative)"
+    action: get_time
+    args: ["now", "iso"]
+    result: now_time
+  - name: "Assert now time is not empty"
+    action: assert
+    args: ["${now_time}", "!=", "", "Now time should not be empty"]
+
+  # now+1h
+  - name: "Get time 1 hour in the future"
+    action: get_time
+    args: ["now+1h", "iso"]
+    result: future_time
+  - name: "Assert future time is not empty"
+    action: assert
+    args: ["${future_time}", "!=", "", "Future time should not be empty"]
+
+  # now-2d
+  - name: "Get time 2 days ago"
+    action: get_time
+    args: ["now-2d", "iso"]
+    result: past_time
+  - name: "Assert past time is not empty"
+    action: assert
+    args: ["${past_time}", "!=", "", "Past time should not be empty"]
+
+  # now+30m
+  - name: "Get time 30 minutes in the future"
+    action: get_time
+    args: ["now+30m", "iso"]
+    result: plus_30m
+  - name: "Assert plus 30m time is not empty"
+    action: assert
+    args: ["${plus_30m}", "!=", "", "Plus 30m time should not be empty"]
+
+  # now-15s
+  - name: "Get time 15 seconds ago"
+    action: get_time
+    args: ["now-15s", "iso"]
+    result: minus_15s
+  - name: "Assert minus 15s time is not empty"
+    action: assert
+    args: ["${minus_15s}", "!=", "", "Minus 15s time should not be empty"]
+
   # Final log
   - name: "Log completion"
     action: log
-    args: ["All get_time action tests completed successfully!"] 
+    args: ["All get_time action tests (absolute and relative) completed successfully!"] 

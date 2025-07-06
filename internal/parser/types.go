@@ -20,6 +20,9 @@ type TestCase struct {
 
 	// Parallelism Fields
 	Parallel *ParallelConfig `yaml:"parallel,omitempty"`
+
+	// Skip field to allow skipping test cases
+	Skip interface{} `yaml:"skip,omitempty"`
 }
 
 // DataManagement represents test data management configuration
@@ -126,6 +129,9 @@ type Step struct {
 
 	// Error expectation - can be string (simple) or object (detailed)
 	ExpectError interface{} `yaml:"expect_error,omitempty"` // string or ExpectErrorConfig
+
+	// Skip field to allow skipping steps
+	Skip interface{} `yaml:"skip,omitempty"`
 }
 
 // ConditionalBlock represents an if/else block

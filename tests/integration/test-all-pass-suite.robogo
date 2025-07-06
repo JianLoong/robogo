@@ -1,6 +1,0 @@
-testsuite: "All Pass Suite"
-description: "Suite with only passing test cases"
-testcases:
-  - file: "test-pass.robogo"
-  - file: "test-pass.robogo"
-  - file: "test-pass.robogo" 

@@ -241,13 +241,73 @@ Key Features:
 // outputConsole outputs results in console format
 func outputConsole(results []*parser.TestResult) error {
 	for _, result := range results {
-		fmt.Print(result.CapturedOutput)
-		fmt.Printf("\n Test Results for: %s\n", result.TestCase.Name)
-		fmt.Printf("✅ Status: %s\n", result.Status)
-		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
+		// Print captured output (step-by-step execution details)
+		if result.CapturedOutput != "" {
+			fmt.Print(result.CapturedOutput)
+		}
 
+		// Print test summary
+		fmt.Printf("\n📊 Test Results for: %s\n", result.TestCase.Name)
+
+		// Choose appropriate status icon
+		statusIcon := "✅"
+		if result.Status == "FAILED" {
+			statusIcon = "❌"
+		} else if result.Status == "SKIPPED" {
+			statusIcon = "⏭️"
+		}
+
+		fmt.Printf("%s Status: %s\n", statusIcon, result.Status)
+		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
 		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
-			len(result.TestCase.Steps), result.PassedSteps, result.FailedSteps)
+			result.TotalSteps, result.PassedSteps, result.FailedSteps)
+
+		// Print step details with consistent duration formatting
+		if len(result.StepResults) > 0 {
+			fmt.Println("\nStep Results:")
+			fmt.Printf("%-4s | %-24s | %-12s | %-6s | %-10s | %-24s | %-24s\n", "#", "Name", "Action", "Status", "Duration", "Output", "Error")
+			fmt.Println(strings.Repeat("-", 116))
+			for i, stepResult := range result.StepResults {
+				stepIcon := "✅"
+				if stepResult.Status == "FAILED" {
+					stepIcon = "❌"
+				}
+				output := stepResult.Output
+				if len(output) > 24 {
+					output = output[:21] + "..."
+				}
+				error := stepResult.Error
+				if len(error) > 24 {
+					error = error[:21] + "..."
+				}
+				stepName := stepResult.Step.Name
+				if stepName == "" {
+					stepName = "(unnamed)"
+				}
+				if len(stepName) > 24 {
+					stepName = stepName[:21] + "..."
+				}
+				// Duration formatting: higher precision for <1ms
+				var duration string
+				if stepResult.Duration < time.Millisecond {
+					duration = fmt.Sprintf("%dµs", stepResult.Duration.Microseconds())
+				} else {
+					duration = stepResult.Duration.String()
+				}
+				if len(duration) > 10 {
+					duration = duration[:7] + "..."
+				}
+				fmt.Printf("%-4s | %-24s | %-12s | %-6s | %-10s | %-24s | %-24s\n",
+					fmt.Sprintf("#%d", i+1),
+					stepName,
+					stepResult.Step.Action,
+					stepIcon,
+					duration,
+					output,
+					error,
+				)
+			}
+		}
 	}
 
 	// Exit with non-zero code if any test failed
@@ -261,7 +321,38 @@ func outputConsole(results []*parser.TestResult) error {
 
 // outputJSON outputs results in JSON format
 func outputJSON(results []*parser.TestResult) error {
-	jsonBytes, err := json.MarshalIndent(results, "", "  ")
+	// Add a duration_str field to each step result for human readability
+	type StepResultWithStr struct {
+		parser.StepResult
+		DurationStr string `json:"duration_str"`
+	}
+	type TestResultWithStr struct {
+		*parser.TestResult
+		StepResults []StepResultWithStr `json:"step_results"`
+	}
+
+	var resultsWithStr []TestResultWithStr
+	for _, r := range results {
+		var stepsWithStr []StepResultWithStr
+		for _, s := range r.StepResults {
+			var durationStr string
+			if s.Duration < time.Millisecond {
+				durationStr = fmt.Sprintf("%dµs", s.Duration.Microseconds())
+			} else {
+				durationStr = s.Duration.String()
+			}
+			stepsWithStr = append(stepsWithStr, StepResultWithStr{
+				StepResult:  s,
+				DurationStr: durationStr,
+			})
+		}
+		resultsWithStr = append(resultsWithStr, TestResultWithStr{
+			TestResult:  r,
+			StepResults: stepsWithStr,
+		})
+	}
+
+	jsonBytes, err := json.MarshalIndent(resultsWithStr, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal results to JSON: %w", err)
 	}
@@ -278,6 +369,13 @@ func outputJSON(results []*parser.TestResult) error {
 
 // outputMarkdown outputs results in Markdown format
 func outputMarkdown(results []*parser.TestResult) error {
+	pad := func(s string, width int) string {
+		if len(s) > width {
+			return s[:width-3] + "..."
+		}
+		return s + strings.Repeat(" ", width-len(s))
+	}
+
 	for _, result := range results {
 		statusIcon := "✅"
 		if result.Status == "FAILED" {
@@ -298,8 +396,8 @@ func outputMarkdown(results []*parser.TestResult) error {
 		// Add Failed Steps section if any failed
 		if result.FailedSteps > 0 {
 			markdown += "\n## Failed Steps\n"
-			markdown += "| # | Name | Action | Error |\n"
-			markdown += "|---|------|--------|-------|\n"
+			markdown += "| #   | Name                     | Action       | Error                   |\n"
+			markdown += "|-----|--------------------------|-------------|-------------------------|\n"
 			for i, stepResult := range result.StepResults {
 				if stepResult.Status == "FAILED" {
 					stepName := stepResult.Step.Name
@@ -307,14 +405,14 @@ func outputMarkdown(results []*parser.TestResult) error {
 						stepName = "(unnamed)"
 					}
 					error := stepResult.Error
-					if len(error) > 60 {
-						error = error[:57] + "..."
+					if len(error) > 24 {
+						error = error[:21] + "..."
 					}
-					markdown += fmt.Sprintf("| %d | %s | %s | %s |\n",
-						i+1,
-						stepName,
-						stepResult.Step.Action,
-						error,
+					markdown += fmt.Sprintf("| %s | %s | %s | %s |\n",
+						pad(fmt.Sprintf("%d", i+1), 4),
+						pad(stepName, 24),
+						pad(stepResult.Step.Action, 12),
+						pad(error, 24),
 					)
 				}
 			}
@@ -322,8 +420,8 @@ func outputMarkdown(results []*parser.TestResult) error {
 
 		markdown += "\n## Step Results\n"
 		// Add markdown table header
-		markdown += "| Step | Name | Action | Status | Duration | Output | Error |\n"
-		markdown += "|------|------|--------|--------|----------|--------|-------|\n"
+		markdown += "| Step | Name                     | Action       | Status | Duration   | Output                  | Error                   |\n"
+		markdown += "|------|--------------------------|-------------|--------|-----------|------------------------|-------------------------|\n"
 
 		// Add step details as table rows
 		for i, stepResult := range result.StepResults {
@@ -332,25 +430,35 @@ func outputMarkdown(results []*parser.TestResult) error {
 				stepIcon = "❌"
 			}
 			output := stepResult.Output
-			if len(output) > 40 {
-				output = output[:37] + "..."
+			if len(output) > 24 {
+				output = output[:21] + "..."
 			}
 			error := stepResult.Error
-			if len(error) > 40 {
-				error = error[:37] + "..."
+			if len(error) > 24 {
+				error = error[:21] + "..."
 			}
 			stepName := stepResult.Step.Name
 			if stepName == "" {
 				stepName = "(unnamed)"
 			}
-			markdown += fmt.Sprintf("| %d | %s | %s | %s | %v | %s | %s |\n",
-				i+1,
-				stepName,
-				stepResult.Step.Action,
-				stepIcon,
-				stepResult.Duration,
-				output,
-				error,
+			// Duration formatting: higher precision for <1ms
+			var duration string
+			if stepResult.Duration < time.Millisecond {
+				duration = fmt.Sprintf("%dµs", stepResult.Duration.Microseconds())
+			} else {
+				duration = stepResult.Duration.String()
+			}
+			if len(duration) > 10 {
+				duration = duration[:7] + "..."
+			}
+			markdown += fmt.Sprintf("| %s | %s | %s | %s   | %s | %s | %s |\n",
+				pad(fmt.Sprintf("%d", i+1), 4),
+				pad(stepName, 24),
+				pad(stepResult.Step.Action, 12),
+				pad(stepIcon, 6),
+				pad(duration, 10),
+				pad(output, 24),
+				pad(error, 24),
 			)
 		}
 
@@ -408,9 +516,16 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 
 	fmt.Println("\nTest Case Results:")
 	for i, caseResult := range result.CaseResults {
-		caseIcon := "✅"
-		if caseResult.Status != "passed" {
+		caseIcon := ""
+		switch caseResult.Status {
+		case "passed":
+			caseIcon = "✅"
+		case "failed":
 			caseIcon = "❌"
+		case "skipped":
+			caseIcon = "⏭️"
+		default:
+			caseIcon = "❌" // fallback for unknown status
 		}
 		dur := caseResult.Duration
 		if dur == 0 && caseResult.Result != nil {
@@ -425,7 +540,7 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 		// Step-level details
 		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
 			fmt.Println("   Steps:")
-			fmt.Println("   # | Name | Status | Duration | Error")
+			fmt.Println("   # | Name | Status | Duration | Output | Error")
 			for j, step := range caseResult.Result.StepResults {
 				stepStatus := step.Status
 				if stepStatus == "" && step.Error != "" {
@@ -435,7 +550,15 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 				if len(errStr) > 60 {
 					errStr = errStr[:57] + "..."
 				}
-				fmt.Printf("   %d | %s | %s | %v | %s\n", j+1, step.Step.Name, stepStatus, step.Duration, errStr)
+				outputStr := step.Output
+				if len(outputStr) > 40 {
+					outputStr = outputStr[:37] + "..."
+				}
+				nameStr := step.Step.Name
+				if len(nameStr) > 24 {
+					nameStr = nameStr[:21] + "..."
+				}
+				fmt.Printf("   %d | %s | %s | %v | %s | %s\n", j+1, nameStr, stepStatus, step.Duration, outputStr, errStr)
 			}
 		}
 	}
@@ -628,8 +751,8 @@ func outputSuiteMarkdown(result *parser.TestSuiteResult) error {
 		// Step-level details
 		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
 			markdown += "\n<details><summary>Steps</summary>\n\n"
-			markdown += "| # | Name | Status | Duration | Error |\n"
-			markdown += "|---|------|--------|----------|-------|\n"
+			markdown += "| # | Name | Status | Duration | Output | Error |\n"
+			markdown += "|---|------|--------|----------|--------|-------|\n"
 			for j, step := range caseResult.Result.StepResults {
 				stepStatus := step.Status
 				if stepStatus == "" && step.Error != "" {
@@ -639,11 +762,20 @@ func outputSuiteMarkdown(result *parser.TestSuiteResult) error {
 				if len(errStr) > 60 {
 					errStr = errStr[:57] + "..."
 				}
-				markdown += fmt.Sprintf("| %d | %s | %s | %v | %s |\n",
+				outputStr := step.Output
+				if len(outputStr) > 40 {
+					outputStr = outputStr[:37] + "..."
+				}
+				nameStr := step.Step.Name
+				if len(nameStr) > 24 {
+					nameStr = nameStr[:21] + "..."
+				}
+				markdown += fmt.Sprintf("| %d | %s | %s | %v | %s | %s |\n",
 					j+1,
-					step.Step.Name,
+					nameStr,
 					stepStatus,
 					step.Duration,
+					outputStr,
 					errStr,
 				)
 			}

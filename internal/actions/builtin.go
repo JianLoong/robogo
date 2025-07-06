@@ -8,29 +8,16 @@ import (
 
 type ActionFunc func(args []interface{}, options map[string]interface{}, silent bool) (string, error)
 
-type ActionExecutor struct{}
+type ActionExecutor struct {
+	registry *ActionRegistry
+}
 
-var actionFuncs = map[string]ActionFunc{
-	"log":        LogAction,
-	"sleep":      SleepAction,
-	"assert":     AssertAction,
-	"get_time":   GetTimeAction,
-	"get_random": GetRandomAction,
-	"concat":     ConcatAction,
-	"length":     LengthAction,
-	"http":       HTTPAction,
-	"http_get":   HTTPGetAction,
-	"http_post":  HTTPPostAction,
-	"http_batch": HTTPBatchAction,
-	"control":    ControlFlowAction,
-	"postgres":   PostgresAction,
-	"variable":   VariableAction,
-	"tdm":        TDMAction,
-	"rabbitmq":   RabbitMQActionWrapper,
-	"kafka":      KafkaActionWrapper,
-	"template":   TemplateAction,
-	"skip":       SkipAction,
-	"spanner":    SpannerAction,
+// Global registry instance
+var globalRegistry *ActionRegistry
+
+// init initializes the global registry
+func init() {
+	globalRegistry = NewActionRegistry()
 }
 
 // NewActionExecutor creates a new action executor instance.
@@ -90,16 +77,21 @@ func KafkaActionWrapper(args []interface{}, options map[string]interface{}, sile
 //   - Use exists boolean to check if action was found
 //   - Useful for dynamic action execution
 func GetAction(action string) (ActionFunc, bool) {
-	fn, ok := actionFuncs[action]
-	return fn, ok
+	actionObj, exists := globalRegistry.Get(action)
+	if !exists {
+		return nil, false
+	}
+
+	// Convert Action interface back to ActionFunc
+	if wrapper, ok := actionObj.(*ActionWrapper); ok {
+		return wrapper.fn, true
+	}
+	return nil, false
 }
 
 // Execute executes an action with the provided arguments and options.
 func (ae *ActionExecutor) Execute(action string, args []interface{}, options map[string]interface{}, silent bool) (string, error) {
-	if fn, ok := actionFuncs[action]; ok {
-		return fn(args, options, silent)
-	}
-	return "", fmt.Errorf("unknown action: %s", action)
+	return globalRegistry.Execute(action, args, options, silent)
 }
 
 // parseDuration parses duration from various formats (int, float, string).

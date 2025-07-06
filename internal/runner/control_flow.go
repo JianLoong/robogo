@@ -1,0 +1,78 @@
+package runner
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/parser"
+)
+
+// executeIfStatement executes an if/else block, collecting StepResults
+func executeIfStatement(tr *TestRunner, ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	condition := tr.substituteString(ifBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"if", condition}, map[string]interface{}{}, silent)
+	if err != nil {
+		return fmt.Errorf("failed to evaluate if condition: %w", err)
+	}
+	var stepsToExecute []parser.Step
+	if output == "true" {
+		stepsToExecute = ifBlock.Then
+	} else {
+		stepsToExecute = ifBlock.Else
+	}
+	return executeSteps(tr, stepsToExecute, executor, nil, silent, stepResults, context, testCase)
+}
+
+// executeForLoop executes a for loop, collecting StepResults
+func executeForLoop(tr *TestRunner, forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	condition := tr.substituteString(forBlock.Condition)
+	output, err := executor.Execute("control", []interface{}{"for", condition}, map[string]interface{}{}, silent)
+	if err != nil {
+		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
+	}
+	iterations, err := strconv.Atoi(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse iteration count: %w", err)
+	}
+	maxIterations := forBlock.MaxIterations
+	if maxIterations > 0 && iterations > maxIterations {
+		iterations = maxIterations
+	}
+	for i := 0; i < iterations; i++ {
+		tr.variableManager.SetVariable("iteration", i+1)
+		tr.variableManager.SetVariable("index", i)
+		if err := executeSteps(tr, forBlock.Steps, executor, forBlock, silent, stepResults, context, testCase); err != nil {
+			return fmt.Errorf("iteration %d failed: %w", i+1, err)
+		}
+	}
+	return nil
+}
+
+// executeWhileLoop executes a while loop, collecting StepResults
+func executeWhileLoop(tr *TestRunner, whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+	iteration := 0
+	maxIterations := whileBlock.MaxIterations
+	if maxIterations <= 0 {
+		maxIterations = 1000
+	}
+	for {
+		iteration++
+		if iteration > maxIterations {
+			return fmt.Errorf("while loop exceeded maximum iterations (%d)", maxIterations)
+		}
+		tr.variableManager.SetVariable("iteration", iteration)
+		condition := tr.substituteString(whileBlock.Condition)
+		output, err := executor.Execute("control", []interface{}{"while", condition}, map[string]interface{}{}, silent)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate while condition: %w", err)
+		}
+		if output != "true" {
+			break
+		}
+		if err := executeSteps(tr, whileBlock.Steps, executor, whileBlock, silent, stepResults, context, testCase); err != nil {
+			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
+		}
+	}
+	return nil
+}

@@ -1,6 +1,0 @@
-testsuite: "All Skip Suite"
-description: "Suite with only skipping test cases"
-testcases:
-  - file: "test-skip.robogo"
-  - file: "test-skip.robogo"
-  - file: "test-skip.robogo" 

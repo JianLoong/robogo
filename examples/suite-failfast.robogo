@@ -1,0 +1,22 @@
+testsuite: "User Management Suite"
+description: "Runs all user management test cases with fail-fast enabled."
+fail_fast: true
+
+variables:
+  vars:
+    base_url: "http://localhost:8080"
+
+setup:
+  - name: "Setup DB"
+    action: log
+    args: ["Setting up database..."]
+
+testcases:
+  - file: "test-user-create.robogo"
+  - file: "test-user-fail.robogo"
+  - file: "test-user-update.robogo"
+
+teardown:
+  - name: "Teardown DB"
+    action: log
+    args: ["Cleaning up database..."] 
