@@ -30,6 +30,7 @@ var actionFuncs = map[string]ActionFunc{
 	"kafka":      KafkaActionWrapper,
 	"template":   TemplateAction,
 	"skip":       SkipAction,
+	"spanner":    SpannerAction,
 }
 
 // NewActionExecutor creates a new action executor instance.

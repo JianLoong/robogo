@@ -154,6 +154,12 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "Skip a test case with an optional reason",
 		Example:     `- action: skip\n  args: ["Skipping this test case"]`,
 	})
+
+	ar.Register(ActionInfo{
+		Name:        "spanner",
+		Description: "Google Cloud Spanner operations (connect, query, execute, close) with emulator support",
+		Example:     `- action: spanner\n  args: ["connect", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db?useEmulator=true"]\n  result: connection_result`,
+	})
 }
 
 // Register adds an action to the registry

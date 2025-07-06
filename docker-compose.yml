@@ -21,4 +21,61 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
-      - zookeeper 
+      - zookeeper
+
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+    environment:
+      - SPANNER_PROJECT_ID=robogo-test-project
+      - SPANNER_INSTANCE_ID=robogo-test-instance
+      - SPANNER_DATABASE_ID=robogo-test-db
+    command: >
+      gcloud emulators spanner start
+      --host-port=0.0.0.0:9010
+      --rest-port=9020
+      --project=${SPANNER_PROJECT_ID}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9020/v1/projects/robogo-test-project/instances"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=robogo_testdb
+      - POSTGRES_USER=robogo_testuser
+      - POSTGRES_PASSWORD=robogo_testpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robogo_testuser -d robogo_testdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=robogo_user
+      - RABBITMQ_DEFAULT_PASS=robogo_pass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data: 

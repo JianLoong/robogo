@@ -637,6 +637,10 @@ steps:
 
 ## 💾 Database Operations
 
+Robogo provides comprehensive database testing capabilities with support for PostgreSQL and Google Cloud Spanner:
+
+### PostgreSQL Operations
+
 PostgreSQL integration with secure credential management:
 
 ```yaml
@@ -661,6 +665,61 @@ steps:
   - action: assert
     args: ["${query_result.rows_affected}", ">", "0", "Should return results"]
 ```
+
+### Google Cloud Spanner Operations
+
+Cloud-native distributed database operations with emulator support:
+
+```yaml
+testcase: "Spanner Operations Test"
+description: "Test Google Cloud Spanner operations with emulator"
+
+variables:
+  vars:
+    spanner_project: "robogo-test-project"
+    spanner_instance: "robogo-test-instance"
+    spanner_database: "robogo-test-db"
+
+steps:
+  # Connect to Spanner emulator
+  - action: spanner
+    args: ["connect", "projects/${spanner_project}/instances/${spanner_instance}/databases/${spanner_database}?useEmulator=true"]
+    result: connection_result
+
+  # Create table
+  - action: spanner
+    args: ["execute", "projects/${spanner_project}/instances/${spanner_instance}/databases/${spanner_database}",
+           "CREATE TABLE IF NOT EXISTS users (id STRING(MAX) NOT NULL, name STRING(MAX), email STRING(MAX)) PRIMARY KEY (id)"]
+    result: create_result
+
+  # Insert data
+  - action: spanner
+    args: ["execute", "projects/${spanner_project}/instances/${spanner_instance}/databases/${spanner_database}",
+           "INSERT INTO users (id, name, email) VALUES (@id, @name, @email)", ["user1", "John Doe", "john@example.com"]]
+    result: insert_result
+
+  # Query data
+  - action: spanner
+    args: ["query", "projects/${spanner_project}/instances/${spanner_instance}/databases/${spanner_database}",
+           "SELECT * FROM users WHERE id = @id", ["user1"]]
+    result: query_result
+
+  # Validate results
+  - action: assert
+    args: ["${query_result}", "contains", "John Doe", "User name should be John Doe"]
+
+  # Close connection
+  - action: spanner
+    args: ["close"]
+    result: close_result
+```
+
+#### Spanner Features
+- **Emulator Support**: Local development with Google Cloud Spanner emulator
+- **Distributed Transactions**: Handle complex distributed database operations
+- **SQL Dialect**: Full support for Spanner's SQL dialect
+- **Parameterized Queries**: Secure query execution with parameter binding
+- **Connection Management**: Automatic connection pooling and cleanup
 
 ## 📨 Kafka Operations
 
@@ -829,7 +888,7 @@ steps:
 
 ### Kafka with Docker
 
-The project includes Docker Compose configuration for local Kafka development:
+The project includes Docker Compose configuration for local development with Kafka, PostgreSQL, RabbitMQ, and Google Cloud Spanner:
 
 ```yaml
 # docker-compose.yml
@@ -855,9 +914,50 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
     ports:
       - "9092:9092"
+
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+    environment:
+      - SPANNER_PROJECT_ID=robogo-test-project
+      - SPANNER_INSTANCE_ID=robogo-test-instance
+      - SPANNER_DATABASE_ID=robogo-test-db
+    command: >
+      gcloud emulators spanner start
+      --host-port=0.0.0.0:9010
+      --rest-port=9020
+      --project=${SPANNER_PROJECT_ID}
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=robogo_testdb
+      - POSTGRES_USER=robogo_testuser
+      - POSTGRES_PASSWORD=robogo_testpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=robogo_user
+      - RABBITMQ_DEFAULT_PASS=robogo_pass
+
+volumes:
+  postgres_data:
 ```
 
-Start Kafka for testing:
+Start all services for testing:
 ```bash
 docker-compose up -d
 ```
@@ -1150,6 +1250,7 @@ Comprehensive documentation available in the [docs/](docs/) directory:
 - [x] **Enhanced Random Generation** - Decimal support with precision control
 - [x] **Comprehensive HTTP Testing** - mTLS, headers, and response validation
 - [x] **PostgreSQL Integration** - Database operations with connection pooling
+- [x] **Google Cloud Spanner** - Cloud-native distributed database operations with emulator support
 - [x] **Advanced Control Flow** - If, for, while loops with retry mechanisms
 - [x] **Secret Management** - Secure credential handling with masking
 - [x] **VS Code Extension** - Complete extension with syntax highlighting, autocomplete, and validation

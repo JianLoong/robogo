@@ -1,0 +1,73 @@
+testcase: "Spanner Basic Operations"
+description: "Test Google Cloud Spanner operations with emulator"
+steps:
+  - name: "Connect to Spanner emulator"
+    action: spanner
+    args: ["connect", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db?useEmulator=true"]
+    result: connection_result
+
+  - name: "Create test table"
+    action: spanner
+    args: ["execute", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "CREATE TABLE IF NOT EXISTS users (id STRING(MAX) NOT NULL, name STRING(MAX), email STRING(MAX), created_at TIMESTAMP) PRIMARY KEY (id)"]
+    result: create_result
+
+  - name: "Insert test data"
+    action: spanner
+    args: ["execute", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "INSERT INTO users (id, name, email, created_at) VALUES (@id, @name, @email, @created_at)", ["user1", "John Doe", "john@example.com", "2024-01-01T00:00:00Z"]]
+    result: insert_result
+
+  - name: "Query test data"
+    action: spanner
+    args: ["query", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "SELECT * FROM users WHERE id = @id", ["user1"]]
+    result: query_result
+
+  - name: "Verify user data"
+    action: assert
+    args: [query_result, "contains", "John Doe", "User name should be John Doe"]
+
+  - name: "Insert another user"
+    action: spanner
+    args: ["execute", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "INSERT INTO users (id, name, email, created_at) VALUES (@id, @name, @email, @created_at)", ["user2", "Jane Smith", "jane@example.com", "2024-01-02T00:00:00Z"]]
+    result: insert_result2
+
+  - name: "Query all users"
+    action: spanner
+    args: ["query", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "SELECT COUNT(*) as user_count FROM users"]
+    result: count_result
+
+  - name: "Verify user count"
+    action: assert
+    args: [count_result, "contains", "2", "Should have 2 users"]
+
+  - name: "Update user data"
+    action: spanner
+    args: ["execute", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "UPDATE users SET name = @name WHERE id = @id", ["John Updated", "user1"]]
+    result: update_result
+
+  - name: "Verify update"
+    action: spanner
+    args: ["query", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "SELECT name FROM users WHERE id = @id", ["user1"]]
+    result: verify_result
+
+  - name: "Check updated name"
+    action: assert
+    args: [verify_result, "contains", "John Updated", "User name should be updated"]
+
+  - name: "Delete test data"
+    action: spanner
+    args: ["execute", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "DELETE FROM users WHERE id IN (@id1, @id2)", ["user1", "user2"]]
+    result: delete_result
+
+  - name: "Verify deletion"
+    action: spanner
+    args: ["query", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db", "SELECT COUNT(*) as user_count FROM users"]
+    result: final_count_result
+
+  - name: "Check empty table"
+    action: assert
+    args: [final_count_result, "contains", "0", "Table should be empty"]
+
+  - name: "Close Spanner connection"
+    action: spanner
+    args: ["close"]
+    result: close_result 
