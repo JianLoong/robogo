@@ -6,12 +6,13 @@ import (
 
 // TestCase represents a single test case
 type TestCase struct {
-	Name        string        `yaml:"testcase"`
-	Description string        `yaml:"description,omitempty"`
-	Steps       []Step        `yaml:"steps"`
-	Timeout     time.Duration `yaml:"timeout,omitempty"`
-	Variables   Variables     `yaml:"variables,omitempty"`
-	Verbose     interface{}   `yaml:"verbose,omitempty"` // Global verbosity setting
+	Name        string            `yaml:"testcase"`
+	Description string            `yaml:"description,omitempty"`
+	Templates   map[string]string `yaml:"templates,omitempty"` // Inline template definitions
+	Steps       []Step            `yaml:"steps"`
+	Timeout     time.Duration     `yaml:"timeout,omitempty"`
+	Variables   Variables         `yaml:"variables,omitempty"`
+	Verbose     interface{}       `yaml:"verbose,omitempty"` // Global verbosity setting
 
 	// TDM Fields
 	DataManagement *DataManagement `yaml:"data_management,omitempty"`
@@ -108,12 +109,13 @@ type ExpectErrorConfig struct {
 // Step represents a single test step
 // 'name' is optional but strongly recommended for clarity and reporting
 type Step struct {
-	Name    string        `yaml:"name,omitempty"`
-	Action  string        `yaml:"action"`
-	Args    []interface{} `yaml:"args"`
-	Result  string        `yaml:"result,omitempty"`
-	Verbose interface{}   `yaml:"verbose,omitempty"` // true/false or "basic"/"detailed"/"debug"
-	Retry   *RetryConfig  `yaml:"retry,omitempty"`   // Retry configuration
+	Name    string                 `yaml:"name,omitempty"`
+	Action  string                 `yaml:"action"`
+	Args    []interface{}          `yaml:"args"`
+	Options map[string]interface{} `yaml:"options,omitempty"`
+	Result  string                 `yaml:"result,omitempty"`
+	Verbose interface{}            `yaml:"verbose,omitempty"` // true/false or "basic"/"detailed"/"debug"
+	Retry   *RetryConfig           `yaml:"retry,omitempty"`   // Retry configuration
 
 	// Control flow fields
 	If    *ConditionalBlock `yaml:"if,omitempty"`    // If statement

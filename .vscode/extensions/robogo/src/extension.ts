@@ -43,11 +43,34 @@ export function activate(context: vscode.ExtensionContext) {
         await runTest();
     });
 
+    const runTestParallelCommand = vscode.commands.registerCommand('robogo.runTestParallel', async () => {
+        await runTestParallel();
+    });
+
     const listActionsCommand = vscode.commands.registerCommand('robogo.listActions', async () => {
         await listActions();
     });
 
-    context.subscriptions.push(runTestCommand, listActionsCommand);
+    const validateTDMCommand = vscode.commands.registerCommand('robogo.validateTDM', async () => {
+        await validateTDM();
+    });
+
+    const generateTemplateCommand = vscode.commands.registerCommand('robogo.generateTemplate', async () => {
+        await generateTemplate();
+    });
+
+    const runWithOutputCommand = vscode.commands.registerCommand('robogo.runWithOutput', async () => {
+        await runWithOutput();
+    });
+
+    context.subscriptions.push(
+        runTestCommand,
+        runTestParallelCommand,
+        listActionsCommand,
+        validateTDMCommand,
+        generateTemplateCommand,
+        runWithOutputCommand
+    );
 }
 
 // Robogo Diagnostic Provider for real-time validation
@@ -1118,6 +1141,53 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                     { name: 'flowType', type: 'string', description: 'Control flow type (if, for, while)', required: true },
                     { name: 'condition', type: 'string', description: 'Condition to evaluate or loop specification', required: true }
                 ],
+                Returns: 'Control flow result',
+                UseCases: ['Conditional execution', 'Loop processing', 'Flow control'],
+                Notes: 'Supports if statements, for loops, and while loops with dependency analysis'
+            },
+            {
+                Name: 'http_batch',
+                Description: 'Perform multiple HTTP requests in parallel with concurrency control.',
+                Example: '- action: http_batch\n  args: [{"requests": [{"method": "GET", "url": "https://api1.com"}, {"method": "GET", "url": "https://api2.com"}], "concurrency": 3}]\n  result: batch_response',
+                Parameters: [
+                    { name: 'requests', type: 'object[]', description: 'Array of request configurations', required: true },
+                    { name: 'concurrency', type: 'number', description: 'Maximum concurrent requests', required: false, default: '4' },
+                    { name: 'timeout', type: 'string', description: 'Request timeout', required: false }
+                ],
+                Returns: 'JSON object with results for each request',
+                Examples: [
+                    '- action: http_batch\n  args: [{"requests": [{"method": "GET", "url": "https://api1.com"}, {"method": "GET", "url": "https://api2.com"}], "concurrency": 3}]',
+                    '- action: http_batch\n  args: [{"requests": [{"method": "POST", "url": "https://api.com/users", "body": \'{"name": "John"}\'}], "timeout": "30s"}]'
+                ],
+                UseCases: ['Parallel API testing', 'Load testing', 'Batch operations', 'Performance testing'],
+                Notes: 'Executes multiple HTTP requests in parallel with configurable concurrency. Each request can have its own method, URL, body, and headers.'
+            },
+            {
+                Name: 'postgres_batch',
+                Description: 'Parallel PostgreSQL database operations with concurrency control.',
+                Example: '- action: postgres\n  args: ["batch", "postgres://user:pass@localhost/db", [{"query": "SELECT * FROM users"}, {"query": "SELECT * FROM orders"}], {"concurrency": 5}]\n  result: batch_results',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Must be "batch"', required: true },
+                    { name: 'connection', type: 'string', description: 'Database connection string', required: true },
+                    { name: 'queries', type: 'object[]', description: 'Array of query configurations', required: true },
+                    { name: 'options', type: 'object', description: 'Batch options (concurrency, timeout)', required: false }
+                ],
+                Returns: 'JSON object with results for each query',
+                Examples: [
+                    '- action: postgres\n  args: ["batch", "postgres://user:pass@localhost/db", [{"query": "SELECT * FROM users"}, {"query": "SELECT * FROM orders"}], {"concurrency": 5}]',
+                    '- action: postgres\n  args: ["batch", "postgres://user:pass@localhost/db", [{"execute": "INSERT INTO logs (message) VALUES ($1)", "params": ["test"]}]]'
+                ],
+                UseCases: ['Parallel database operations', 'Batch data processing', 'Performance testing', 'Data migration'],
+                Notes: 'Executes multiple database operations in parallel. Supports both queries and execute operations. Uses connection pooling for efficiency.'
+            },
+            {
+                Name: 'control',
+                Description: 'Control flow operations (if, for, while).',
+                Example: '- action: control\n  args: ["if", "${var} > 5"]\n  result: condition_result',
+                Parameters: [
+                    { name: 'flowType', type: 'string', description: 'Control flow type (if, for, while)', required: true },
+                    { name: 'condition', type: 'string', description: 'Condition to evaluate or loop specification', required: true }
+                ],
                 Returns: 'Result of condition evaluation or loop information',
                 Examples: [
                     '- action: control\n  args: ["if", "${value} > 5"]',
@@ -1631,6 +1701,141 @@ async function listActions() {
         await vscode.window.showTextDocument(document);
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to list actions: ${error}`);
+    }
+}
+
+async function runTestParallel() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('robogo');
+    const executablePath = config.get<string>('executablePath', 'robogo');
+    const maxConcurrency = config.get<number>('maxConcurrency', 4);
+
+    try {
+        const terminal = vscode.window.createTerminal('Robogo Parallel Test');
+        terminal.sendText(`${executablePath} run "${editor.document.fileName}" --parallel --concurrency ${maxConcurrency}`);
+        terminal.show();
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to run test in parallel: ${error}`);
+    }
+}
+
+async function validateTDM() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('robogo');
+    const executablePath = config.get<string>('executablePath', 'robogo');
+
+    try {
+        // For now, we'll just run the test to validate TDM
+        // In the future, this could be a dedicated validation command
+        const terminal = vscode.window.createTerminal('Robogo TDM Validation');
+        terminal.sendText(`${executablePath} run "${editor.document.fileName}" --output json`);
+        terminal.show();
+        vscode.window.showInformationMessage('TDM validation started. Check terminal for results.');
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to validate TDM: ${error}`);
+    }
+}
+
+async function generateTemplate() {
+    const template = `testcase: "New Test Case"
+description: "Description of the test case"
+
+variables:
+  vars:
+    base_url: "https://api.example.com"
+  secrets:
+    api_key:
+      file: "secret.txt"
+      mask_output: true
+
+data_management:
+  environment: "development"
+  isolation: true
+  cleanup: true
+  data_sets:
+    - name: "test_data"
+      description: "Test data set"
+      version: "1.0"
+      data:
+        user1:
+          name: "John Doe"
+          email: "john@example.com"
+      schema:
+        name: "string"
+        email: "email"
+      required: ["name", "email"]
+      unique: ["email"]
+
+steps:
+  - name: "Get current timestamp"
+    action: get_time
+    args: ["iso"]
+    result: timestamp
+  
+  - name: "Log start time"
+    action: log
+    args: ["Test started at: \${timestamp}"]
+  
+  - name: "Make API request"
+    action: http_get
+    args: ["\${base_url}/users"]
+    result: response
+  
+  - name: "Assert response status"
+    action: assert
+    args: ["\${response.status_code}", "==", "200", "API should return 200"]
+  
+  - name: "Log completion"
+    action: log
+    args: ["Test completed successfully"]
+`;
+
+    const document = await vscode.workspace.openTextDocument({
+        content: template,
+        language: 'robogo'
+    });
+    await vscode.window.showTextDocument(document);
+    vscode.window.showInformationMessage('Generated new test template');
+}
+
+async function runWithOutput() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('robogo');
+    const executablePath = config.get<string>('executablePath', 'robogo');
+
+    // Show quick pick for output format
+    const outputFormat = await vscode.window.showQuickPick(
+        ['console', 'json', 'markdown'],
+        {
+            placeHolder: 'Select output format'
+        }
+    );
+
+    if (!outputFormat) {
+        return;
+    }
+
+    try {
+        const terminal = vscode.window.createTerminal('Robogo Test');
+        terminal.sendText(`${executablePath} run "${editor.document.fileName}" --output ${outputFormat}`);
+        terminal.show();
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to run test with output format: ${error}`);
     }
 }
 

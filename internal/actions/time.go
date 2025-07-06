@@ -68,7 +68,7 @@ var timeFormats = map[string]string{
 //   - Default timezone is UTC if not specified
 //   - Custom formats use Go's time formatting syntax
 //   - Timezone names must be valid IANA timezone identifiers
-func GetTimeAction(args []interface{}, silent bool) (string, error) {
+func GetTimeAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	now := time.Now()
 	var format string
 	var timezone string

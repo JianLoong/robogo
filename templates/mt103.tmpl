@@ -1,0 +1,16 @@
+{1:F01{{.Sender.BIC}}XXXXU3003{{.TransactionID}}}
+{2:I103{{.Sender.BIC}}XXXXU}
+{3:{113:SEPA}{108:{{.TransactionID}}}{111:001}{121:{{.Timestamp}}}}
+{4:
+:20:{{.TransactionID}}
+:23B:CRED
+:32A:{{.Date}}{{.Currency}}{{.Amount}}
+:33B:{{.Currency}}{{.Amount}}
+:50K:/{{.Sender.Account}}
+1/{{.Sender.Name}}
+:59:/{{.Beneficiary.Account}}
+1/{{.Beneficiary.Name}}
+:70:{{.Reference}}
+:71A:SHA
+-}
+{5:{CHK:1234567890ABCD}{TNG:}}{S:{COP:S}} 

@@ -28,9 +28,6 @@ func ParseTestFile(filename string) (*TestCase, error) {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
-	// Debug output
-	fmt.Printf("DEBUG PARSER: Parsed test case '%s' with %d steps\n", testCase.Name, len(testCase.Steps))
-
 	// Validate test case
 	if err := validateTestCase(&testCase); err != nil {
 		return nil, fmt.Errorf("test case validation failed: %w", err)

@@ -82,7 +82,7 @@ var dbManager = &DatabaseManager{
 //   - Automatic connection pooling and management
 //   - Comprehensive error handling and timeout support
 //   - Results available for assertions and variable storage
-func PostgresAction(args []interface{}, silent bool) (string, error) {
+func PostgresAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("postgres action requires at least 2 arguments: operation and connection_string")
 	}

@@ -37,7 +37,7 @@ import (
 //   - Supports complex data types (strings, numbers, objects, arrays)
 //   - Use ${variable_name} syntax to reference in other actions
 //   - Variables are shared across all steps in a test case
-func VariableAction(args []interface{}, silent bool) (string, error) {
+func VariableAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("variable action requires at least 1 argument: operation")
 	}

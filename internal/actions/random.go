@@ -40,7 +40,7 @@ import (
 //   - Decimal precision defaults to 2 places if not specified
 //   - Inclusive ranges (min and max are possible values)
 //   - Backward compatible with single argument format
-func GetRandomAction(args []interface{}, silent bool) (string, error) {
+func GetRandomAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("get_random action requires at least one argument (max value) or two arguments (min, max)")
 	}

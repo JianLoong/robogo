@@ -1,0 +1,45 @@
+testcase: "Kafka Action Test with Settings"
+description: "Test Kafka actions with specific producer and consumer settings"
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    topic_name: "robogo-test-topic"
+    message_body: "Hello, Kafka from Robogo with settings!"
+    consumer_group: "robogo-test-group"
+
+steps:
+  - name: "Publish a message to Kafka with acks=all"
+    action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "${message_body}"
+      -
+        acks: "all"
+        compression: "snappy"
+    result: publish_result
+
+  - name: "Assert message was published"
+    action: assert
+    args: ["${publish_result.status}", "==", "message published"]
+
+  - name: "Consume the message from Kafka using a consumer group"
+    action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      -
+        groupID: "${consumer_group}"
+        fromOffset: "first"
+    result: consume_result
+
+  - name: "Assert the consumed message is correct"
+    action: assert
+    args: ["${consume_result.message}", "==", "${message_body}"]
+
+  - name: "Assert the message was consumed from the correct topic"
+    action: assert
+    args: ["${consume_result.topic}", "==", "${topic_name}"]

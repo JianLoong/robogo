@@ -449,7 +449,7 @@ func (tdm *TDMManager) GetResults() *parser.DataResults {
 //   - Environment-specific data isolation
 //   - Comprehensive validation framework
 //   - Integration with test variable system
-func TDMAction(args []interface{}, silent bool) (string, error) {
+func TDMAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("tdm action requires at least 1 argument: operation")
 	}

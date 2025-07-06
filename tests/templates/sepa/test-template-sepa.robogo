@@ -1,0 +1,43 @@
+testcase: "Template Action SEPA File Test"
+description: "Test the template action with a file-based SEPA Credit Transfer (pain.001) XML template"
+
+steps:
+  - name: "Generate SEPA Credit Transfer XML from file"
+    action: template
+    args:
+      - "templates/sepa-credit-transfer.xml.tmpl"
+      -
+        MessageID: "MSG123456"
+        CreationDateTime: "2025-07-06T12:00:00"
+        NumberOfTransactions: "1"
+        ControlSum: "1000.00"
+        InitiatingPartyName: "My Company"
+        PaymentInfoID: "PMTINF123"
+        RequestedExecutionDate: "2025-07-07"
+        DebtorName: "John Doe"
+        DebtorIBAN: "DE89370400440532013000"
+        DebtorBIC: "DEUTDEFF"
+        EndToEndID: "E2E123456"
+        Amount: "1000.00"
+        Currency: "EUR"
+        CreditorBIC: "COBADEFF"
+        CreditorName: "Jane Smith"
+        CreditorIBAN: "DE75512108001245126199"
+        RemittanceInfo: "Invoice 2024-001"
+    result: sepa_xml
+
+  - name: "Log generated SEPA XML"
+    action: log
+    args: ["Generated SEPA XML:", "${sepa_xml}"]
+
+  - name: "Validate SEPA XML structure"
+    action: assert
+    args: ["${sepa_xml}", "contains", "<Document", "SEPA XML must start with <Document>"]
+
+  - name: "Validate Message ID"
+    action: assert
+    args: ["${sepa_xml}", "contains", "<MsgId>MSG123456</MsgId>", "SEPA XML must contain correct Message ID"]
+
+  - name: "Log test completion"
+    action: log
+    args: ["SEPA file-based template test completed!"] 

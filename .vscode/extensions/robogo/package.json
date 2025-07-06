@@ -1,8 +1,8 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Comprehensive support for Robogo test automation framework with rich documentation, syntax highlighting, autocomplete, and validation",
-  "version": "1.0.0",
+  "description": "Comprehensive support for Robogo test automation framework with rich documentation, syntax highlighting, autocomplete, validation, parallel execution, TDM, and SWIFT message support",
+  "version": "1.1.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.85.0"
@@ -21,10 +21,18 @@
     "testing",
     "tdm",
     "swift",
-    "postgres"
+    "postgres",
+    "parallel",
+    "retry",
+    "secrets",
+    "variables",
+    "control-flow",
+    "http",
+    "database"
   ],
   "activationEvents": [
-    "onLanguage:robogo"
+    "onLanguage:robogo",
+    "onLanguage:yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -55,8 +63,28 @@
         "category": "Robogo"
       },
       {
+        "command": "robogo.runTestParallel",
+        "title": "Run Robogo Test (Parallel)",
+        "category": "Robogo"
+      },
+      {
         "command": "robogo.listActions",
         "title": "List Robogo Actions",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.validateTDM",
+        "title": "Validate TDM Configuration",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.generateTemplate",
+        "title": "Generate Test Template",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.runWithOutput",
+        "title": "Run Test with Output Format",
         "category": "Robogo"
       }
     ],
@@ -67,13 +95,39 @@
           "when": "resourceExtname == .robogo"
         },
         {
+          "command": "robogo.runTestParallel",
+          "when": "resourceExtname == .robogo"
+        },
+        {
           "command": "robogo.listActions",
+          "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.validateTDM",
+          "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.generateTemplate",
+          "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.runWithOutput",
           "when": "resourceExtname == .robogo"
         }
       ],
       "editor/context": [
         {
           "command": "robogo.runTest",
+          "when": "resourceExtname == .robogo",
+          "group": "navigation"
+        },
+        {
+          "command": "robogo.runTestParallel",
+          "when": "resourceExtname == .robogo",
+          "group": "navigation"
+        },
+        {
+          "command": "robogo.validateTDM",
           "when": "resourceExtname == .robogo",
           "group": "navigation"
         }
@@ -101,13 +155,33 @@
           "type": "boolean",
           "default": true,
           "description": "Show detailed parameter documentation in hover tooltips"
+        },
+        "robogo.enableParallelExecution": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable parallel execution by default"
+        },
+        "robogo.maxConcurrency": {
+          "type": "number",
+          "default": 4,
+          "description": "Maximum concurrency for parallel execution"
+        },
+        "robogo.enableRealTimeValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time validation and error detection"
+        },
+        "robogo.showVerboseOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show verbose output in test execution"
         }
       }
     },
     "snippets": [
       {
         "language": "robogo",
-        "path": "./snippets/robogo.json"
+        "path": "./robogo.code-snippets"
       }
     ]
   },
@@ -127,11 +201,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/robogo.git"
+    "url": "https://github.com/JianLoong/robogo.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/robogo/issues"
+    "url": "https://github.com/JianLoong/robogo/issues"
   },
-  "homepage": "https://github.com/your-org/robogo#readme",
+  "homepage": "https://github.com/JianLoong/robogo#readme",
   "license": "MIT"
 }

@@ -74,15 +74,12 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 		for _, file := range files {
 			result, err := RunTestFile(file, silent)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "DEBUG RunTestFilesWithConfig: Creating error result for %s\n", file)
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
 					Status:       "FAILED",
 					ErrorMessage: err.Error(),
 				}
 			}
-			fmt.Fprintf(os.Stderr, "DEBUG RunTestFilesWithConfig: Sequential result for %s, TestCase address: %p, Steps length: %d\n",
-				file, result.TestCase, len(result.TestCase.Steps))
 			results = append(results, result)
 		}
 		return results, nil
@@ -108,7 +105,6 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 
 			result, err := RunTestFile(file, silent)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "DEBUG RunTestFilesWithConfig: Creating parallel error result for %s\n", file)
 				// In case of a fatal error before the test can even run properly,
 				// create a dummy result to report the failure.
 				result = &parser.TestResult{
@@ -117,8 +113,6 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 					ErrorMessage: err.Error(),
 				}
 			}
-			fmt.Fprintf(os.Stderr, "DEBUG RunTestFilesWithConfig: Parallel result for %s, TestCase address: %p, Steps length: %d\n",
-				file, result.TestCase, len(result.TestCase.Steps))
 			resultsChan <- result
 		}(file)
 	}
@@ -142,17 +136,11 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 		return nil, fmt.Errorf("failed to parse test file: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestFile: After parsing, testCase.Steps length: %d\n", len(testCase.Steps))
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestFile: testCase address: %p\n", testCase)
-
 	// Run the test case
 	result, err := RunTestCase(testCase, silent)
 	if err != nil {
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestFile: RunTestCase returned error (test failure): %v\n", err)
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestFile: But returning the result anyway, TestCase address: %p, Steps length: %d\n",
-			result.TestCase, len(result.TestCase.Steps))
 		return result, nil // Return the result, not the error
 	}
 	return result, nil
@@ -160,12 +148,18 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 
 // RunTestCase runs a test case and returns the result
 func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: At start, testCase.Steps length: %d\n", len(testCase.Steps))
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: testCase address: %p\n", testCase)
 
 	tr := NewTestRunner()
 	tr.initializeVariables(testCase)
 	tr.initializeTDM(testCase)
+
+	// Initialize template context if templates are defined
+	if testCase.Templates != nil && len(testCase.Templates) > 0 {
+		actions.SetTemplateContext(testCase.Templates)
+		if !silent {
+			fmt.Printf("📄 Loaded %d templates: %s\n", len(testCase.Templates), getTemplateNames(testCase.Templates))
+		}
+	}
 
 	// Create action executor
 	executor := actions.NewActionExecutor()
@@ -179,9 +173,6 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 			DataSets:    make(map[string]parser.DataSetInfo),
 		},
 	}
-
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: After creating result, result.TestCase.Steps length: %d\n", len(result.TestCase.Steps))
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: result.TestCase address: %p\n", result.TestCase)
 
 	startTime := time.Now()
 
@@ -220,13 +211,10 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 		result.DataResults.SetupStatus = "COMPLETED"
 	}
 
-	// Debug output before executing steps
-	fmt.Println("DEBUG RUNNER: About to execute steps...")
 	var err error
 	err = tr.executeStepsWithConfig(testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
-	fmt.Printf("DEBUG RUNNER: executeStepsWithConfig returned. err=%v\n", err)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: Error after step execution: %v\n", err)
+		// Error occurred during step execution
 	}
 
 	// Execute TDM teardown if configured
@@ -271,23 +259,7 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 
 	// Only return error if a non-continue-on-failure step failed
 	if result.Status == "FAILED" && result.ErrorMessage != "" {
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: StepResults length before return (FAILED): %d\n", len(result.StepResults))
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: result.TestCase.Steps length before return (FAILED): %d\n", len(result.TestCase.Steps))
-		for i, sr := range result.StepResults {
-			if i >= 5 {
-				break
-			}
-			fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: Step %d name: %s\n", i+1, sr.Step.Name)
-		}
 		return result, fmt.Errorf(result.ErrorMessage)
-	}
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: StepResults length before return: %d\n", len(result.StepResults))
-	fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: result.TestCase.Steps length before return: %d\n", len(result.TestCase.Steps))
-	for i, sr := range result.StepResults {
-		if i >= 5 {
-			break
-		}
-		fmt.Fprintf(os.Stderr, "DEBUG RunTestCase: Step %d name: %s\n", i+1, sr.Step.Name)
 	}
 	return result, nil
 }
@@ -299,19 +271,14 @@ func (tr *TestRunner) executeSteps(steps []parser.Step, executor *actions.Action
 
 // executeStepsWithConfig executes steps with parallelism configuration
 func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
-	fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Starting with %d steps\n", len(steps))
-
 	// Check if parallel step execution is enabled
 	config := parser.MergeParallelConfig(parallelConfig)
 	if config.Enabled && config.Steps && len(steps) > 1 {
-		fmt.Fprintln(os.Stderr, "DEBUG executeStepsWithConfig: Using parallel execution")
 		return tr.executeStepsParallel(steps, executor, parentLoop, silent, stepResults, context, testCase, config)
 	}
 
 	// Execute steps sequentially (original behavior)
-	fmt.Fprintln(os.Stderr, "DEBUG executeStepsWithConfig: Using sequential execution")
 	for idx, step := range steps {
-		fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Processing step %d: %s\n", idx+1, step.Action)
 
 		stepContext := context
 		if parentLoop != nil {
@@ -320,28 +287,23 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 		}
 
 		if step.If != nil {
-			fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Step %d is an if statement\n", idx+1)
 			if err := tr.executeIfStatement(step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
 				return err
 			}
 			continue
 		}
 		if step.For != nil {
-			fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Step %d is a for loop\n", idx+1)
 			if err := tr.executeForLoop(step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
 				return err
 			}
 			continue
 		}
 		if step.While != nil {
-			fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Step %d is a while loop\n", idx+1)
 			if err := tr.executeWhileLoop(step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
 				return err
 			}
 			continue
 		}
-
-		fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Step %d is a regular action: %s\n", idx+1, step.Action)
 		stepStart := time.Now()
 		stepLabel := step.Name
 		if stepLabel == "" {
@@ -418,7 +380,6 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 			stepResult.Step.Name = stepContext + fmt.Sprintf("Step%d", idx+1)
 		}
 
-		fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Adding step result for step %d\n", idx+1)
 		*stepResults = append(*stepResults, stepResult)
 
 		if err != nil {
@@ -443,7 +404,6 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 			}
 		}
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG executeStepsWithConfig: Finished processing all %d steps\n", len(steps))
 	return nil
 }
 
@@ -644,7 +604,7 @@ func (tr *TestRunner) executeSingleStep(step parser.Step, executor *actions.Acti
 // executeIfStatement executes an if/else block, collecting StepResults
 func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(ifBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"if", condition}, silent)
+	output, err := executor.Execute("control", []interface{}{"if", condition}, map[string]interface{}{}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate if condition: %w", err)
 	}
@@ -660,7 +620,7 @@ func (tr *TestRunner) executeIfStatement(ifBlock *parser.ConditionalBlock, execu
 // executeForLoop executes a for loop, collecting StepResults
 func (tr *TestRunner) executeForLoop(forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(forBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"for", condition}, silent)
+	output, err := executor.Execute("control", []interface{}{"for", condition}, map[string]interface{}{}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
 	}
@@ -696,7 +656,7 @@ func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *a
 		}
 		tr.variables["iteration"] = iteration
 		condition := tr.substituteString(whileBlock.Condition)
-		output, err := executor.Execute("control", []interface{}{"while", condition}, silent)
+		output, err := executor.Execute("control", []interface{}{"while", condition}, map[string]interface{}{}, silent)
 		if err != nil {
 			return fmt.Errorf("failed to evaluate while condition: %w", err)
 		}
@@ -712,7 +672,6 @@ func (tr *TestRunner) executeWhileLoop(whileBlock *parser.LoopBlock, executor *a
 
 // initializeVariables initializes variables from the test case
 func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
-	fmt.Println("DEBUG RUNNER: Initializing variables...")
 	if testCase.Variables.Regular != nil {
 		for name, value := range testCase.Variables.Regular {
 			tr.variables[name] = value
@@ -736,12 +695,11 @@ func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
 			}
 		}
 	}
-	fmt.Println("DEBUG RUNNER: Finished initializing variables.")
+
 }
 
 // initializeTDM initializes test data management
 func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
-	fmt.Println("DEBUG RUNNER: Initializing TDM...")
 	if testCase.DataManagement == nil {
 		return
 	}
@@ -773,7 +731,6 @@ func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
 	for name, value := range tr.tdmManager.GetAllVariables() {
 		tr.variables[name] = value
 	}
-	fmt.Println("DEBUG RUNNER: Finished initializing TDM.")
 }
 
 // substituteVariables replaces ${variable} references with actual values
@@ -896,7 +853,7 @@ func (tr *TestRunner) substituteMap(m map[string]interface{}) map[string]interfa
 func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (string, error) {
 	// If no retry configuration, execute normally
 	if step.Retry == nil {
-		return executor.Execute(step.Action, args, silent)
+		return executor.Execute(step.Action, args, map[string]interface{}{}, silent)
 	}
 
 	// Validate retry configuration
@@ -919,7 +876,7 @@ func (tr *TestRunner) executeStepWithRetry(step parser.Step, args []interface{},
 	// Execute with retries
 	for attempt := 1; attempt <= retryConfig.Attempts; attempt++ {
 		// Execute the action
-		output, err := executor.Execute(step.Action, args, silent)
+		output, err := executor.Execute(step.Action, args, map[string]interface{}{}, silent)
 		lastOutput = output
 
 		// If successful, return immediately
@@ -1058,4 +1015,13 @@ func (tr *TestRunner) validateExpectedError(expectError interface{}, actualErr e
 	}
 
 	return nil
+}
+
+// getTemplateNames returns a comma-separated list of template names
+func getTemplateNames(templates map[string]string) string {
+	names := make([]string, 0, len(templates))
+	for name := range templates {
+		names = append(names, name)
+	}
+	return strings.Join(names, ", ")
 }

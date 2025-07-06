@@ -43,7 +43,7 @@ import (
 //   - For loops support range, array, and count formats
 //   - While conditions return boolean for loop continuation
 //   - Use max_iterations to prevent infinite loops
-func ControlFlowAction(args []interface{}, silent bool) (string, error) {
+func ControlFlowAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
 	}

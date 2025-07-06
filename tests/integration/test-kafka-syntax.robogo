@@ -1,0 +1,63 @@
+testcase: "Kafka Syntax Test"
+description: "Test Kafka action syntax and options parsing without requiring a broker"
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    topic_name: "test-topic"
+    message_body: "Hello, Kafka from Robogo!"
+    consumer_group: "test-group"
+
+steps:
+  # Test that the kafka action can be called with publish arguments
+  - name: "Test Kafka publish syntax (will fail due to no broker, but should parse correctly)"
+    action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "${message_body}"
+      -
+        acks: "all"
+        compression: "snappy"
+    continue_on_failure: true
+    result: publish_result
+
+  # Test that the kafka action can be called with consume arguments
+  - name: "Test Kafka consume syntax (will fail due to no broker, but should parse correctly)"
+    action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      -
+        groupID: "${consumer_group}"
+        fromOffset: "first"
+    continue_on_failure: true
+    result: consume_result
+
+  # Test basic publish without options
+  - name: "Test Kafka publish without options"
+    action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "${message_body}"
+    continue_on_failure: true
+    result: publish_simple_result
+
+  # Test basic consume without options
+  - name: "Test Kafka consume without options"
+    action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+    continue_on_failure: true
+    result: consume_simple_result
+
+  # Log that we're testing syntax only
+  - name: "Log test purpose"
+    action: log
+    args: ["Kafka syntax test completed - all actions should have parsed correctly even though they failed due to no broker"] 

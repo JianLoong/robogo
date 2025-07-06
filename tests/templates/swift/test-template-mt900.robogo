@@ -1,0 +1,34 @@
+testcase: "Template Action MT900 File Test"
+description: "Test the template action with a file-based SWIFT MT900 template"
+
+steps:
+  - name: "Generate MT900 message from file"
+    action: template
+    args:
+      - "templates/mt900.tmpl"
+      - 
+        SenderBIC: "DEUTDEFF"
+        ReceiverBIC: "COBADEFF"
+        TransactionReference: "TRX900001"
+        AccountID: "1234567890"
+        StatementNumber: "001/1"
+        OpeningBalance: "C200706EUR10000,00"
+        StatementLine: "2007060706C1000,00NTRFNONREF//1234567890"
+        InformationToAccountOwner: "Payment for invoice 2024-001"
+    result: mt900_message
+
+  - name: "Log generated MT900 message"
+    action: log
+    args: ["Generated MT900 message:", "${mt900_message}"]
+
+  - name: "Validate MT900 message structure"
+    action: assert
+    args: ["${mt900_message}", "contains", "{1:F01", "MT900 must contain block 1"]
+
+  - name: "Validate Transaction Reference"
+    action: assert
+    args: ["${mt900_message}", "contains", ":20:TRX900001", "MT900 must contain correct transaction reference"]
+
+  - name: "Log test completion"
+    action: log
+    args: ["MT900 file-based template test completed!"] 

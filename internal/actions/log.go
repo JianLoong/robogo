@@ -40,7 +40,7 @@ import (
 //   - Objects are pretty-printed as JSON
 //   - Use verbose field to control output detail level
 //   - Messages are included in test reports
-func LogAction(args []interface{}, silent bool) (string, error) {
+func LogAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("log action requires at least one argument")
 	}

@@ -130,6 +130,24 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "Test Data Management operations (generate, validate, load_dataset, set_environment)",
 		Example:     `- action: tdm\n  args: ["generate", "user_{index}", 5]\n  result: generated_data`,
 	})
+
+	ar.Register(ActionInfo{
+		Name:        "rabbitmq",
+		Description: "RabbitMQ operations (connect, publish, consume, close)",
+		Example:     `- action: rabbitmq\n  args: ["connect", "amqp://guest:guest@localhost:5672/", "my_connection"]`,
+	})
+
+	ar.Register(ActionInfo{
+		Name:        "kafka",
+		Description: "Kafka operations (publish, consume) with configurable options",
+		Example:     `- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", "message", {"acks": "all", "compression": "snappy"}]\n  result: publish_result`,
+	})
+
+	ar.Register(ActionInfo{
+		Name:        "template",
+		Description: "Render templates using Go template engine with inline template definitions",
+		Example:     `- action: template\n  args: ["mt103", {"transaction_id": "123", "amount": "100.00"}]\n  result: rendered_message`,
+	})
 }
 
 // Register adds an action to the registry

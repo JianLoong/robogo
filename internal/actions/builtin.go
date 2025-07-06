@@ -1,11 +1,12 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
 
-type ActionFunc func([]interface{}, bool) (string, error)
+type ActionFunc func(args []interface{}, options map[string]interface{}, silent bool) (string, error)
 
 type ActionExecutor struct{}
 
@@ -25,6 +26,9 @@ var actionFuncs = map[string]ActionFunc{
 	"postgres":   PostgresAction,
 	"variable":   VariableAction,
 	"tdm":        TDMAction,
+	"rabbitmq":   RabbitMQActionWrapper,
+	"kafka":      KafkaActionWrapper,
+	"template":   TemplateAction,
 }
 
 // NewActionExecutor creates a new action executor instance.
@@ -37,6 +41,35 @@ var actionFuncs = map[string]ActionFunc{
 //   - Handles argument validation and error reporting
 func NewActionExecutor() *ActionExecutor {
 	return &ActionExecutor{}
+}
+
+func RabbitMQActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+	strArgs := make([]string, len(args))
+	for i, v := range args {
+		strArgs[i] = fmt.Sprintf("%v", v)
+	}
+	result, err := RabbitMQAction(strArgs)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%v", result), nil
+}
+
+func KafkaActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+	// The wrapper will now pass the args directly to the action.
+	// The action itself will be responsible for parsing the []interface{}.
+	result, err := KafkaAction(args)
+	if err != nil {
+		return "", err
+	}
+
+	// The result from KafkaAction is a map, which needs to be serialized to a string.
+	// Using JSON is a robust way to do this.
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize kafka action result: %w", err)
+	}
+	return string(jsonResult), nil
 }
 
 // GetAction retrieves an action function by name.
@@ -59,27 +92,10 @@ func GetAction(action string) (ActionFunc, bool) {
 	return fn, ok
 }
 
-// Execute executes an action with the provided arguments.
-//
-// Parameters:
-//   - action: Action name to execute
-//   - args: Array of arguments for the action
-//   - silent: Whether to suppress output (respects verbosity settings)
-//
-// Returns: Action result string and error if any
-//
-// Examples:
-//   - Execute log: executor.Execute("log", []interface{}{"Hello World"}, false)
-//   - Execute assert: executor.Execute("assert", []interface{}{"value", "==", "expected"}, true)
-//
-// Notes:
-//   - Validates action exists before execution
-//   - Passes arguments to action function
-//   - Returns error for unknown actions
-//   - Silent mode respects verbosity settings across all actions
-func (ae *ActionExecutor) Execute(action string, args []interface{}, silent bool) (string, error) {
+// Execute executes an action with the provided arguments and options.
+func (ae *ActionExecutor) Execute(action string, args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if fn, ok := actionFuncs[action]; ok {
-		return fn(args, silent)
+		return fn(args, options, silent)
 	}
 	return "", fmt.Errorf("unknown action: %s", action)
 }

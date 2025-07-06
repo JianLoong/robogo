@@ -72,15 +72,6 @@ Key Features:
 				return fmt.Errorf("failed to run tests: %w", err)
 			}
 
-			// Debug output
-			fmt.Printf("DEBUG: Got %d test results\n", len(results))
-			for i, result := range results {
-				fmt.Printf("DEBUG: Result %d: Name=%s, Steps=%d, CapturedOutput length=%d\n",
-					i, result.TestCase.Name, len(result.StepResults), len(result.CapturedOutput))
-				fmt.Fprintf(os.Stderr, "DEBUG main: Result %d TestCase address: %p, Steps length: %d\n",
-					i, result.TestCase, len(result.TestCase.Steps))
-			}
-
 			// Output results in specified format
 			switch outputFormat {
 			case "json":
@@ -170,9 +161,7 @@ func outputConsole(results []*parser.TestResult) error {
 		fmt.Printf("\n Test Results for: %s\n", result.TestCase.Name)
 		fmt.Printf("✅ Status: %s\n", result.Status)
 		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-		fmt.Fprintf(os.Stderr, "DEBUG outputConsole: result.TestCase address: %p\n", result.TestCase)
-		fmt.Fprintf(os.Stderr, "DEBUG outputConsole: result.TestCase.Steps length: %d\n", len(result.TestCase.Steps))
-		fmt.Printf("DEBUG: TestCase.Steps length: %d, StepResults length: %d\n", len(result.TestCase.Steps), len(result.StepResults))
+
 		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
 			len(result.TestCase.Steps), result.PassedSteps, result.FailedSteps)
 	}

@@ -1,0 +1,47 @@
+testcase: "RabbitMQ Action Test"
+description: "Test RabbitMQ actions: connect, publish, consume, and close"
+
+variables:
+  vars:
+    rabbitmq_uri: "amqp://guest:guest@localhost:5672/"
+    connection_name: "my_test_connection"
+    exchange_name: "" # Default exchange
+    queue_name: "hello"
+    message_body: "Hello, RabbitMQ!"
+
+steps:
+  - name: "Connect to RabbitMQ"
+    action: rabbitmq
+    args: ["connect", "${rabbitmq_uri}", "${connection_name}"]
+    result: connect_result
+
+  - name: "Assert connection was successful"
+    action: assert
+    args: ["${connect_result}", "contains", "connected"]
+
+  - name: "Publish a message to the queue"
+    action: rabbitmq
+    args: ["publish", "${connection_name}", "${exchange_name}", "${queue_name}", "${message_body}"]
+    result: publish_result
+
+  - name: "Assert message was published"
+    action: assert
+    args: ["${publish_result}", "contains", "message published"]
+
+  - name: "Consume the message from the queue"
+    action: rabbitmq
+    args: ["consume", "${connection_name}", "${queue_name}"]
+    result: consume_result
+
+  - name: "Assert the consumed message is correct"
+    action: assert
+    args: ["${consume_result}", "contains", "${message_body}"]
+
+  - name: "Close the RabbitMQ connection"
+    action: rabbitmq
+    args: ["close", "${connection_name}"]
+    result: close_result
+
+  - name: "Assert connection was closed"
+    action: assert
+    args: ["${close_result}", "contains", "disconnected"]

@@ -107,7 +107,7 @@ func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 //   - Automatic JSON handling for request/response bodies
 //   - Comprehensive error handling and timeout support
 //   - Response data available for assertions and variable storage
-func HTTPAction(args []interface{}, silent bool) (string, error) {
+func HTTPAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("http action requires at least 2 arguments: method and url")
 	}
@@ -299,7 +299,7 @@ func HTTPAction(args []interface{}, silent bool) (string, error) {
 //   - Simplified syntax for GET requests
 //   - Same functionality as HTTPAction with GET method
 //   - Supports all HTTPAction options and features
-func HTTPGetAction(args []interface{}, silent bool) (string, error) {
+func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("http_get action requires at least 1 argument: url")
 	}
@@ -309,11 +309,11 @@ func HTTPGetAction(args []interface{}, silent bool) (string, error) {
 	// Check if headers are provided
 	if len(args) > 1 {
 		if headers, ok := args[1].(map[string]interface{}); ok {
-			return HTTPAction([]interface{}{"GET", url, headers}, silent)
+			return HTTPAction([]interface{}{"GET", url, headers}, options, silent)
 		}
 	}
 
-	return HTTPAction([]interface{}{"GET", url}, silent)
+	return HTTPAction([]interface{}{"GET", url}, options, silent)
 }
 
 // HTTPPostAction performs HTTP POST requests with simplified syntax.
@@ -342,7 +342,7 @@ func HTTPGetAction(args []interface{}, silent bool) (string, error) {
 //   - Simplified syntax for POST requests
 //   - Same functionality as HTTPAction with POST method
 //   - Supports all HTTPAction options and features
-func HTTPPostAction(args []interface{}, silent bool) (string, error) {
+func HTTPPostAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("http_post action requires at least 2 arguments: url and body")
 	}
@@ -353,11 +353,11 @@ func HTTPPostAction(args []interface{}, silent bool) (string, error) {
 	// Check if headers are provided
 	if len(args) > 2 {
 		if headers, ok := args[2].(map[string]interface{}); ok {
-			return HTTPAction([]interface{}{"POST", url, body, headers}, silent)
+			return HTTPAction([]interface{}{"POST", url, body, headers}, options, silent)
 		}
 	}
 
-	return HTTPAction([]interface{}{"POST", url, body}, silent)
+	return HTTPAction([]interface{}{"POST", url, body}, options, silent)
 }
 
 // HTTPBatchResult represents the result of a batch HTTP operation
@@ -389,7 +389,7 @@ type HTTPBatchResult struct {
 //   - Batch API operations
 //   - Performance testing
 //   - Health checks across multiple services
-func HTTPBatchAction(args []interface{}, silent bool) (string, error) {
+func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("http_batch action requires at least 2 arguments: method and urls")
 	}

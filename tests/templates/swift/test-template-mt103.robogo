@@ -1,0 +1,67 @@
+testcase: "Template Action File Test"
+description: "Test the template action with a file-based template (MT103)"
+
+variables:
+  vars:
+    bank_bic: "DEUTDEFF"
+    account_number: "1234567890"
+    currency: "EUR"
+    test_amount: "5000.00"
+    beneficiary_name: "Acme Corporation"
+    beneficiary_bic: "COBADEFF"
+    beneficiary_account: "0987654321"
+    reference: "INV-2024-001"
+    sender_name: "Sender Company Ltd"
+
+steps:
+  - name: "Generate transaction timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: timestamp_ms
+
+  - name: "Create unique transaction ID"
+    action: concat
+    args: ["TXN", "${timestamp_ms}"]
+    result: transaction_id
+
+  - name: "Get current date"
+    action: get_time
+    args: ["date"]
+    result: current_date
+
+  - name: "Generate MT103 message from file"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "${transaction_id}"
+        Amount: "${test_amount}"
+        Currency: "${currency}"
+        Sender:
+          BIC: "${bank_bic}"
+          Account: "${account_number}"
+          Name: "${sender_name}"
+        Beneficiary:
+          BIC: "${beneficiary_bic}"
+          Account: "${beneficiary_account}"
+          Name: "${beneficiary_name}"
+        Reference: "${reference}"
+        Timestamp: "${timestamp_ms}"
+        Date: "${current_date}"
+    result: swift_message
+
+  - name: "Log generated message"
+    action: log
+    args: ["Generated MT103 message:", "${swift_message}"]
+
+  - name: "Validate MT103 message structure"
+    action: assert
+    args: ["${swift_message}", "contains", "{1:F01", "Message must contain SWIFT header"]
+
+  - name: "Validate MT103 transaction ID"
+    action: assert
+    args: ["${swift_message}", "contains", ":20:${transaction_id}", "Message must contain transaction reference"]
+
+  - name: "Log test completion"
+    action: log
+    args: ["File-based template test completed!"] 

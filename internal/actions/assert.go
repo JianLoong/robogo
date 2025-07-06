@@ -41,7 +41,7 @@ import (
 //   - String operations are case-sensitive
 //   - Boolean values can be strings ("true"/"false") or actual booleans
 //   - Use continue_on_failure to prevent test termination on assertion failure
-func AssertAction(args []interface{}, silent bool) (string, error) {
+func AssertAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
 	if len(args) < 3 {
 		return "", fmt.Errorf("assert action requires at least 3 arguments: value, operator, expected")
 	}

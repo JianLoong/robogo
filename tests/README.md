@@ -1,156 +1,48 @@
-# Robogo Test Examples
+# Test Directory Structure
 
-This directory contains example `.robogo` test files that demonstrate the features and syntax of the Robogo test automation framework.
+This directory contains all test cases for the Robogo project, organized by domain and feature for clarity and maintainability.
 
-## Files
+## Structure
 
-- **test-variables.robogo**
-  - Demonstrates variable assignment, variable substitution, and using variables in assertions and actions.
-  - Shows how to use actions like `get_time`, `get_random`, `concat`, and `length`.
+- **templates/**
+  - **swift/**: SWIFT message template tests (MT103, MT202, MT900, MT910, etc.)
+  - **sepa/**: SEPA (pain.001, etc.) template tests
+- **integration/**: Integration tests for external systems (Kafka, RabbitMQ, HTTP, Postgres, parallel DB, etc.)
+- **core/**: Core engine and language feature tests (assert, control flow, variables, random, secrets, time, etc.)
+- **tdm/**: Test Data Management (TDM) tests
+- **edge/**: Edge cases, error handling, minimal, silent, syntax, and verbosity tests
 
-- **test-time-formats.robogo**
-  - Demonstrates the `get_time` action with all available time format options, including predefined and custom Go time formats.
+## How to Run
 
-- **test-syntax.robogo**
-  - Provides a comprehensive syntax showcase for Robogo, including all supported step fields, actions, and YAML features.
+To run a specific test:
 
-- **test-http.robogo**
-  - Demonstrates HTTP actions with various methods, headers, and certificate options.
-  - Shows both file path and PEM content for certificates.
-
-## Usage
-
-You can run any of these test files with the Robogo CLI:
-
-```bash
-# Run individual test files
-./robogo run tests/test-variables.robogo
-./robogo run tests/test-time-formats.robogo
-./robogo run tests/test-syntax.robogo
-./robogo run tests/test-http.robogo
-
-# Run all tests in this directory
-for test in tests/*.robogo; do
-  echo "Running $test..."
-  ./robogo run "$test"
-done
+```
+go run cmd/robogo/main.go run <path-to-test-file>
 ```
 
-## Creating Your Own Test Files
+For example:
 
-1. **Copy an existing example** as a starting point.
-2. Use the `name` field to give each step a descriptive name (strongly recommended).
-3. Use the `action` field to specify what to do in each step.
-4. Use the `result` field to store the output of an action in a variable.
-5. Reference variables in later steps using `${variable}` syntax.
-6. Use built-in actions like `log`, `sleep`, `assert`, `get_time`, `get_random`, `concat`, `length`, and HTTP actions.
-7. Save your file with a `.robogo`, `.yaml`, or `.yml` extension.
-
-### Example
-```yaml
-testcase: "My Test Case"
-description: "Description of what this test does"
-steps:
-  - name: "Get current timestamp"
-    action: get_time
-    args: ["iso"]
-    result: now
-  - name: "Log the current time"
-    action: log
-    args: ["The current time is ${now}"]
+```
+go run cmd/robogo/main.go run tests/templates/swift/test-template-mt103.robogo
 ```
 
-## Step Fields
+## Test Categories
 
-Each step can have the following fields:
+### templates/
+- Contains tests for file-based message templates (SWIFT, SEPA, etc.)
 
-- **`name`** (optional but strongly recommended): A descriptive name for the step that appears in logs and reports.
-- **`action`** (required): The action to execute (e.g., `log`, `http_get`, `assert`).
-- **`args`** (required): Arguments to pass to the action.
-- **`result`** (optional): Variable name to store the action's output.
+### integration/
+- Tests for integration with external systems and services (Kafka, RabbitMQ, HTTP, Postgres, parallel DB, etc.)
 
-### Step Naming Best Practices
+### core/
+- Tests for core language features, built-in actions, and utilities
 
-- **Use descriptive names** that explain what the step does (e.g., "Login to API", "Verify response status").
-- **Be consistent** with naming conventions across your test cases.
-- **Keep names concise** but informative.
-- **Use action verbs** to describe the step's purpose.
+### tdm/
+- Tests for Test Data Management features
 
-## Available Actions
+### edge/
+- Tests for error handling, edge cases, minimal and silent runs, syntax, and verbosity
 
-Robogo provides the following built-in actions:
+---
 
-### Basic Operations
-- **`log`** - Output messages to console
-- **`sleep`** - Pause execution for a specified duration
-- **`assert`** - Verify conditions and values
-
-### Time and Random
-- **`get_time`** - Get current timestamp with various formats
-- **`get_random`** - Generate random numbers
-
-### String Operations
-- **`concat`** - Concatenate strings
-- **`length`** - Get length of strings or arrays
-
-### HTTP Operations
-- **`http`** - Generic HTTP requests with mTLS support
-- **`http_get`** - Simplified GET requests
-- **`http_post`** - Simplified POST requests
-
-For detailed documentation on each action, see [Built-in Actions Reference](../docs/actions.md).
-
-## File Extensions
-
-Robogo supports multiple file extensions for test cases:
-- `.robogo` - Robogo-specific format
-- `.yaml` - Standard YAML format
-- `.yml` - Standard YAML format
-
-## Best Practices
-
-- **Use descriptive step names** for clarity and better reporting.
-- **Use descriptive variable names** for clarity.
-- **Group related steps** with comments for readability.
-- **Use assertions** to validate expected outcomes.
-- **Leverage variables** to avoid repeating logic or values.
-- **Use the VS Code extension** for syntax highlighting, autocompletion, and documentation.
-- **Keep test cases focused**: one test case per file is recommended for clarity and maintainability.
-- **Use proper YAML indentation** to avoid parsing errors.
-
-## Output Formats
-
-You can run tests with different output formats:
-
-```bash
-# Console output (default)
-./robogo run tests/test-variables.robogo
-
-# JSON output
-./robogo run tests/test-variables.robogo --output json
-
-# Markdown output
-./robogo run tests/test-variables.robogo --output markdown
-```
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. **Check syntax**: Ensure proper YAML indentation and structure
-2. **Verify actions**: Use `./robogo list` to see available actions
-3. **Check file extension**: Use `.robogo`, `.yaml`, or `.yml`
-4. **Validate variables**: Ensure variables are defined before use
-5. **Review logs**: Check console output for error messages
-
-For more detailed troubleshooting, see the [Troubleshooting Guide](../docs/troubleshooting.md).
-
-## More Information
-
-- **[Main Documentation](../docs/README.md)** - Complete documentation index
-- **[Quick Start Guide](../docs/quickstart.md)** - Get started in 5 minutes
-- **[Test Case Writing Guide](../docs/test-cases.md)** - How to write effective test cases
-- **[Built-in Actions Reference](../docs/actions.md)** - Complete action documentation
-- **[CLI Reference](../docs/cli-reference.md)** - Command-line interface documentation
-
-Feel free to use these files as templates for your own tests or to explore the capabilities of Robogo! 
+Feel free to add new tests in the appropriate subdirectory! 

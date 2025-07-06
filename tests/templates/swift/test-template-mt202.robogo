@@ -1,0 +1,39 @@
+testcase: "Template Action MT202 File Test"
+description: "Test the template action with a file-based SWIFT MT202 template"
+
+steps:
+  - name: "Generate MT202 message from file"
+    action: template
+    args:
+      - "templates/mt202.tmpl"
+      -
+        SenderBIC: "DEUTDEFF"
+        ReceiverBIC: "COBADEFF"
+        TransactionReference: "TRX2024001"
+        RelatedReference: "RELREF123"
+        ValueDate: "250706"
+        Currency: "EUR"
+        Amount: "1000000,00"
+        OrderingInstitution: "DEUTDEFF"
+        SenderCorrespondent: "DEUTDEFF"
+        ReceiverCorrespondent: "COBADEFF"
+        Intermediary: "BNPAFRPP"
+        AccountWithInstitution: "BNPAFRPP"
+        BeneficiaryInstitution: "BNPAFRPP"
+    result: mt202_message
+
+  - name: "Log generated MT202 message"
+    action: log
+    args: ["Generated MT202 message:", "${mt202_message}"]
+
+  - name: "Validate MT202 message structure"
+    action: assert
+    args: ["${mt202_message}", "contains", "{1:F01", "MT202 must contain block 1"]
+
+  - name: "Validate Transaction Reference"
+    action: assert
+    args: ["${mt202_message}", "contains", ":20:TRX2024001", "MT202 must contain correct transaction reference"]
+
+  - name: "Log test completion"
+    action: log
+    args: ["MT202 file-based template test completed!"] 

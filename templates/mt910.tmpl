@@ -1,0 +1,12 @@
+{1:F01{{.SenderBIC}}XXXX{{.SessionNumber}}{{.SequenceNumber}}}
+{2:I910{{.ReceiverBIC}}XXXXN}
+{3:{108:{{.UETR}}}}
+{4:
+:20:{{.TransactionReference}}
+:25:{{.AccountIdentification}}
+:28C:{{.StatementNumber}}/{{.SequenceNumber}}
+:60F:{{.OpeningBalance}}EUR
+:61:{{.StatementLine}}{{.ValueDate}}{{.EntryDate}}{{.Currency}}{{.Amount}}NTRF{{.TransactionType}}//{{.ReferenceForAccountOwner}}
+:86:{{.Narrative}}
+:62F:{{.ClosingBalance}}EUR
+-} 
