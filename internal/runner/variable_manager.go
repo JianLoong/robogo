@@ -23,26 +23,49 @@ func NewVariableManager() *VariableManager {
 
 // InitializeVariables initializes variables from test case configuration
 func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
-	// Initialize regular variables
-	if testCase.Variables.Regular != nil {
-		for key, value := range testCase.Variables.Regular {
-			vm.variables[key] = value
-		}
-	}
-
-	// Initialize secret variables
+	// Initialize secret variables FIRST
 	if testCase.Variables.Secrets != nil {
 		for key, secret := range testCase.Variables.Secrets {
 			// Handle secret values (inline or file-based)
 			if secret.Value != "" {
-				vm.variables[key] = secret.Value
+				// Substitute variables in secret values
+				substitutedValue := vm.substituteString(secret.Value)
+				vm.variables[key] = substitutedValue
 			} else if secret.File != "" {
 				// Read the file and set the variable to its contents
 				data, err := ioutil.ReadFile(secret.File)
 				if err != nil {
 					panic(fmt.Sprintf("Failed to read secret file '%s': %v", secret.File, err))
 				}
-				vm.variables[key] = strings.TrimSpace(string(data))
+				fileContent := strings.TrimSpace(string(data))
+				// Substitute variables in file content
+				substitutedContent := vm.substituteString(fileContent)
+				vm.variables[key] = substitutedContent
+			}
+		}
+	}
+
+	// Initialize regular variables with support for dynamic construction
+	if testCase.Variables.Regular != nil {
+		// First pass: set all variables as-is
+		for key, value := range testCase.Variables.Regular {
+			vm.variables[key] = value
+		}
+
+		// Multiple passes: substitute variables until no more changes
+		maxPasses := 10 // Prevent infinite loops
+		for pass := 0; pass < maxPasses; pass++ {
+			changed := false
+			for key, value := range vm.variables {
+				substitutedValue := vm.substituteValue(value)
+				if substitutedValue != value {
+					vm.variables[key] = substitutedValue
+					changed = true
+				}
+			}
+			// If no changes in this pass, we're done
+			if !changed {
+				break
 			}
 		}
 	}

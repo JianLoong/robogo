@@ -1,0 +1,95 @@
+testcase: "Dynamic Variables Test"
+description: "Test dynamic variable construction at the property level with secrets"
+
+variables:
+  secrets:
+    api_key:
+      value: "sk-1234567890abcdef"
+      mask_output: true
+    db_password:
+      file: "secret.txt"
+      mask_output: true
+    jwt_secret:
+      value: "my-super-secret-jwt-key"
+      mask_output: true
+  vars:
+    # Basic variables
+    db_host: "localhost"
+    db_port: "5432"
+    db_name: "testdb"
+    db_user: "testuser"
+    
+    # API configuration
+    api_base_url: "https://api.example.com"
+    api_version: "v1"
+    
+    # Dynamic variables constructed from other variables and secrets
+    db_connection_string: "${db_user}:${db_password}@${db_host}:${db_port}/${db_name}"
+    db_url: "postgresql://${db_connection_string}"
+    
+    # API endpoints with secrets
+    api_endpoint: "${api_base_url}/${api_version}"
+    api_auth_header: "Bearer ${api_key}"
+    
+    # JWT configuration with secrets
+    jwt_config: "algorithm=HS256&secret=${jwt_secret}"
+    
+    # Complex dynamic construction with multiple secrets
+    full_api_config: "url=${api_endpoint}&auth=${api_auth_header}&jwt=${jwt_config}"
+    
+    # Database connection with SSL
+    db_ssl_connection: "postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=require"
+
+steps:
+  - name: "Display dynamic variables (secrets masked)"
+    action: "log"
+    args:
+      - "Database connection string: ${db_connection_string}"
+      - "Database URL: ${db_url}"
+      - "API endpoint: ${api_endpoint}"
+      - "API auth header: ${api_auth_header}"
+      - "JWT config: ${jwt_config}"
+      - "Full API config: ${full_api_config}"
+      - "SSL connection: ${db_ssl_connection}"
+
+  - name: "Verify database connection string construction"
+    action: "assert"
+    args:
+      - "${db_connection_string}"
+      - "=="
+      - "testuser:password@localhost:5432/testdb"
+
+  - name: "Verify API endpoint construction"
+    action: "assert"
+    args:
+      - "${api_endpoint}"
+      - "=="
+      - "https://api.example.com/v1"
+
+  - name: "Verify API auth header contains Bearer"
+    action: "assert"
+    args:
+      - "${api_auth_header}"
+      - "starts_with"
+      - "Bearer "
+
+  - name: "Verify JWT config contains algorithm"
+    action: "assert"
+    args:
+      - "${jwt_config}"
+      - "contains"
+      - "algorithm=HS256"
+
+  - name: "Verify full API config contains all components"
+    action: "assert"
+    args:
+      - "${full_api_config}"
+      - "contains"
+      - "url=https://api.example.com/v1"
+
+  - name: "Verify SSL connection string format"
+    action: "assert"
+    args:
+      - "${db_ssl_connection}"
+      - "contains"
+      - "sslmode=require" 
