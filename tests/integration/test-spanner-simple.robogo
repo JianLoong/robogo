@@ -1,0 +1,29 @@
+testcase: "Spanner Simple Test"
+description: "Simple test to verify Spanner emulator connection"
+
+steps:
+  - name: "Connect to Spanner emulator"
+    action: spanner
+    args: 
+      - "connect"
+      - "projects/your-project-id/instances/robogo-test-instance/databases/robogo-test-db"
+    result: connection_result
+
+  - name: "Simple query test"
+    action: spanner
+    args:
+      - "query"
+      - "projects/your-project-id/instances/robogo-test-instance/databases/robogo-test-db"
+      - "SELECT 1 as test_value"
+    result: query_result
+
+  - name: "Verify test value is 1"
+    action: assert
+    args: [query_result, "contains", '"value":1', "Should return test value of 1"]
+
+  - name: "Close Spanner connection"
+    action: spanner
+    args: 
+      - "close"
+      - "projects/your-project-id/instances/robogo-test-instance/databases/robogo-test-db"
+    result: close_result 

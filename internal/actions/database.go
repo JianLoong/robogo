@@ -35,7 +35,7 @@ type SimpleRow struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-// SimpleResult represents a simplified query result (Spanner-like)
+// SimpleResult represents a simplified query result
 type SimpleResult struct {
 	Rows  []SimpleRow `json:"rows"`
 	Count int         `json:"count"`
@@ -175,28 +175,39 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 			return "", fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		// Convert values to strings for JSON serialization
-		rowData := make([]interface{}, len(columns))
-		for i, val := range values {
-			if val == nil {
-				rowData[i] = nil
-			} else {
-				rowData[i] = fmt.Sprintf("%v", val)
-			}
-		}
-
-		resultRows = append(resultRows, rowData)
+		// Use the actual values without string conversion
+		resultRows = append(resultRows, values)
 	}
 
 	if err := rows.Err(); err != nil {
 		return "", fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	// Transform to Spanner-like format
-	transformedResult := transformToSpannerLike(columns, resultRows, query)
+	// Transform to consistent format
+	transformedResult := transformToConsistentFormat(columns, resultRows, query)
+
+	// Add rich metadata
+	result := map[string]interface{}{
+		"query":    query,
+		"columns":  transformedResult.(map[string]interface{})["columns"],
+		"rows":     transformedResult.(map[string]interface{})["rows"],
+		"duration": duration,
+		"metadata": map[string]interface{}{
+			"row_count": len(resultRows),
+			"params":    queryArgs,
+		},
+	}
+
+	// Copy value/values fields if they exist
+	if value, exists := transformedResult.(map[string]interface{})["value"]; exists {
+		result["value"] = value
+	}
+	if values, exists := transformedResult.(map[string]interface{})["values"]; exists {
+		result["values"] = values
+	}
 
 	// Convert to JSON
-	jsonResult, err := json.Marshal(transformedResult)
+	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
@@ -399,17 +410,8 @@ func executeQueryInternal(connectionString, query string, params []interface{}) 
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		// Convert values to strings for JSON serialization
-		rowData := make([]interface{}, len(columns))
-		for i, val := range values {
-			if val == nil {
-				rowData[i] = nil
-			} else {
-				rowData[i] = fmt.Sprintf("%v", val)
-			}
-		}
-
-		resultRows = append(resultRows, rowData)
+		// Use the actual values without string conversion
+		resultRows = append(resultRows, values)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -706,40 +708,27 @@ func CloseAllConnections() {
 	}
 }
 
-// transformToSpannerLike transforms database query results to a Spanner-like format
-// Returns:
-// - Single row: object with column names as keys
-// - Multiple rows: array of objects with column names as keys
-// - COUNT queries: just the count value
-// - Empty results: nil
-func transformToSpannerLike(columns []string, rows [][]interface{}, query string) interface{} {
-	if len(rows) == 0 {
-		return nil
+// transformToConsistentFormat transforms database query results to a consistent format
+// Returns a consistent structure with columns, rows, and value fields
+func transformToConsistentFormat(columns []string, rows [][]interface{}, query string) interface{} {
+	result := map[string]interface{}{
+		"columns": columns,
+		"rows":    rows,
 	}
 
-	// Handle COUNT queries - return just the value
-	if isCountQuery(query) && len(rows) == 1 && len(columns) == 1 {
-		return rows[0][0]
-	}
-
-	// Single row - return object with column names
-	if len(rows) == 1 {
-		result := make(map[string]interface{})
-		for i, col := range columns {
-			result[col] = rows[0][i]
+	// Add shortcut for single value or values array
+	if len(rows) == 1 && len(columns) == 1 {
+		// Single row, single column
+		result["value"] = rows[0][0]
+	} else if len(rows) > 1 && len(columns) == 1 {
+		// Multiple rows, single column
+		var values []interface{}
+		for _, row := range rows {
+			values = append(values, row[0])
 		}
-		return result
+		result["values"] = values
 	}
 
-	// Multiple rows - return array of objects
-	var result []map[string]interface{}
-	for _, row := range rows {
-		obj := make(map[string]interface{})
-		for i, col := range columns {
-			obj[col] = row[i]
-		}
-		result = append(result, obj)
-	}
 	return result
 }
 

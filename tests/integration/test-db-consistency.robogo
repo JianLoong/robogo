@@ -1,0 +1,47 @@
+testcase: "Postgres vs Spanner Consistency"
+description: "Ensure Postgres and Spanner actions return consistent results for the same query"
+
+variables:
+  vars:
+    # Postgres
+    postgres_host: "192.168.0.174"
+    postgres_port: "5432"
+    postgres_user: "user1"
+    postgres_database: "testdb"
+    # Spanner
+    spanner_connection: "projects/your-project-id/instances/robogo-test-instance/databases/robogo-test-db"
+  secrets:
+    db_password:
+        file: "secret.txt"
+        mask_output: false
+
+steps:
+  - name: "Build Postgres connection string"
+    action: concat
+    args: ["postgres://", "${postgres_user}", ":", "${db_password}", "@", "${postgres_host}", ":", "${postgres_port}", "/", "${postgres_database}", "?sslmode=disable"]
+    result: postgres_connection
+
+  - name: "Query Postgres"
+    action: postgres
+    args:
+      - "query"
+      - "${postgres_connection}"
+      - "SELECT 1"
+    result: pg_result
+
+  - name: "Query Spanner"
+    action: spanner
+    args:
+      - "query"
+      - "${spanner_connection}"
+      - "SELECT 1"
+    result: spanner_result
+
+  - name: "Assert Postgres value is 1"
+    action: assert
+    args: ["${pg_result.value}", "==", '1', "Postgres value should be 1"]
+
+  - name: "Assert Spanner value is 1"
+    action: assert
+    args: ["${spanner_result.value}", "==", "1", "Spanner value should be 1"]
+ 

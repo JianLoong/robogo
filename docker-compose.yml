@@ -29,17 +29,8 @@ services:
     ports:
       - "9010:9010"
       - "9020:9020"
-    environment:
-      - SPANNER_PROJECT_ID=robogo-test-project
-      - SPANNER_INSTANCE_ID=robogo-test-instance
-      - SPANNER_DATABASE_ID=robogo-test-db
-    command: >
-      gcloud emulators spanner start
-      --host-port=0.0.0.0:9010
-      --rest-port=9020
-      --project=${SPANNER_PROJECT_ID}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9020/v1/projects/robogo-test-project/instances"]
+      test: ["CMD", "curl", "-f", "http://localhost:9020/v1/projects"]
       interval: 30s
       timeout: 10s
       retries: 3
