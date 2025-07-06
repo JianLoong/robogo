@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
@@ -181,117 +180,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 
 	// Execute steps sequentially (original behavior)
 	for idx, step := range steps {
-
-		stepContext := context
-		if parentLoop != nil {
-			iteration, _ := tr.variableManager.GetVariable("iteration")
-			stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
-		}
-
-		if step.If != nil {
-			if err := executeIfStatement(tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
-				return err
-			}
-			continue
-		}
-		if step.For != nil {
-			if err := executeForLoop(tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
-				return err
-			}
-			continue
-		}
-		if step.While != nil {
-			if err := executeWhileLoop(tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
-				return err
-			}
-			continue
-		}
-		stepStart := time.Now()
-		stepLabel := step.Name
-		if stepLabel == "" {
-			stepLabel = step.Action
-		}
-		if !silent {
-			PrintStepStart(len(*stepResults)+1, stepLabel)
-		}
-
-		substitutedArgs := tr.substituteVariables(step.Args)
-		output, err := executeStepWithRetry(tr, step, substitutedArgs, executor, silent)
-		stepDuration := time.Since(stepStart)
-
-		// Get verbosity level for this step
-		verbosityLevel := parser.GetVerbosityLevel(&step, testCase)
-
-		// Mask secrets in output for display
-		maskedOutput := tr.secretManager.MaskSecretsInString(output)
-
-		// Format verbose output if enabled
-		verboseOutput := parser.FormatVerboseOutput(verbosityLevel, step.Action, substitutedArgs, maskedOutput, stepDuration.String())
-
-		stepResult := parser.StepResult{
-			Step:      step,
-			Status:    "PASSED",
-			Duration:  stepDuration,
-			Output:    maskedOutput,
-			Timestamp: time.Now(),
-		}
-
-		// Handle expect_error property
-		if step.ExpectError != nil {
-			expectErr := validateExpectedError(tr, step.ExpectError, err, output, silent)
-			if expectErr != nil {
-				stepResult.Status = "FAILED"
-				stepResult.Error = expectErr.Error()
-				if !silent {
-					PrintStepFailed(len(*stepResults)+1, expectErr.Error())
-				}
-			} else {
-				if !silent {
-					PrintStepErrorExpectationPassed(len(*stepResults) + 1)
-				}
-			}
-		} else if err != nil {
-			// Check if this is a skip error
-			if actions.IsSkipError(err) {
-				stepResult.Status = "SKIPPED"
-				stepResult.Error = err.Error()
-				if !silent {
-					PrintStepSkipped(len(*stepResults)+1, err.Error())
-				}
-			} else {
-				// Normal error handling (no expect_error)
-				stepResult.Status = "FAILED"
-				stepResult.Error = err.Error()
-				if !silent {
-					PrintStepFailed(len(*stepResults)+1, err.Error())
-				}
-			}
-		} else {
-			if !silent {
-				// Display verbose output if enabled
-				if verboseOutput != "" {
-					PrintStepVerboseOutput(verboseOutput)
-				} else {
-					// For log actions, mask the message before displaying
-					if step.Action == "log" && len(step.Args) > 0 {
-						message := fmt.Sprintf("%v", substitutedArgs[0])
-						maskedMessage := tr.secretManager.MaskSecretsInString(message)
-						PrintStepLog(maskedMessage)
-					}
-					// Removed completion message - no need to report "completed in X seconds"
-				}
-			}
-		}
-
-		// Add context to step name for reporting
-		if step.Name != "" {
-			stepResult.Step.Name = stepContext + step.Name
-		} else if stepContext != "" {
-			stepResult.Step.Name = stepContext + fmt.Sprintf("Step%d", idx+1)
-		}
-
-		*stepResults = append(*stepResults, stepResult)
-
+		stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, idx)
 		if err != nil {
 			if step.ContinueOnFailure {
 				// Log and continue to next step
@@ -303,16 +192,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 				return fmt.Errorf("step '%s' failed: %w", stepResult.Step.Name, err)
 			}
 		}
-
-		// Store result in variable if specified (store actual value, not masked)
-		if step.Result != "" {
-			tr.variableManager.SetVariable(step.Result, output) // Store actual output
-			if !silent {
-				// Display masked version
-				maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
-				PrintStepResultStored(step.Result, maskedValue)
-			}
-		}
+		*stepResults = append(*stepResults, *stepResult)
 	}
 	return nil
 }

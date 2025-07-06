@@ -18,37 +18,11 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
 	}
 
-	// Check for skip at the step level
-	skipReason := ""
-	skip := false
-	if step.Skip != nil {
-		switch v := step.Skip.(type) {
-		case bool:
-			skip = v
-			if skip {
-				skipReason = "(no reason provided)"
-			}
-		case string:
-			skip = true
-			skipReason = v
-		}
-	}
-	if skip {
-		if !silent {
-			fmt.Printf("⏭️  Step skipped: %s", step.Name)
-			if skipReason != "" {
-				fmt.Printf(" | Reason: %s", skipReason)
-			}
-			fmt.Println()
-		}
-		stepResult := parser.StepResult{
-			Step:      step,
-			Status:    "SKIPPED",
-			Duration:  0,
-			Output:    "",
-			Error:     skipReason,
-			Timestamp: time.Now(),
-		}
+	// Check for skip at the step level using unified logic
+	skipInfo := tr.ShouldSkipStep(step, stepContext)
+	if skipInfo.ShouldSkip {
+		PrintSkipMessage("Step", step.Name, skipInfo.Reason, silent)
+		stepResult := CreateSkipResult(step, skipInfo.Reason)
 		return &stepResult, nil
 	}
 

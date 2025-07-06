@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/JianLoong/robogo/internal/parser"
 )
@@ -16,31 +17,165 @@ func getTemplateNames(templates map[string]string) string {
 	return strings.Join(names, ", ")
 }
 
+// getStepStatusIcon returns the appropriate icon for a step status
+func getStepStatusIcon(status string) string {
+	switch status {
+	case "PASSED":
+		return "✅"
+	case "FAILED":
+		return "❌"
+	case "SKIPPED":
+		return "⏭️"
+	default:
+		return "❓"
+	}
+}
+
+// getTestStatusIcon returns the appropriate icon for a test status
+func getTestStatusIcon(status string) string {
+	switch status {
+	case "PASSED":
+		return "✅"
+	case "FAILED":
+		return "❌"
+	case "SKIPPED":
+		return "⏭️"
+	default:
+		return "❓"
+	}
+}
+
+// PrintStepResultSimple prints a single step result in simple format
+func PrintStepResultSimple(stepNum int, stepResult parser.StepResult, indent string) {
+	icon := getStepStatusIcon(stepResult.Status)
+	stepName := stepResult.Step.Name
+	if stepName == "" {
+		stepName = "(unnamed)"
+	}
+
+	fmt.Printf("%s%s Step %d: %s | Status: %s", indent, icon, stepNum, stepName, stepResult.Status)
+	if stepResult.Error != "" {
+		fmt.Printf(" | Error: %s", stepResult.Error)
+	}
+	fmt.Println()
+}
+
+// PrintStepResultsSimple prints step results in simple format
+func PrintStepResultsSimple(stepResults []parser.StepResult, title string, indent string) {
+	if len(stepResults) == 0 {
+		return
+	}
+
+	fmt.Printf("%s%s\n", indent, title)
+	for i, stepResult := range stepResults {
+		PrintStepResultSimple(i+1, stepResult, indent+"   ")
+	}
+}
+
+// PrintStepResultsTable prints step results in detailed table format
+func PrintStepResultsTable(stepResults []parser.StepResult, title string) {
+	if len(stepResults) == 0 {
+		return
+	}
+
+	fmt.Printf("\n%s\n", title)
+	fmt.Printf("%-4s | %-24s | %-12s | %-6s | %-10s | %-24s | %-24s\n", "#", "Name", "Action", "Status", "Duration", "Output", "Error")
+	fmt.Println(strings.Repeat("-", 116))
+
+	for i, stepResult := range stepResults {
+		icon := getStepStatusIcon(stepResult.Status)
+		output := stepResult.Output
+		if len(output) > 24 {
+			output = output[:21] + "..."
+		}
+		error := stepResult.Error
+		if len(error) > 24 {
+			error = error[:21] + "..."
+		}
+		stepName := stepResult.Step.Name
+		if stepName == "" {
+			stepName = "(unnamed)"
+		}
+		if len(stepName) > 24 {
+			stepName = stepName[:21] + "..."
+		}
+
+		// Duration formatting: higher precision for <1ms
+		var duration string
+		if stepResult.Duration < time.Millisecond {
+			duration = fmt.Sprintf("%dµs", stepResult.Duration.Microseconds())
+		} else {
+			duration = stepResult.Duration.String()
+		}
+		if len(duration) > 10 {
+			duration = duration[:7] + "..."
+		}
+
+		fmt.Printf("%-4s | %-24s | %-12s | %-6s | %-10s | %-24s | %-24s\n",
+			fmt.Sprintf("#%d", i+1),
+			stepName,
+			stepResult.Step.Action,
+			icon,
+			duration,
+			output,
+			error,
+		)
+	}
+}
+
+// PrintStepResultsMarkdown prints step results in markdown table format
+func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
+	if len(stepResults) == 0 {
+		return
+	}
+
+	fmt.Printf("\n%s\n", title)
+	fmt.Println("| # | Name | Action | Status | Duration | Output | Error |")
+	fmt.Println("|---|------|--------|--------|----------|--------|-------|")
+
+	for i, stepResult := range stepResults {
+		icon := getStepStatusIcon(stepResult.Status)
+		status := stepResult.Status
+		output := stepResult.Output
+		if len(output) > 30 {
+			output = output[:27] + "..."
+		}
+		errorMsg := stepResult.Error
+		if len(errorMsg) > 30 {
+			errorMsg = errorMsg[:27] + "..."
+		}
+
+		fmt.Printf("| %d | %s | %s | %s %s | %v | %s | %s |\n",
+			i+1,
+			stepResult.Step.Name,
+			stepResult.Step.Action,
+			icon,
+			status,
+			stepResult.Duration.Truncate(1e6), // ms precision
+			output,
+			errorMsg,
+		)
+	}
+}
+
 // PrintTestSummary prints the test summary (duration, status, steps)
 func PrintTestSummary(result *parser.TestResult) {
 	fmt.Printf("\n🏁 Test completed in %v\n", result.Duration)
 	fmt.Printf("\n📊 Test Results:\n")
-	fmt.Printf("✅ Status: %s\n", result.Status)
-	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-	fmt.Printf("📝 Steps: %d total, %d passed, %d failed, %d skipped\n", len(result.StepResults), result.PassedSteps, result.FailedSteps, result.SkippedSteps)
 
-	// Print each step result, including skipped
+	statusIcon := getTestStatusIcon(result.Status)
+	fmt.Printf("%s Status: %s\n", statusIcon, result.Status)
+	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
+	fmt.Printf("📝 Steps: %d total, %d passed, %d failed, %d skipped\n",
+		len(result.StepResults), result.PassedSteps, result.FailedSteps, result.SkippedSteps)
+
+	// Print each step result in simple format
 	for i, stepResult := range result.StepResults {
-		icon := ""
-		switch stepResult.Status {
-		case "PASSED":
-			icon = "✅"
-		case "FAILED":
-			icon = "❌"
-		case "SKIPPED":
-			icon = "⏭️"
-		}
-		fmt.Printf("   %s Step %d: %s | Status: %s", icon, i+1, stepResult.Step.Name, stepResult.Status)
-		if stepResult.Error != "" {
-			fmt.Printf(" | Reason: %s", stepResult.Error)
-		}
-		fmt.Println()
+		PrintStepResultSimple(i+1, stepResult, "   ")
 	}
+
+	// Print detailed table format
+	PrintStepResultsTable(result.StepResults, "Step Results:")
 }
 
 // PrintTDMSetup prints the TDM setup message

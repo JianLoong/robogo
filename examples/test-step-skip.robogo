@@ -1,0 +1,44 @@
+testcase: "Step Skip Demo"
+description: "Demonstrates different ways to skip steps at the step level"
+
+variables:
+  vars:
+    environment: "dev"
+    skip_condition: true
+
+steps:
+  - name: "Step 1 - Always runs"
+    action: log
+    args: ["This step always runs"]
+
+  - name: "Step 2 - Skipped with boolean"
+    action: log
+    args: ["This step is skipped with boolean"]
+    skip: true
+
+  - name: "Step 3 - Skipped with reason"
+    action: log
+    args: ["This step is skipped with a reason"]
+    skip: "This step is not needed in current environment"
+
+  - name: "Step 4 - Conditionally skipped"
+    action: log
+    args: ["This step is conditionally skipped"]
+    skip: "${environment} == 'prod'"
+
+  - name: "Step 5 - Skipped based on variable"
+    action: log
+    args: ["This step is skipped based on variable condition"]
+    skip: "${skip_condition}"
+
+  - name: "Step 6 - Always runs (after skipped steps)"
+    action: log
+    args: ["This step runs after the skipped steps"]
+
+  - name: "Step 7 - Skip action (alternative method)"
+    action: skip
+    args: ["Skipping via skip action"]
+
+  - name: "Step 8 - This won't run due to skip action above"
+    action: log
+    args: ["This step won't run because the previous step used skip action"] 

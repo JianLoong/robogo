@@ -131,16 +131,7 @@ func (engine *ExecutionEngine) calculateTestResults(result *parser.TestResult, s
 	}
 
 	// Determine test case status
-	if result.SkippedSteps > 0 {
-		result.Status = "SKIPPED"
-		// Set error message from the first skipped step
-		for _, sr := range result.StepResults {
-			if sr.Status == "SKIPPED" {
-				result.ErrorMessage = sr.Error
-				break
-			}
-		}
-	} else if result.FailedSteps > 0 {
+	if result.FailedSteps > 0 {
 		result.Status = "FAILED"
 		// Only set ErrorMessage if a non-continue-on-failure step failed
 		for _, sr := range result.StepResults {
@@ -150,6 +141,16 @@ func (engine *ExecutionEngine) calculateTestResults(result *parser.TestResult, s
 				} else {
 					result.ErrorMessage = "Test failed due to step failure."
 				}
+				break
+			}
+		}
+	} else if result.SkippedSteps == result.TotalSteps {
+		// Only mark as SKIPPED if ALL steps were skipped
+		result.Status = "SKIPPED"
+		// Set error message from the first skipped step
+		for _, sr := range result.StepResults {
+			if sr.Status == "SKIPPED" {
+				result.ErrorMessage = sr.Error
 				break
 			}
 		}

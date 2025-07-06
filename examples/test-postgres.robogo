@@ -9,7 +9,7 @@ variables:
   vars:
     db_host: "192.168.0.174"
     db_port: "5432"
-    db_name: "testd"
+    db_name: "test"
     db_user: "user1"
   secrets:
     db_password:

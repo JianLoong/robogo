@@ -26,7 +26,7 @@ func NewTestSuiteRunner(runner *TestRunner) *TestSuiteRunner {
 }
 
 // RunTestSuite executes a test suite
-func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFilePath string) (*parser.TestSuiteResult, error) {
+func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error) {
 	startTime := time.Now()
 	result := &parser.TestSuiteResult{
 		TestSuite: testSuite,
@@ -93,12 +93,16 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	result.PassedCases = 0
 	result.FailedCases = 0
 	result.SkippedCases = 0
+	result.TotalSteps = 0
+	result.PassedSteps = 0
+	result.FailedSteps = 0
+	result.SkippedSteps = 0
 
 	// If test cases were skipped due to setup failure, all are skipped
 	if result.Status == "skipped" {
 		result.SkippedCases = len(testCases)
 	} else {
-		// Calculate based on actual results
+		// Calculate based on actual results and aggregate step results
 		for _, caseResult := range result.CaseResults {
 			switch caseResult.Status {
 			case "passed":
@@ -107,6 +111,14 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 				result.FailedCases++
 			case "skipped":
 				result.SkippedCases++
+			}
+
+			// Aggregate step results from each test case
+			if caseResult.Result != nil {
+				result.TotalSteps += caseResult.Result.TotalSteps
+				result.PassedSteps += caseResult.Result.PassedSteps
+				result.FailedSteps += caseResult.Result.FailedSteps
+				result.SkippedSteps += caseResult.Result.SkippedSteps
 			}
 		}
 	}
@@ -138,8 +150,10 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 
 	result.Duration = time.Since(startTime)
 
-	// Print summary
-	tsr.printSuiteSummary(result)
+	// Print summary only if requested
+	if printSummary {
+		tsr.printSuiteSummary(result)
+	}
 
 	return result, nil
 }
@@ -201,28 +215,11 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			results = append(results, caseResult)
 			continue
 		}
-		// Check for skip at the test case level
-		skipReason := ""
-		skip := false
-		if testCase.Skip != nil {
-			switch v := testCase.Skip.(type) {
-			case bool:
-				skip = v
-				if skip {
-					skipReason = "(no reason provided)"
-				}
-			case string:
-				skip = true
-				skipReason = v
-			}
-		}
-		if skip {
-			fmt.Printf("\n⏭️  Test case %d/%d: %s skipped: %s\n", i+1, len(testCases), testCase.Name, skipReason)
-			caseResult := parser.TestCaseResult{
-				TestCase: testCase,
-				Status:   "skipped",
-				Error:    skipReason,
-			}
+		// Check for skip at the test case level using unified logic
+		skipInfo := tsr.runner.ShouldSkipTestCase(testCase, fmt.Sprintf("test case %d/%d", i+1, len(testCases)))
+		if skipInfo.ShouldSkip {
+			PrintSkipMessage(fmt.Sprintf("Test case %d/%d", i+1, len(testCases)), testCase.Name, skipInfo.Reason, false)
+			caseResult := CreateSkipTestCaseResult(testCase, skipInfo.Reason)
 			results = append(results, caseResult)
 			continue
 		}
@@ -250,11 +247,11 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 		}
 
 		if err != nil {
-			// Check if this is a skip error
+			// Check if this is a skip error - this should be treated as a failure, not a skip
 			if actions.IsSkipError(err) {
-				caseResult.Status = "skipped"
+				caseResult.Status = "failed"
 				caseResult.Error = err.Error()
-				fmt.Printf("⏭️  Test case skipped: %v\n", err)
+				fmt.Printf("❌ Test case failed due to skip action: %v\n", err)
 			} else {
 				caseResult.Status = "failed"
 				caseResult.Error = err.Error()
@@ -262,14 +259,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			}
 			// After running the test case, print all step statuses and errors
 			if testResult != nil {
-				fmt.Println("   Step results:")
-				for i, stepResult := range testResult.StepResults {
-					fmt.Printf("      Step %d: %s | Status: %s", i+1, stepResult.Step.Name, stepResult.Status)
-					if stepResult.Error != "" {
-						fmt.Printf(" | Error: %s", stepResult.Error)
-					}
-					fmt.Println()
-				}
+				PrintStepResultsSimple(testResult.StepResults, "Step results:", "   ")
 			}
 			if caseResult.Status == "failed" {
 				failed = true
@@ -293,13 +283,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 				// After running the test case, print all step statuses and errors
 				if testResult != nil {
 					fmt.Println("   Step results:")
-					for i, stepResult := range testResult.StepResults {
-						fmt.Printf("      Step %d: %s | Status: %s", i+1, stepResult.Step.Name, stepResult.Status)
-						if stepResult.Error != "" {
-							fmt.Printf(" | Error: %s", stepResult.Error)
-						}
-						fmt.Println()
-					}
+					PrintStepResultsSimple(testResult.StepResults, "      Step results:", "      ")
 				}
 			}
 		}
@@ -337,28 +321,11 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 
 			fmt.Printf("📋 Starting test case %d/%d: %s\n", index+1, len(testCases), tc.Name)
 
-			// Check for skip at the test case level
-			skipReason := ""
-			skip := false
-			if tc.Skip != nil {
-				switch v := tc.Skip.(type) {
-				case bool:
-					skip = v
-					if skip {
-						skipReason = "(no reason provided)"
-					}
-				case string:
-					skip = true
-					skipReason = v
-				}
-			}
-			if skip {
-				fmt.Printf("\n⏭️  Test case %d/%d: %s skipped: %s\n", index+1, len(testCases), tc.Name, skipReason)
-				caseResult := parser.TestCaseResult{
-					TestCase: tc,
-					Status:   "skipped",
-					Error:    skipReason,
-				}
+			// Check for skip at the test case level using unified logic
+			skipInfo := tsr.runner.ShouldSkipTestCase(tc, fmt.Sprintf("test case %d/%d", index+1, len(testCases)))
+			if skipInfo.ShouldSkip {
+				PrintSkipMessage(fmt.Sprintf("Test case %d/%d", index+1, len(testCases)), tc.Name, skipInfo.Reason, false)
+				caseResult := CreateSkipTestCaseResult(tc, skipInfo.Reason)
 				resultChan <- caseResult
 				return
 			}
@@ -384,11 +351,11 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 			}
 
 			if err != nil {
-				// Check if this is a skip error
+				// Check if this is a skip error - this should be treated as a failure, not a skip
 				if actions.IsSkipError(err) {
-					caseResult.Status = "skipped"
+					caseResult.Status = "failed"
 					caseResult.Error = err.Error()
-					fmt.Printf("⏭️  Test case %d skipped: %v\n", index+1, err)
+					fmt.Printf("❌ Test case %d failed due to skip action: %v\n", index+1, err)
 				} else {
 					caseResult.Status = "failed"
 					caseResult.Error = err.Error()
@@ -397,13 +364,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 				// After running the test case, print all step statuses and errors
 				if testResult != nil {
 					fmt.Println("   Step results:")
-					for i, stepResult := range testResult.StepResults {
-						fmt.Printf("      Step %d: %s | Status: %s", i+1, stepResult.Step.Name, stepResult.Status)
-						if stepResult.Error != "" {
-							fmt.Printf(" | Error: %s", stepResult.Error)
-						}
-						fmt.Println()
-					}
+					PrintStepResultsSimple(testResult.StepResults, "      Step results:", "      ")
 				}
 			} else {
 				// Convert status to lowercase for consistency
@@ -420,13 +381,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 					// After running the test case, print all step statuses and errors
 					if testResult != nil {
 						fmt.Println("   Step results:")
-						for i, stepResult := range testResult.StepResults {
-							fmt.Printf("      Step %d: %s | Status: %s", i+1, stepResult.Step.Name, stepResult.Status)
-							if stepResult.Error != "" {
-								fmt.Printf(" | Error: %s", stepResult.Error)
-							}
-							fmt.Println()
-						}
+						PrintStepResultsSimple(testResult.StepResults, "      Step results:", "      ")
 					}
 				}
 			}
@@ -508,10 +463,10 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
 	fmt.Printf("📊 Test Suite Summary: %s\n", result.TestSuite.Name)
 	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-	fmt.Printf("📋 Total Cases: %d\n", result.TotalCases)
-	fmt.Printf("✅ Passed: %d\n", result.PassedCases)
-	fmt.Printf("❌ Failed: %d\n", result.FailedCases)
-	fmt.Printf("⏭️  Skipped: %d\n", result.SkippedCases)
+	fmt.Printf("📋 Test Cases: %d total, %d passed, %d failed, %d skipped\n",
+		result.TotalCases, result.PassedCases, result.FailedCases, result.SkippedCases)
+	fmt.Printf("📝 Steps: %d total, %d passed, %d failed, %d skipped\n",
+		result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
 
 	if result.SetupStatus != "" {
 		fmt.Printf("🔧 Setup: %s\n", result.SetupStatus)
@@ -548,22 +503,7 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 
 		// Print step-level results if available
 		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
-			for j, stepResult := range caseResult.Result.StepResults {
-				stepIcon := ""
-				switch stepResult.Status {
-				case "PASSED":
-					stepIcon = "✅"
-				case "FAILED":
-					stepIcon = "❌"
-				case "SKIPPED":
-					stepIcon = "⏭️"
-				}
-				fmt.Printf("      %s Step %d: %s | Status: %s", stepIcon, j+1, stepResult.Step.Name, stepResult.Status)
-				if stepResult.Error != "" {
-					fmt.Printf(" | Reason: %s", stepResult.Error)
-				}
-				fmt.Println()
-			}
+			PrintStepResultsSimple(caseResult.Result.StepResults, "      Step results:", "      ")
 		}
 	}
 

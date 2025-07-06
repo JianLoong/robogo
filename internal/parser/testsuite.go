@@ -26,13 +26,18 @@ type TestCaseReference struct {
 
 // TestSuiteResult represents the result of running a test suite
 type TestSuiteResult struct {
-	TestSuite      *TestSuite
-	Status         string
-	Duration       time.Duration
-	TotalCases     int
-	PassedCases    int
-	FailedCases    int
-	SkippedCases   int
+	TestSuite    *TestSuite
+	Status       string
+	Duration     time.Duration
+	TotalCases   int
+	PassedCases  int
+	FailedCases  int
+	SkippedCases int
+	// Step-level aggregation
+	TotalSteps     int
+	PassedSteps    int
+	FailedSteps    int
+	SkippedSteps   int
 	CaseResults    []TestCaseResult
 	SetupStatus    string
 	TeardownStatus string

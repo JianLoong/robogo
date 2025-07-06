@@ -1,0 +1,22 @@
+testsuite: "Skip Logic Test Suite"
+description: "Test suite to demonstrate step-level aggregation in reporting"
+fail_fast: false
+
+variables:
+  vars:
+    environment: "dev"
+    skip_condition: true
+
+setup:
+  - name: "Setup DB"
+    action: log
+    args: ["Setting up database..."]
+
+testcases:
+  - file: "test-step-skip.robogo"
+  - file: "test-skip-unified.robogo"
+
+teardown:
+  - name: "Teardown DB"
+    action: log
+    args: ["Cleaning up database..."] 

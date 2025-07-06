@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,12 +25,41 @@ var (
 	maxConcurrency  int
 )
 
+func isTestSuiteFile(filePath string) (bool, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	buf := make([]byte, 4096)
+	n, _ := f.Read(buf)
+	content := string(buf[:n])
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "testsuite:") {
+			return true, nil
+		}
+		if strings.HasPrefix(line, "testcase:") {
+			return false, nil
+		}
+		// fallback: if it looks like a suite
+		if strings.HasPrefix(line, "testcases:") {
+			return true, nil
+		}
+		break
+	}
+	return false, nil
+}
+
 func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "robogo",
 		Short: "Robogo - A modern, git-driven test automation framework",
 		Long: `Robogo is a modern, git-driven test automation framework written in Go.
-It provides fast, extensible, and developer-friendly test automation with YAML-based test cases.
+It provides fast, extensible, and developer-friendly test automation with YAML-based test cases or test suites.
 
 Key Features:
 - Dynamic variable management with the 'variable' action (set_variable, get_variable, list_variables)
@@ -45,8 +75,8 @@ Key Features:
 
 	var runCmd = &cobra.Command{
 		Use:   "run [test-files...]",
-		Short: "Run one or more test case files",
-		Long:  `Run one or more test case files. You can specify multiple files or a directory.`,
+		Short: "Run one or more test case or test suite files",
+		Long:  `Run one or more test case or test suite files. You can specify multiple files or a directory.`,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Determine silent mode
@@ -68,102 +98,121 @@ Key Features:
 				}
 			}
 
-			// Run the tests with parallelism configuration
-			results, err := runner.RunTestFilesWithConfig(args, silent, parallelConfig)
-			if err != nil {
-				return fmt.Errorf("failed to run tests: %w", err)
+			var suiteResults []*parser.TestSuiteResult
+			var caseResults []*parser.TestResult
+
+			for _, path := range args {
+				info, err := os.Stat(path)
+				if err != nil {
+					return fmt.Errorf("failed to stat %s: %w", path, err)
+				}
+				if info.IsDir() {
+					// Recursively find all .robogo files
+					err := filepath.Walk(path, func(fp string, fi os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+						if fi.IsDir() || !strings.HasSuffix(fp, ".robogo") {
+							return nil
+						}
+						isSuite, err := isTestSuiteFile(fp)
+						if err != nil {
+							return err
+						}
+						if isSuite {
+							ts, err := parser.ParseTestSuite(fp)
+							if err != nil {
+								return err
+							}
+							suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner())
+							result, err := suiteRunner.RunTestSuite(ts, fp, false)
+							if err != nil {
+								return err
+							}
+							suiteResults = append(suiteResults, result)
+						} else {
+							results, err := runner.RunTestFilesWithConfig([]string{fp}, silent, parallelConfig)
+							if err != nil {
+								return err
+							}
+							caseResults = append(caseResults, results...)
+						}
+						return nil
+					})
+					if err != nil {
+						return err
+					}
+				} else {
+					isSuite, err := isTestSuiteFile(path)
+					if err != nil {
+						return err
+					}
+					if isSuite {
+						ts, err := parser.ParseTestSuite(path)
+						if err != nil {
+							return err
+						}
+						suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner())
+						result, err := suiteRunner.RunTestSuite(ts, path, false)
+						if err != nil {
+							return err
+						}
+						suiteResults = append(suiteResults, result)
+					} else {
+						results, err := runner.RunTestFilesWithConfig([]string{path}, silent, parallelConfig)
+						if err != nil {
+							return err
+						}
+						caseResults = append(caseResults, results...)
+					}
+				}
 			}
 
 			// Output results in specified format
-			switch outputFormat {
-			case "json":
-				return outputJSON(results)
-			case "markdown":
-				return outputMarkdown(results)
-			case "console", "":
-				return outputConsole(results)
-			default:
-				return fmt.Errorf("unsupported output format: %s", outputFormat)
-			}
-		},
-	}
-
-	var runSuiteCmd = &cobra.Command{
-		Use:   "run-suite [test-suite-file]...",
-		Short: "Run one or more test suite files",
-		Long:  `Run one or more test suite files that contain multiple test cases with shared setup and teardown.`,
-		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			suiteFilePaths := args
-
-			// Parse all test suites
-			var testSuites []*parser.TestSuite
-			for _, suiteFilePath := range suiteFilePaths {
-				testSuite, err := parser.ParseTestSuite(suiteFilePath)
-				if err != nil {
-					return fmt.Errorf("failed to parse test suite '%s': %w", suiteFilePath, err)
+			if len(suiteResults) > 0 && len(caseResults) == 0 {
+				// Only suites
+				if len(suiteResults) == 1 {
+					switch outputFormat {
+					case "json":
+						return outputSuiteJSON(suiteResults[0])
+					case "markdown":
+						return outputSuiteMarkdown(suiteResults[0])
+					case "console", "":
+						return outputSuiteConsole(suiteResults[0])
+					default:
+						return fmt.Errorf("unsupported output format: %s", outputFormat)
+					}
+				} else {
+					// Multiple suites
+					// TODO: aggregate and output grand total
+					return outputMultipleSuitesConsole(suiteResults, struct {
+						TotalCases   int
+						PassedCases  int
+						FailedCases  int
+						SkippedCases int
+						Duration     time.Duration
+					}{})
 				}
-				testSuites = append(testSuites, testSuite)
-			}
-
-			// Create test suite runner
-			suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner())
-
-			// Run all test suites
-			var allResults []*parser.TestSuiteResult
-			var grandTotal struct {
-				TotalCases   int
-				PassedCases  int
-				FailedCases  int
-				SkippedCases int
-				Duration     time.Duration
-			}
-
-			startTime := time.Now()
-
-			for _, testSuite := range testSuites {
-				// Run the test suite
-				result, err := suiteRunner.RunTestSuite(testSuite, suiteFilePaths[0]) // Use first path for relative file resolution
-				if err != nil {
-					return fmt.Errorf("failed to run test suite '%s': %w", testSuite.Name, err)
-				}
-
-				allResults = append(allResults, result)
-
-				// Accumulate grand totals
-				grandTotal.TotalCases += result.TotalCases
-				grandTotal.PassedCases += result.PassedCases
-				grandTotal.FailedCases += result.FailedCases
-				grandTotal.SkippedCases += result.SkippedCases
-			}
-
-			grandTotal.Duration = time.Since(startTime)
-
-			// Output results in specified format
-			if len(allResults) == 1 {
-				// Single test suite - use original output format
+			} else if len(caseResults) > 0 && len(suiteResults) == 0 {
+				// Only test cases
 				switch outputFormat {
 				case "json":
-					return outputSuiteJSON(allResults[0])
+					return outputJSON(caseResults)
 				case "markdown":
-					return outputSuiteMarkdown(allResults[0])
+					return outputMarkdown(caseResults)
 				case "console", "":
-					return outputSuiteConsole(allResults[0])
+					return outputConsole(caseResults)
 				default:
 					return fmt.Errorf("unsupported output format: %s", outputFormat)
 				}
 			} else {
-				// Multiple test suites - use grand total format
-				switch outputFormat {
-				case "json":
-					return outputMultipleSuitesJSON(allResults, grandTotal)
-				case "markdown":
-					return outputMultipleSuitesMarkdown(allResults, grandTotal)
-				case "console", "":
-					return outputMultipleSuitesConsole(allResults, grandTotal)
-				default:
-					return fmt.Errorf("unsupported output format: %s", outputFormat)
+				// Mixed (rare)
+				fmt.Println("Warning: Mixed test suites and test cases in one run. Outputting all results.")
+				for _, sr := range suiteResults {
+					_ = outputSuiteConsole(sr)
 				}
+				_ = outputConsole(caseResults)
+				return nil
 			}
 		},
 	}
@@ -223,17 +272,15 @@ Key Features:
 	runCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json, markdown)")
 	runCmd.Flags().BoolVarP(&parallelEnabled, "parallel", "p", false, "Enable parallel execution")
 	runCmd.Flags().IntVarP(&maxConcurrency, "concurrency", "c", 4, "Maximum concurrency for parallel execution")
-	runSuiteCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json, markdown)")
 	listCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
 	completionsCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
 
 	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(runSuiteCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(completionsCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
@@ -259,8 +306,8 @@ func outputConsole(results []*parser.TestResult) error {
 
 		fmt.Printf("%s Status: %s\n", statusIcon, result.Status)
 		fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-		fmt.Printf("📝 Steps: %d total, %d passed, %d failed\n",
-			result.TotalSteps, result.PassedSteps, result.FailedSteps)
+		fmt.Printf("📝 Steps: %d total, %d passed, %d failed, %d skipped\n",
+			result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
 
 		// Print step details with consistent duration formatting
 		if len(result.StepResults) > 0 {
@@ -269,8 +316,14 @@ func outputConsole(results []*parser.TestResult) error {
 			fmt.Println(strings.Repeat("-", 116))
 			for i, stepResult := range result.StepResults {
 				stepIcon := "✅"
-				if stepResult.Status == "FAILED" {
+				status := stepResult.Status
+				switch status {
+				case "PASSED":
+					stepIcon = "✅"
+				case "FAILED":
 					stepIcon = "❌"
+				case "SKIPPED":
+					stepIcon = "⏭️"
 				}
 				output := stepResult.Output
 				if len(output) > 24 {

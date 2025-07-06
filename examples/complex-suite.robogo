@@ -1,6 +1,6 @@
 testsuite: "Complex Suite"
 description: "A more advanced Robogo test suite with E2E test."
-parallel: true
+parallel: false
 options:
   max_concurrency: 3
 
@@ -25,6 +25,7 @@ testcases:
   - file: e2e-simple.robogo
   - file: test-secret.robogo
   - file: test-postgres.robogo
+  - file: test-step-skip.robogo 
 
 teardown:
   - name: "Suite Teardown"
