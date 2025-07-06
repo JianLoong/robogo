@@ -150,6 +150,7 @@ type TestResult struct {
 	TotalSteps     int
 	PassedSteps    int
 	FailedSteps    int
+	SkippedSteps   int
 	StepResults    []StepResult
 	ErrorMessage   string
 	CapturedOutput string // New field to store captured console output

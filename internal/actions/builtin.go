@@ -29,6 +29,7 @@ var actionFuncs = map[string]ActionFunc{
 	"rabbitmq":   RabbitMQActionWrapper,
 	"kafka":      KafkaActionWrapper,
 	"template":   TemplateAction,
+	"skip":       SkipAction,
 }
 
 // NewActionExecutor creates a new action executor instance.

@@ -1,0 +1,373 @@
+testcase: "End-to-End Test Case"
+description: "A comprehensive end-to-end test demonstrating Robogo's core features including variables, actions, assertions, loops, templates, and error handling"
+
+variables:
+  vars:
+    # Test configuration
+    test_name: "End-to-End Robogo Test"
+    test_version: "1.0"
+    max_retries: 3
+    
+    # Business data
+    sender_bic: "DEUTDEFF"
+    sender_account: "1234567890"
+    sender_name: "Test Sender Bank"
+    beneficiary_bic: "COBADEFF"
+    beneficiary_account: "0987654321"
+    beneficiary_name: "Test Beneficiary Bank"
+    currency: "EUR"
+    base_amount: "1000.00"
+    reference_prefix: "E2E-TEST"
+    
+    # API endpoints (simulated)
+    api_base_url: "https://api.example.com"
+    health_endpoint: "/health"
+    transaction_endpoint: "/transactions"
+    
+    # Database configuration
+    db_host: "192.168.0.174"
+    db_port: "5432"
+    db_name: "testdb"
+    db_user: "user1"
+    
+  secrets:
+    api_key:
+      file: "secret.txt"
+      mask_output: true
+    db_password:
+      file: "secret.txt"
+      mask_output: true
+
+steps:
+  # ===== PHASE 1: INITIALIZATION =====
+  - name: "Start end-to-end test"
+    action: log
+    args: ["🚀 Starting ${test_name} v${test_version}"]
+  
+  - name: "Get test start timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: test_start_time
+  
+  - name: "Log test start time"
+    action: log
+    args: ["Test started at: ${test_start_time}"]
+  
+  - name: "Create unique test identifier"
+    action: concat
+    args: ["${reference_prefix}", "-", "${test_start_time}"]
+    result: test_identifier
+  
+  - name: "Log test identifier"
+    action: log
+    args: ["Test identifier: ${test_identifier}"]
+
+  # ===== PHASE 2: DATA PREPARATION =====
+  - name: "Generate dynamic transaction data"
+    action: log
+    args: ["📊 Preparing test data"]
+  
+  - name: "Get current date for SWIFT format"
+    action: get_time
+    args: ["060102"]
+    result: swift_date
+  
+  - name: "Get current timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: current_timestamp
+  
+  - name: "Generate random transaction amount"
+    action: get_random
+    args: [100.00, 5000.00]
+    result: random_amount
+  
+  - name: "Format amount to 2 decimal places"
+    action: concat
+    args: ["${random_amount}", "00"]
+    result: formatted_amount
+  
+  - name: "Create transaction reference"
+    action: concat
+    args: ["${test_identifier}", "-", "${current_timestamp}"]
+    result: transaction_reference
+  
+  - name: "Log generated data"
+    action: log
+    args: ["Generated: Date=${swift_date}, Amount=${formatted_amount}, Ref=${transaction_reference}"]
+
+  # ===== PHASE 3: TEMPLATE GENERATION =====
+  - name: "Generate SWIFT MT103 message"
+    action: log
+    args: ["📝 Generating SWIFT message using template"]
+  
+  - name: "Create SWIFT MT103 message"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "${test_identifier}"
+        Amount: "${formatted_amount}"
+        Currency: "${currency}"
+        Sender:
+          BIC: "${sender_bic}"
+          Account: "${sender_account}"
+          Name: "${sender_name}"
+        Beneficiary:
+          BIC: "${beneficiary_bic}"
+          Account: "${beneficiary_account}"
+          Name: "${beneficiary_name}"
+        Reference: "${transaction_reference}"
+        Timestamp: "${current_timestamp}"
+        Date: "${swift_date}"
+    result: swift_message
+  
+  - name: "Log SWIFT message length"
+    action: length
+    args: ["${swift_message}"]
+    result: message_length
+  
+  - name: "Log message details"
+    action: log
+    args: ["Generated SWIFT message (${message_length} characters)"]
+
+  - name: "Build DB connection string"
+    action: concat
+    args: ["postgres://", "${db_user}", ":", "${db_password}", "@", "${db_host}", ":", "${db_port}", "/", "${db_name}", "?sslmode=disable"]
+    result: db_connection_string
+
+  - name: "Create e2e_transactions table"
+    action: postgres
+    args: ["execute", "${db_connection_string}", "CREATE TABLE IF NOT EXISTS e2e_transactions (id SERIAL PRIMARY KEY, transaction_id TEXT, amount NUMERIC, currency TEXT, reference TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
+
+  - name: "Insert transaction into DB"
+    action: postgres
+    args: ["execute", "${db_connection_string}", "INSERT INTO e2e_transactions (transaction_id, amount, currency, reference) VALUES ($1, $2, $3, $4)", ["${test_identifier}", "${formatted_amount}", "${currency}", "${transaction_reference}"]]
+
+  - name: "Query transaction from DB"
+    action: postgres
+    args: ["query", "${db_connection_string}", "SELECT transaction_id, amount::text, currency, reference FROM e2e_transactions WHERE transaction_id = $1", ["${test_identifier}"]]
+    result: db_query_result
+
+  - name: "Log DB query result"
+    action: log
+    args: ["DB query result: ${db_query_result}"]
+
+  - name: "Assert DB transaction_id"
+    action: assert
+    args: ["${db_query_result.transaction_id}", "==", "${test_identifier}", "DB transaction_id should match"]
+
+  - name: "Assert DB amount"
+    action: assert
+    args: ["${db_query_result.amount}", "==", "${formatted_amount}", "DB amount should match"]
+
+  - name: "Assert DB reference"
+    action: assert
+    args: ["${db_query_result.reference}", "==", "${transaction_reference}", "DB reference should match"]
+
+  - name: "Delete test transaction from DB"
+    action: postgres
+    args: ["execute", "${db_connection_string}", "DELETE FROM e2e_transactions WHERE transaction_id = $1", ["${test_identifier}"]]
+
+  # ===== PHASE 4: DATA VALIDATION =====
+  - name: "Validate generated data"
+    action: log
+    args: ["✅ Validating test data"]
+  
+  - name: "Assert test identifier format"
+    action: assert
+    args: ["${test_identifier}", "contains", "${reference_prefix}", "Test identifier should contain prefix"]
+  
+  - name: "Assert amount is positive"
+    action: assert
+    args: ["${random_amount}", ">", "0", "Transaction amount should be positive"]
+  
+  - name: "Get SWIFT date length"
+    action: length
+    args: ["${swift_date}"]
+    result: swift_date_length
+  
+  - name: "Assert SWIFT date format"
+    action: assert
+    args: ["${swift_date_length}", "==", "6", "SWIFT date should be 6 characters (YYMMDD)"]
+  
+  - name: "Assert message contains required fields"
+    action: assert
+    args: ["${swift_message}", "contains", "${sender_bic}", "Message should contain sender BIC"]
+  
+  - name: "Assert message contains beneficiary"
+    action: assert
+    args: ["${swift_message}", "contains", "${beneficiary_account}", "Message should contain beneficiary account"]
+  
+  - name: "Assert message contains amount"
+    action: assert
+    args: ["${swift_message}", "contains", "${formatted_amount}", "Message should contain transaction amount"]
+
+  # ===== PHASE 5: LOOP TESTING =====
+  - name: "Test loop functionality"
+    action: log
+    args: ["🔄 Testing loop functionality"]
+  
+  - name: "Generate multiple test transactions"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Create transaction ${iteration}"
+          action: get_random
+          args: [50.00, 200.00]
+          result: loop_amount
+        
+        - name: "Create loop reference"
+          action: concat
+          args: ["${test_identifier}", "-LOOP-", "${iteration}"]
+          result: loop_reference
+        
+        - name: "Log loop transaction"
+          action: log
+          args: ["Loop ${iteration}: Amount=${loop_amount}, Ref=${loop_reference}"]
+        
+        - name: "Validate loop amount"
+          action: assert
+          args: ["${loop_amount}", ">=", "50.00", "Loop amount should be at least 50.00"]
+          continue_on_failure: true
+
+  # ===== PHASE 6: ERROR HANDLING =====
+  - name: "Test error handling with continue_on_failure"
+    action: log
+    args: ["⚠️ Testing error handling"]
+  
+  - name: "Test assertion that will fail but continue"
+    action: assert
+    args: ["${random_amount}", ">", "10000.00", "This should fail but continue"]
+    continue_on_failure: true
+  
+  - name: "Get test identifier length"
+    action: length
+    args: ["${test_identifier}"]
+    result: identifier_length
+  
+  - name: "Test another failing assertion"
+    action: assert
+    args: ["${identifier_length}", "==", "100", "This should also fail but continue"]
+    continue_on_failure: true
+  
+  - name: "Log that we continued after failures"
+    action: log
+    args: ["✅ Continued execution after expected failures"]
+
+  # ===== PHASE 7: STRING OPERATIONS =====
+  - name: "Test string operations"
+    action: log
+    args: ["📝 Testing string operations"]
+  
+  - name: "Create status message"
+    action: concat
+    args: ["Test", " ", "completed", " ", "successfully", " ", "at", " ", "${current_timestamp}"]
+    result: status_message
+  
+  - name: "Get status message length"
+    action: length
+    args: ["${status_message}"]
+    result: status_length
+  
+  - name: "Log status information"
+    action: log
+    args: ["Status: ${status_message} (${status_length} chars)"]
+  
+  - name: "Validate status message"
+    action: assert
+    args: ["${status_message}", "contains", "successfully", "Status should contain success message"]
+
+  # ===== PHASE 8: TIME OPERATIONS =====
+  - name: "Test time operations"
+    action: log
+    args: ["⏰ Testing time operations"]
+  
+  - name: "Get different time formats"
+    action: get_time
+    args: ["2006-01-02 15:04:05"]
+    result: full_datetime
+  
+  - name: "Get time only"
+    action: get_time
+    args: ["15:04:05"]
+    result: time_only
+  
+  - name: "Get date only"
+    action: get_time
+    args: ["2006-01-02"]
+    result: date_only
+  
+  - name: "Log time formats"
+    action: log
+    args: ["Full: ${full_datetime}, Time: ${time_only}, Date: ${date_only}"]
+
+  # ===== PHASE 9: FINAL VALIDATION =====
+  - name: "Perform final validations"
+    action: log
+    args: ["🔍 Final validation checks"]
+  
+  - name: "Calculate test duration"
+    action: get_time
+    args: ["unix_ms"]
+    result: test_end_time
+  
+  - name: "Validate test completed"
+    action: assert
+    args: ["${test_end_time}", ">", "${test_start_time}", "Test should have a positive duration"]
+  
+  - name: "Validate all required data exists"
+    action: assert
+    args: ["${swift_message}", "!=", "", "SWIFT message should not be empty"]
+  
+  - name: "Validate test identifier uniqueness"
+    action: assert
+    args: ["${test_identifier}", "contains", "${test_start_time}", "Test identifier should contain start time"]
+
+  # ===== PHASE 10: CLEANUP AND SUMMARY =====
+  - name: "Generate test summary"
+    action: log
+    args: ["📋 Test Summary"]
+  
+  - name: "Log test results"
+    action: log
+    args: ["✅ Test: ${test_name}"]
+  
+  - name: "Log transaction details"
+    action: log
+    args: ["💰 Amount: ${formatted_amount} ${currency}"]
+  
+  - name: "Log message details"
+    action: log
+    args: ["📨 SWIFT Message: ${message_length} characters"]
+  
+  - name: "Log test identifier"
+    action: log
+    args: ["🆔 ID: ${test_identifier}"]
+  
+  - name: "Calculate and log duration"
+    action: concat
+    args: ["${test_end_time}", "-", "${test_start_time}"]
+    result: duration_ms
+  
+  - name: "Log test duration"
+    action: log
+    args: ["⏱️ Duration: ${duration_ms}ms"]
+  
+  - name: "Final success message"
+    action: log
+    args: ["🎉 End-to-end test completed successfully!"]
+
+# This end-to-end test demonstrates:
+# - Variable declaration and usage (both vars and secrets)
+# - Dynamic data generation (timestamps, random values)
+# - Template processing with complex data structures
+# - Comprehensive validation and assertions
+# - Loop functionality with iteration context
+# - Error handling with continue_on_failure
+# - String operations (concat, length)
+# - Time operations with various formats
+# - Test lifecycle management (setup, execution, validation, cleanup)
+# - Real-world SWIFT message generation
+# - Proper logging and result tracking
+# - Performance measurement (duration calculation) 

@@ -1,0 +1,105 @@
+testsuite: "Payment System Test Suite"
+description: "Comprehensive test suite for payment system functionality including SWIFT messages, database operations, and API testing"
+
+# Suite-level variables shared by all test cases
+variables:
+  vars:
+    # Common configuration
+    test_environment: "staging"
+    api_base_url: "https://api.example.com"
+    timeout: 30
+    
+    # Database configuration
+    db_host: "192.168.0.174"
+    db_port: "5432"
+    db_name: "testdb"
+    db_user: "user1"
+    
+    # SWIFT configuration
+    sender_bic: "DEUTDEFF"
+    sender_account: "1234567890"
+    sender_name: "Test Sender Bank"
+    currency: "EUR"
+    
+  secrets:
+    db_password:
+      file: "secret.txt"
+      mask_output: true
+    api_key:
+      file: "secret.txt"
+      mask_output: true
+
+# Suite setup - runs before all test cases
+setup:
+  - name: "Initialize test environment"
+    action: log
+    args: ["🚀 Initializing test environment: ${test_environment}"]
+  
+  - name: "Build database connection string"
+    action: concat
+    args: ["postgres://", "${db_user}", ":", "${db_password}", "@", "${db_host}", ":", "${db_port}", "/", "${db_name}", "?sslmode=disable"]
+    result: db_connection_string
+  
+  - name: "Create test tables"
+    action: postgres
+    args: ["execute", "${db_connection_string}", "CREATE TABLE IF NOT EXISTS payment_transactions (id SERIAL PRIMARY KEY, transaction_id TEXT UNIQUE, amount NUMERIC, currency TEXT, reference TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"]
+  
+  - name: "Clean up existing test data"
+    action: postgres
+    args: ["execute", "${db_connection_string}", "DELETE FROM payment_transactions WHERE transaction_id LIKE 'TEST-SUITE-%'"]
+  
+  - name: "Log setup completion"
+    action: log
+    args: ["✅ Test environment setup completed"]
+
+# Test cases to run
+testcases:
+  - file: "date-actions.robogo"
+    variables:
+      vars:
+        test_type: "static_vs_dynamic"
+        priority: "high"
+
+  - file: "date-actions.robogo"
+    variables:
+      vars:
+        test_type: "static_vs_dynamic"
+        priority: "high"
+
+#   - file: "simple-vs-dynamic.robogo"
+#     variables:
+#       vars:
+#         test_type: "static_vs_dynamic"
+#         priority: "high"
+  
+#   - file: "end-to-end-test.robogo"
+#     variables:
+#       vars:
+#         test_type: "end_to_end"
+#         priority: "critical"
+#         # Override some variables for this specific test case
+#         base_amount: "5000.00"
+#         reference_prefix: "SUITE-E2E"
+
+# Suite teardown - runs after all test cases
+teardown:
+  - name: "Clean up test data"
+    action: log
+    args: ["🧹 Cleaning up test data"]
+  
+#   - name: "Delete test transactions"
+#     action: postgres
+#     args: ["execute", "${db_connection_string}", "DELETE FROM payment_transactions WHERE transaction_id LIKE 'TEST-SUITE-%' OR transaction_id LIKE 'SUITE-E2E-%'"]
+
+
+#   - name: "Drop test tables"
+#     action: postgres
+#     args: ["execute", "${db_connection_string}", "DROP TABLE IF EXISTS payment_transactions"]
+
+  
+  - name: "Log teardown completion"
+    action: log
+    args: ["✅ Test environment cleanup completed"]
+
+# Optional: Enable parallel execution
+parallel: false 

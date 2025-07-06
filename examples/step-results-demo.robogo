@@ -1,0 +1,40 @@
+testcase: "Step Results Demo"
+description: "Demonstrating how each step gives a result with different statuses"
+
+variables:
+  vars:
+    test_value: "hello world"
+    expected_length: 11
+
+steps:
+  - name: "Step 1: Simple log action (PASSED)"
+    action: log
+    args: ["This step will pass"]
+    result: log_output
+
+  - name: "Step 2: String length calculation (PASSED)"
+    action: length
+    args: ["${test_value}"]
+    result: string_length
+
+  - name: "Step 3: Assertion that will pass (PASSED)"
+    action: assert
+    args: ["${string_length}", "==", "${expected_length}", "String length should be 11"]
+
+  - name: "Step 4: Assertion that will fail (FAILED)"
+    action: assert
+    args: ["${string_length}", "==", "999", "This will fail"]
+    continue_on_failure: true
+
+  - name: "Step 5: Another passing step (PASSED)"
+    action: log
+    args: ["This step will pass even after the failure"]
+
+  - name: "Step 6: Get current time (PASSED)"
+    action: get_time
+    args: ["unix"]
+    result: current_time
+
+  - name: "Step 7: Final validation (PASSED)"
+    action: assert
+    args: ["${current_time}", ">", "0", "Current time should be positive"] 

@@ -148,6 +148,12 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 		Description: "Render templates using Go template engine with inline template definitions",
 		Example:     `- action: template\n  args: ["mt103", {"transaction_id": "123", "amount": "100.00"}]\n  result: rendered_message`,
 	})
+
+	ar.Register(ActionInfo{
+		Name:        "skip",
+		Description: "Skip a test case with an optional reason",
+		Example:     `- action: skip\n  args: ["Skipping this test case"]`,
+	})
 }
 
 // Register adds an action to the registry

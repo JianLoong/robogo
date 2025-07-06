@@ -1,0 +1,96 @@
+testcase: "Working Dynamic Variables Example"
+description: "Simple example showing dynamic variables that actually work"
+
+variables:
+  vars:
+    # Simple base values
+    base_url: "https://api.example.com"
+    sender_bic: "DEUTDEFF"
+    receiver_bic: "COBADEFF"
+    currency: "EUR"
+    base_amount: "1000.00"
+
+steps:
+  # APPROACH 1: Simple variable reference (this works!)
+  - name: "Create API URL using concat"
+    action: concat
+    args: ["${base_url}", "/v1/users"]
+    result: api_url
+
+  - name: "Log API URL"
+    action: log
+    args: ["API URL: ${api_url}"]
+
+  # APPROACH 2: Dynamic timestamp (this works!)
+  - name: "Get current timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: timestamp
+
+  - name: "Create dynamic transaction ID"
+    action: concat
+    args: ["TXN", "${timestamp}"]
+    result: transaction_id
+
+  - name: "Log transaction ID"
+    action: log
+    args: ["Transaction ID: ${transaction_id}"]
+
+  # APPROACH 3: Dynamic date (this works!)
+  - name: "Get current date"
+    action: get_time
+    args: ["date"]
+    result: current_date
+
+  - name: "Log current date"
+    action: log
+    args: ["Current date: ${current_date}"]
+
+  # APPROACH 4: Use variable action to set computed values (this works!)
+  - name: "Set computed sender BIC"
+    action: variable
+    args: ["set", "computed_sender", "${sender_bic}"]
+    result: sender_set
+
+  - name: "Set computed receiver BIC"
+    action: variable
+    args: ["set", "computed_receiver", "${receiver_bic}"]
+    result: receiver_set
+
+  - name: "Log computed values"
+    action: log
+    args: ["Computed sender: ${computed_sender}, receiver: ${computed_receiver}"]
+
+  # APPROACH 5: Use all dynamic values in a template (this works!)
+  - name: "Generate SWIFT message with dynamic values"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "${transaction_id}"
+        Amount: "${base_amount}"
+        Currency: "${currency}"
+        Sender:
+          BIC: "${computed_sender}"
+          Account: "1234567890"
+          Name: "Dynamic Sender"
+        Beneficiary:
+          BIC: "${computed_receiver}"
+          Account: "0987654321"
+          Name: "Dynamic Beneficiary"
+        Reference: "REF-${timestamp}"
+        Timestamp: "${timestamp}"
+        Date: "${current_date}"
+    result: swift_message
+
+  - name: "Log generated message"
+    action: log
+    args: ["Generated SWIFT message:", "${swift_message}"]
+
+  - name: "Validate message"
+    action: assert
+    args: ["${swift_message}", "contains", ":20:${transaction_id}", "Message must contain transaction ID"]
+
+  - name: "Log completion"
+    action: log
+    args: ["Working dynamic variables example completed!"] 

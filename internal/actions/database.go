@@ -30,6 +30,17 @@ type QueryResult struct {
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// SimpleRow represents a single database row with column names
+type SimpleRow struct {
+	Data map[string]interface{} `json:"data"`
+}
+
+// SimpleResult represents a simplified query result (Spanner-like)
+type SimpleResult struct {
+	Rows  []SimpleRow `json:"rows"`
+	Count int         `json:"count"`
+}
+
 // BatchQueryResult represents the result of a batch database operation
 type BatchQueryResult struct {
 	ConnectionString string                 `json:"connection_string"`
@@ -181,19 +192,11 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 		return "", fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	// Create result object
-	result := QueryResult{
-		Query:    query,
-		Columns:  columns,
-		Rows:     resultRows,
-		Duration: duration,
-		Metadata: map[string]interface{}{
-			"row_count": len(resultRows),
-		},
-	}
+	// Transform to Spanner-like format
+	transformedResult := transformToSpannerLike(columns, resultRows, query)
 
 	// Convert to JSON
-	jsonResult, err := json.Marshal(result)
+	jsonResult, err := json.Marshal(transformedResult)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
@@ -413,7 +416,7 @@ func executeQueryInternal(connectionString, query string, params []interface{}) 
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	// Create result object
+	// Create result object (keeping original format for internal use)
 	result := &QueryResult{
 		Query:    query,
 		Columns:  columns,
@@ -701,4 +704,48 @@ func CloseAllConnections() {
 		db.Close()
 		delete(dbManager.connections, connectionString)
 	}
+}
+
+// transformToSpannerLike transforms database query results to a Spanner-like format
+// Returns:
+// - Single row: object with column names as keys
+// - Multiple rows: array of objects with column names as keys
+// - COUNT queries: just the count value
+// - Empty results: nil
+func transformToSpannerLike(columns []string, rows [][]interface{}, query string) interface{} {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	// Handle COUNT queries - return just the value
+	if isCountQuery(query) && len(rows) == 1 && len(columns) == 1 {
+		return rows[0][0]
+	}
+
+	// Single row - return object with column names
+	if len(rows) == 1 {
+		result := make(map[string]interface{})
+		for i, col := range columns {
+			result[col] = rows[0][i]
+		}
+		return result
+	}
+
+	// Multiple rows - return array of objects
+	var result []map[string]interface{}
+	for _, row := range rows {
+		obj := make(map[string]interface{})
+		for i, col := range columns {
+			obj[col] = row[i]
+		}
+		result = append(result, obj)
+	}
+	return result
+}
+
+// isCountQuery checks if a query is a COUNT query
+func isCountQuery(query string) bool {
+	queryUpper := strings.ToUpper(strings.TrimSpace(query))
+	return strings.Contains(queryUpper, "SELECT COUNT(") ||
+		(strings.HasPrefix(queryUpper, "SELECT COUNT(*)") && !strings.Contains(queryUpper, "FROM"))
 }

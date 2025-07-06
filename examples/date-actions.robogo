@@ -1,0 +1,92 @@
+testcase: "Date Actions Example"
+description: "Show how to use date actions properly with single get_time calls"
+
+variables:
+  vars:
+    currency: "EUR"
+    amount: "1000,00"
+
+steps:
+  # BAD APPROACH: Multiple separate actions (complicated!)
+  - name: "Get year using date action"
+    action: get_time
+    args: ["2006"]  # Go format for full year (YYYY)
+    result: year_full
+
+  - name: "Get year using date action (YY format)"
+    action: get_time
+    args: ["06"]  # Go format for short year (YY)
+    result: year_short
+
+  - name: "Get month using date action"
+    action: get_time
+    args: ["01"]  # Go format for month (MM)
+    result: month
+
+  - name: "Get day using date action"
+    action: get_time
+    args: ["02"]  # Go format for day (DD)
+    result: day
+
+  - name: "Concatenate manually (complicated!)"
+    action: concat
+    args: ["${year_short}", "${month}", "${day}"]
+    result: swift_date_manual
+
+  - name: "Log manual approach"
+    action: log
+    args: ["Manual approach: ${swift_date_manual} (3 separate actions!)"]
+
+  # GOOD APPROACH: Single get_time action (simple!)
+  - name: "Get SWIFT date in one action"
+    action: get_time
+    args: ["060102"]  # Go format for YYMMDD
+    result: swift_date_simple
+
+  - name: "Log simple approach"
+    action: log
+    args: ["Simple approach: ${swift_date_simple} (1 action!)"]
+
+  # MORE EXAMPLES: Different date formats
+  - name: "Get full date (YYYY-MM-DD)"
+    action: get_time
+    args: ["2006-01-02"]
+    result: full_date
+
+  - name: "Get timestamp (YYYYMMDDHHMMSS)"
+    action: get_time
+    args: ["20060102150405"]
+    result: timestamp
+
+  - name: "Get time only (HH:MM:SS)"
+    action: get_time
+    args: ["15:04:05"]
+    result: time_only
+
+  - name: "Get month and day (MMDD)"
+    action: get_time
+    args: ["0102"]
+    result: month_day
+
+  # REAL EXAMPLE: SWIFT-style formatting
+  - name: "Format SWIFT balance line"
+    action: concat
+    args: ["C", "${swift_date_simple}", "${currency}", "${amount}"]
+    result: swift_balance
+
+  - name: "Log SWIFT formatting"
+    action: log
+    args: ["SWIFT balance: ${swift_balance}"]
+
+  # COMPARISON: Show the difference
+  - name: "Compare approaches"
+    action: log
+    args: ["Manual: ${swift_date_manual} (3 actions)"]
+
+  - name: "Compare approaches (continued)"
+    action: log
+    args: ["Simple: ${swift_date_simple} (1 action)"]
+
+  - name: "Log completion"
+    action: log
+    args: ["Date actions example completed!"] 

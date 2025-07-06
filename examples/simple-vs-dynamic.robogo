@@ -1,0 +1,93 @@
+testcase: "Simple vs Dynamic Variables Example"
+description: "Clear example showing static vs dynamic approaches"
+
+variables:
+  vars:
+    # STATIC APPROACH: Fixed values
+    static_bic: "DEUTDEFF"
+    static_amount: "1000.00"
+    static_currency: "EUR"
+
+steps:
+  # STATIC APPROACH: Everything is fixed
+  - name: "Static SWIFT message (fixed values)"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "STATIC123"
+        Amount: "${static_amount}"
+        Currency: "${static_currency}"
+        Sender:
+          BIC: "${static_bic}"
+          Account: "1234567890"
+          Name: "Static Sender"
+        Beneficiary:
+          BIC: "COBADEFF"
+          Account: "0987654321"
+          Name: "Static Beneficiary"
+        Reference: "STATIC-REF"
+        Timestamp: "1705311045"
+        Date: "2024-01-15"
+    result: static_message
+
+  - name: "Log static message"
+    action: log
+    args: ["Static message uses fixed values"]
+
+  # DYNAMIC APPROACH: Values change each time
+  - name: "Get current timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: current_timestamp
+
+  - name: "Create dynamic transaction ID"
+    action: concat
+    args: ["TXN", "${current_timestamp}"]
+    result: dynamic_transaction_id
+
+  - name: "Get current date"
+    action: get_time
+    args: ["date"]
+    result: current_date
+
+  - name: "Dynamic SWIFT message (changes each time)"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "${dynamic_transaction_id}"
+        Amount: "${static_amount}"
+        Currency: "${static_currency}"
+        Sender:
+          BIC: "${static_bic}"
+          Account: "1234567890"
+          Name: "Dynamic Sender"
+        Beneficiary:
+          BIC: "COBADEFF"
+          Account: "0987654321"
+          Name: "Dynamic Beneficiary"
+        Reference: "REF-${current_timestamp}"
+        Timestamp: "${current_timestamp}"
+        Date: "${current_date}"
+    result: dynamic_message
+
+  - name: "Log dynamic message"
+    action: log
+    args: ["Dynamic message uses current timestamp: ${current_timestamp}"]
+
+  - name: "Compare approaches"
+    action: log
+    args: ["Static: Same every time, Dynamic: Changes each run"]
+
+  - name: "Validate both messages"
+    action: assert
+    args: ["${static_message}", "contains", "STATIC123", "Static message should have fixed ID"]
+  
+  - name: "Validate dynamic message"
+    action: assert
+    args: ["${dynamic_message}", "contains", "${dynamic_transaction_id}", "Dynamic message should have current timestamp"]
+
+  - name: "Log completion"
+    action: log
+    args: ["Example completed!"] 

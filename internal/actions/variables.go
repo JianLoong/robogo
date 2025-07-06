@@ -51,6 +51,8 @@ func VariableAction(args []interface{}, options map[string]interface{}, silent b
 		}
 		variableName := fmt.Sprintf("%v", args[1])
 		return setVariable(variableName, args[2:], silent)
+	case "set_variable":
+		return "", fmt.Errorf("'set_variable' is not supported. Use 'set' instead.")
 	case "get":
 		if len(args) < 2 {
 			return "", fmt.Errorf("get requires variable_name")

@@ -8,8 +8,8 @@ variables:
   vars:
     db_host: "192.168.0.174"
     db_port: "5432"
-    db_name: "robogo_testdb"
-    db_user: "robogo_testuser"
+    db_name: "user1"
+    db_user: "testdb"
   secrets:
     db_password:
         file: "secret.txt"

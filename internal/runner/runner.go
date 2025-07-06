@@ -227,14 +227,33 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 	}
 
 	result.Duration = time.Since(startTime)
+	result.TotalSteps = len(result.StepResults)
+	result.PassedSteps = 0
+	result.FailedSteps = 0
+	result.SkippedSteps = 0
+
 	for _, sr := range result.StepResults {
-		if sr.Status == "FAILED" {
-			result.FailedSteps++
-		} else {
+		switch sr.Status {
+		case "PASSED":
 			result.PassedSteps++
+		case "FAILED":
+			result.FailedSteps++
+		case "SKIPPED":
+			result.SkippedSteps++
 		}
 	}
-	if result.FailedSteps > 0 {
+
+	// Determine test case status
+	if result.SkippedSteps > 0 {
+		result.Status = "SKIPPED"
+		// Set error message from the first skipped step
+		for _, sr := range result.StepResults {
+			if sr.Status == "SKIPPED" {
+				result.ErrorMessage = sr.Error
+				break
+			}
+		}
+	} else if result.FailedSteps > 0 {
 		result.Status = "FAILED"
 		// Only set ErrorMessage if a non-continue-on-failure step failed
 		for _, sr := range result.StepResults {
@@ -247,6 +266,8 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 				break
 			}
 		}
+	} else {
+		result.Status = "PASSED"
 	}
 
 	if !silent {
@@ -260,6 +281,10 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 	// Only return error if a non-continue-on-failure step failed
 	if result.Status == "FAILED" && result.ErrorMessage != "" {
 		return result, fmt.Errorf(result.ErrorMessage)
+	}
+	// Don't return error for skipped tests
+	if result.Status == "SKIPPED" {
+		return result, nil
 	}
 	return result, nil
 }
@@ -349,11 +374,20 @@ func (tr *TestRunner) executeStepsWithConfig(steps []parser.Step, executor *acti
 				}
 			}
 		} else if err != nil {
-			// Normal error handling (no expect_error)
-			stepResult.Status = "FAILED"
-			stepResult.Error = err.Error()
-			if !silent {
-				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
+			// Check if this is a skip error
+			if actions.IsSkipError(err) {
+				stepResult.Status = "SKIPPED"
+				stepResult.Error = err.Error()
+				if !silent {
+					fmt.Printf("⏭️  Step %d skipped: %s\n", len(*stepResults)+1, err.Error())
+				}
+			} else {
+				// Normal error handling (no expect_error)
+				stepResult.Status = "FAILED"
+				stepResult.Error = err.Error()
+				if !silent {
+					fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
+				}
 			}
 		} else {
 			if !silent {

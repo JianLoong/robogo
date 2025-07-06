@@ -1,0 +1,33 @@
+testsuite: "Setup Failure Test Suite"
+description: "Test suite demonstrating tally when setup fails and tests are skipped"
+
+variables:
+  vars:
+    demo_environment: "test"
+    should_fail: true
+
+setup:
+  - name: "Setup that will fail"
+    action: assert
+    args: ["${should_fail}", "==", "false", "This setup will fail"]
+
+testcases:
+  - file: "simple-vs-dynamic.robogo"
+    variables:
+      vars:
+        test_type: "skipped_test_1"
+  
+  - file: "step-results-demo.robogo"
+    variables:
+      vars:
+        test_type: "skipped_test_2"
+  
+  - file: "simple-vs-dynamic.robogo"
+    variables:
+      vars:
+        test_type: "skipped_test_3"
+
+teardown:
+  - name: "Teardown (should be skipped)"
+    action: log
+    args: ["This teardown should be skipped due to setup failure"] 

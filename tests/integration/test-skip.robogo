@@ -1,0 +1,6 @@
+testcase: "Always Skip"
+description: "This test is always skipped"
+steps:
+  - name: "Skip step"
+    action: skip
+    args: ["Skipping this test case for demonstration"] 

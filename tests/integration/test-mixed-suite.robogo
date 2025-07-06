@@ -1,0 +1,6 @@
+testsuite: "Mixed Results Suite"
+description: "Suite with passing, failing, and skipped test cases"
+testcases:
+  - file: "test-pass.robogo"
+  - file: "test-fail.robogo"
+  - file: "test-skip.robogo" 
