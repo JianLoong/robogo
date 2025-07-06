@@ -11,24 +11,25 @@ A modern, git-driven test automation framework written in Go, designed for compr
 - **🎲 Enhanced Random Generation** - Support for both integer and decimal random values with precision control
 - **🔄 Advanced Control Flow** - If statements, for loops, while loops with conditional logic and retry mechanisms
 - **🔐 Secret Management** - Secure handling of API keys, certificates, and sensitive data with masking
-- **📊 Multiple Output Formats** - Console, JSON, and Markdown reporting with detailed analytics
+- **📊 Multiple Output Formats** - Console, JSON, and Markdown reporting with detailed step-level analytics
 - **⚡ Performance Testing** - Built-in timing, load testing, and retry capabilities
 - **🔍 Comprehensive Validation** - Data validation, format checking, and assertion framework
 - **🚀 Parallel Execution** - Concurrent test file execution and parallel step execution with dependency analysis
 - **🔄 Batch Operations** - Parallel HTTP requests and database operations with concurrency control
-- **🛠️ VS Code Integration** - Syntax highlighting, autocomplete, and code snippets with extension support
+- **🛠️ VS Code Integration** - Complete extension with syntax highlighting, autocomplete, and code snippets
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Go 1.22 or later
+- VS Code (optional, for enhanced development experience)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/robogo.git
+git clone https://github.com/JianLoong/robogo.git
 cd robogo
 
 # Install dependencies
@@ -38,6 +39,20 @@ go mod download
 go build -o robogo.exe ./cmd/robogo
 ```
 
+### VS Code Extension Setup
+
+The project includes a complete VS Code extension for enhanced development:
+
+```bash
+# Quick setup - run the extension launcher
+./run-extension.ps1
+
+# Or manually build and install
+cd .vscode/extensions/robogo
+npm install
+npm run compile
+```
+
 ### Run Your First Test
 
 ```bash
@@ -45,13 +60,16 @@ go build -o robogo.exe ./cmd/robogo
 ./robogo.exe run examples/sample.robogo
 
 # Run SWIFT message testing
-./robogo.exe run tests/test-swift-working.robogo
+./robogo.exe run tests/templates/swift/test-swift-working.robogo
 
 # Run Test Data Management
-./robogo.exe run tests/test-tdm-simple.robogo
+./robogo.exe run tests/tdm/test-tdm-simple.robogo
 
 # Run decimal random testing
-./robogo.exe run tests/test-random-decimals.robogo
+./robogo.exe run tests/core/test-random-decimals.robogo
+
+# Run a test suite
+./robogo.exe run-suite examples/test-suite.robogo
 ```
 
 ## 📋 Available Actions
@@ -86,6 +104,9 @@ go build -o robogo.exe ./cmd/robogo
 ### Test Data Management
 - **`tdm`** - Test Data Management operations (generate, validate, load_dataset, set_environment)
 - **`variable`** - Variable management operations (set_variable, get_variable, list_variables)
+
+### Template Operations
+- **`template`** - Generate content from templates with variable substitution
 
 ## 📊 Test Data Management (TDM)
 
@@ -229,6 +250,260 @@ steps:
     args: ["${api_response.status_code}", "==", "200", "API should return 200"]
 ```
 
+## 💳 Payment Payload Templating
+
+Robogo provides powerful templating capabilities for generating payment payloads in various formats including SWIFT messages, SEPA XML, and custom payment formats.
+
+### SWIFT Message Templates
+
+Generate SWIFT messages using file-based templates:
+
+```yaml
+testcase: "SWIFT Template Test"
+description: "Generate SWIFT messages using templates"
+
+variables:
+  vars:
+    bank_bic: "DEUTDEFF"
+    currency: "EUR"
+    test_amount: "5000.00"
+    beneficiary_name: "Acme Corporation"
+    beneficiary_bic: "COBADEFF"
+    beneficiary_account: "0987654321"
+    reference: "INV-2024-001"
+    sender_name: "Sender Company Ltd"
+
+steps:
+  # Generate transaction data
+  - action: get_time
+    args: ["unix_ms"]
+    result: timestamp_ms
+  
+  - action: concat
+    args: ["TXN", "${timestamp_ms}"]
+    result: transaction_id
+  
+  - action: get_time
+    args: ["date"]
+    result: current_date
+
+  # Generate MT103 message from template
+  - action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        TransactionID: "${transaction_id}"
+        Amount: "${test_amount}"
+        Currency: "${currency}"
+        Sender:
+          BIC: "${bank_bic}"
+          Account: "1234567890"
+          Name: "${sender_name}"
+        Beneficiary:
+          BIC: "${beneficiary_bic}"
+          Account: "${beneficiary_account}"
+          Name: "${beneficiary_name}"
+        Reference: "${reference}"
+        Timestamp: "${timestamp_ms}"
+        Date: "${current_date}"
+    result: swift_message
+
+  # Validate generated message
+  - action: assert
+    args: ["${swift_message}", "contains", "{1:F01", "Message must contain SWIFT header"]
+  
+  - action: assert
+    args: ["${swift_message}", "contains", ":20:${transaction_id}", "Message must contain transaction reference"]
+```
+
+### SEPA XML Templates
+
+Generate SEPA Credit Transfer XML messages:
+
+```yaml
+testcase: "SEPA Template Test"
+description: "Generate SEPA Credit Transfer XML using templates"
+
+steps:
+  # Generate SEPA Credit Transfer XML
+  - action: template
+    args:
+      - "templates/sepa-credit-transfer.xml.tmpl"
+      -
+        MessageID: "MSG123456"
+        CreationDateTime: "2025-01-15T12:00:00"
+        NumberOfTransactions: "1"
+        ControlSum: "1000.00"
+        InitiatingPartyName: "My Company"
+        PaymentInfoID: "PMTINF123"
+        RequestedExecutionDate: "2025-01-16"
+        DebtorName: "John Doe"
+        DebtorIBAN: "DE89370400440532013000"
+        DebtorBIC: "DEUTDEFF"
+        EndToEndID: "E2E123456"
+        Amount: "1000.00"
+        Currency: "EUR"
+        CreditorBIC: "COBADEFF"
+        CreditorName: "Jane Smith"
+        CreditorIBAN: "DE75512108001245126199"
+        RemittanceInfo: "Invoice 2024-001"
+    result: sepa_xml
+
+  # Validate SEPA XML structure
+  - action: assert
+    args: ["${sepa_xml}", "contains", "<Document", "SEPA XML must start with <Document>"]
+  
+  - action: assert
+    args: ["${sepa_xml}", "contains", "<MsgId>MSG123456</MsgId>", "SEPA XML must contain correct Message ID"]
+  
+  - action: assert
+    args: ["${sepa_xml}", "contains", "<InstdAmt Ccy=\"EUR\">1000.00</InstdAmt>", "SEPA XML must contain correct amount"]
+```
+
+### Custom Payment Templates
+
+Create custom payment payloads for various payment systems:
+
+```yaml
+testcase: "Custom Payment Template Test"
+description: "Generate custom payment payloads using templates"
+
+templates:
+  payment_request: |
+    {
+      "payment_id": "{{.PaymentID}}",
+      "amount": {{.Amount}},
+      "currency": "{{.Currency}}",
+      "sender": {
+        "account": "{{.SenderAccount}}",
+        "name": "{{.SenderName}}",
+        "bic": "{{.SenderBIC}}"
+      },
+      "recipient": {
+        "account": "{{.RecipientAccount}}",
+        "name": "{{.RecipientName}}",
+        "bic": "{{.RecipientBIC}}"
+      },
+      "reference": "{{.Reference}}",
+      "execution_date": "{{.ExecutionDate}}",
+      "priority": "{{.Priority}}"
+    }
+
+steps:
+  # Generate payment data
+  - action: get_time
+    args: ["unix_ms"]
+    result: payment_id
+  
+  - action: get_time
+    args: ["date"]
+    result: execution_date
+
+  # Generate custom payment payload
+  - action: template
+    args:
+      - "payment_request"
+      -
+        PaymentID: "${payment_id}"
+        Amount: "2500.75"
+        Currency: "EUR"
+        SenderAccount: "DE89370400440532013000"
+        SenderName: "Sender Company"
+        SenderBIC: "DEUTDEFF"
+        RecipientAccount: "DE75512108001245126199"
+        RecipientName: "Recipient Company"
+        RecipientBIC: "COBADEFF"
+        Reference: "INV-2024-002"
+        ExecutionDate: "${execution_date}"
+        Priority: "normal"
+    result: payment_payload
+
+  # Send payment request
+  - action: http_post
+    args:
+      - "https://api.payment.com/v1/transfers"
+      - "${payment_payload}"
+      -
+        Content-Type: "application/json"
+        Authorization: "Bearer ${API_TOKEN}"
+    result: payment_response
+
+  # Validate response
+  - action: assert
+    args: ["${payment_response.status_code}", "==", "200", "Payment should be processed successfully"]
+```
+
+### Template Features
+
+Robogo's templating system supports:
+
+- **File-based Templates**: Load templates from external files
+- **Inline Templates**: Define templates within test cases
+- **Variable Substitution**: Use dynamic data in templates
+- **Nested Objects**: Support for complex data structures
+- **Conditional Logic**: Use Go template conditionals
+- **Loops**: Iterate over arrays and collections
+- **Functions**: Access to Go template functions
+
+### Available Payment Templates
+
+The project includes pre-built templates for common payment formats:
+
+- **`templates/mt103.tmpl`** - SWIFT MT103 (Customer Transfer)
+- **`templates/mt202.tmpl`** - SWIFT MT202 (General Financial Institution Transfer)
+- **`templates/mt900.tmpl`** - SWIFT MT900 (Confirmation of Debit)
+- **`templates/mt910.tmpl`** - SWIFT MT910 (Confirmation of Credit)
+- **`templates/sepa-credit-transfer.xml.tmpl`** - SEPA Credit Transfer XML (pain.001)
+
+### Template Usage Examples
+
+```yaml
+# Basic template usage
+- action: template
+  args:
+    - "templates/mt103.tmpl"
+    -
+      TransactionID: "TXN123"
+      Amount: "1000.00"
+      Currency: "EUR"
+      Sender:
+        BIC: "DEUTDEFF"
+        Account: "1234567890"
+        Name: "Sender Bank"
+      Beneficiary:
+        BIC: "COBADEFF"
+        Account: "0987654321"
+        Name: "Beneficiary Bank"
+      Reference: "INV-001"
+      Timestamp: "1705312800000"
+      Date: "20250115"
+  result: swift_message
+
+# Template with dynamic data
+- action: template
+  args:
+    - "templates/sepa-credit-transfer.xml.tmpl"
+    -
+      MessageID: "${message_id}"
+      CreationDateTime: "${creation_time}"
+      NumberOfTransactions: "${tx_count}"
+      ControlSum: "${total_amount}"
+      InitiatingPartyName: "${company_name}"
+      PaymentInfoID: "${payment_info_id}"
+      RequestedExecutionDate: "${execution_date}"
+      DebtorName: "${debtor_name}"
+      DebtorIBAN: "${debtor_iban}"
+      DebtorBIC: "${debtor_bic}"
+      EndToEndID: "${end_to_end_id}"
+      Amount: "${amount}"
+      Currency: "${currency}"
+      CreditorBIC: "${creditor_bic}"
+      CreditorName: "${creditor_name}"
+      CreditorIBAN: "${creditor_iban}"
+      RemittanceInfo: "${reference}"
+  result: sepa_xml
+```
+
 ## 🎲 Enhanced Random Generation
 
 Support for both integer and decimal random values with precision control:
@@ -310,6 +585,18 @@ Run multiple test files concurrently with configurable concurrency limits:
 ./robogo.exe run tests/*.robogo --parallel --max-concurrency 2
 ```
 
+### Test Suite Execution
+
+Run test suites with shared setup and teardown:
+
+```bash
+# Run a test suite
+./robogo.exe run-suite examples/test-suite.robogo
+
+# Run multiple suites
+./robogo.exe run-suite examples/test-suite.robogo examples/multi-outcome-suite.robogo
+```
+
 ### Step-Level Parallelism
 
 Execute independent steps within a test case in parallel:
@@ -348,101 +635,6 @@ steps:
     depends_on: ["timestamp1", "random1"]
 ```
 
-### Parallel HTTP Batch Operations
-
-Execute multiple HTTP requests concurrently:
-
-```yaml
-testcase: "Parallel HTTP Testing"
-description: "Test multiple API endpoints in parallel"
-
-steps:
-  - name: "Batch HTTP requests"
-    action: http_batch
-    args:
-      requests:
-        - method: "GET"
-          url: "https://api.example.com/users"
-          name: "get_users"
-        - method: "GET"
-          url: "https://api.example.com/products"
-          name: "get_products"
-        - method: "POST"
-          url: "https://api.example.com/orders"
-          body: '{"user_id": 1, "product_id": 2}'
-          name: "create_order"
-      concurrency: 3
-      timeout: "30s"
-    result: batch_results
-  
-  # Access individual results
-  - name: "Check users response"
-    action: assert
-    args: ["${batch_results.get_users.status_code}", "==", "200"]
-  
-  - name: "Check products response"
-    action: assert
-    args: ["${batch_results.get_products.status_code}", "==", "200"]
-```
-
-### Parallel Database Operations
-
-Execute multiple database queries concurrently:
-
-```yaml
-testcase: "Parallel Database Operations"
-description: "Execute multiple database operations in parallel"
-
-steps:
-  - name: "Batch database operations"
-    action: postgres
-    args:
-      - "batch"
-      - "postgres://user:pass@localhost/db"
-      - 
-        - query: "SELECT COUNT(*) FROM users"
-          name: "user_count"
-        - query: "SELECT COUNT(*) FROM products"
-          name: "product_count"
-        - execute: "INSERT INTO logs (message) VALUES ($1)"
-          params: ["Batch operation completed"]
-          name: "insert_log"
-      - concurrency: 3
-    result: db_results
-  
-  # Access individual query results
-  - name: "Check user count"
-    action: assert
-    args: ["${db_results.user_count.rows[0].count}", ">", "0"]
-  
-  - name: "Check product count"
-    action: assert
-    args: ["${db_results.product_count.rows[0].count}", ">", "0"]
-```
-
-### Parallelism Configuration
-
-Configure parallelism behavior in test cases:
-
-```yaml
-testcase: "Configured Parallelism"
-description: "Test with custom parallelism settings"
-
-parallelism:
-  enabled: true
-  max_concurrency: 5
-  steps: true
-  http_batch:
-    concurrency: 3
-    timeout: "60s"
-  database_batch:
-    concurrency: 2
-    timeout: "30s"
-
-steps:
-  # Your test steps here
-```
-
 ## 💾 Database Operations
 
 PostgreSQL integration with secure credential management:
@@ -468,6 +660,206 @@ steps:
   # Validate results
   - action: assert
     args: ["${query_result.rows_affected}", ">", "0", "Should return results"]
+```
+
+## 📨 Kafka Operations
+
+Robogo provides comprehensive Kafka support for message publishing and consumption with configurable producer and consumer settings:
+
+### Kafka Publishing
+
+Publish messages to Kafka topics with various configuration options:
+
+```yaml
+testcase: "Kafka Publisher Test"
+description: "Test Kafka message publishing with different configurations"
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    topic_name: "payment-events"
+    message_body: "Payment processed: TXN123456"
+
+steps:
+  # Publish with default settings
+  - action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "${message_body}"
+    result: publish_result
+
+  # Validate publish result
+  - action: assert
+    args: ["${publish_result.status}", "==", "message published"]
+
+  # Publish with custom settings
+  - action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "High-priority payment: TXN789012"
+      -
+        acks: "all"
+        compression: "snappy"
+    result: publish_result_high_priority
+
+  # Validate high-priority publish
+  - action: assert
+    args: ["${publish_result_high_priority.status}", "==", "message published"]
+```
+
+### Kafka Consumption
+
+Consume messages from Kafka topics with consumer group support:
+
+```yaml
+testcase: "Kafka Consumer Test"
+description: "Test Kafka message consumption with consumer groups"
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    topic_name: "payment-events"
+    consumer_group: "payment-processor-group"
+
+steps:
+  # Consume message with consumer group
+  - action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      -
+        groupID: "${consumer_group}"
+        fromOffset: "first"
+    result: consume_result
+
+  # Validate consumed message
+  - action: assert
+    args: ["${consume_result.message}", "contains", "Payment processed", "Should contain payment message"]
+  
+  - action: assert
+    args: ["${consume_result.topic}", "==", "${topic_name}", "Should be from correct topic"]
+
+  # Consume from specific partition
+  - action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      -
+        partition: "0"
+        fromOffset: "last"
+    result: partition_consume_result
+```
+
+### Kafka Configuration Options
+
+Robogo supports various Kafka configuration options:
+
+#### Producer Settings
+- **`acks`**: Message acknowledgment level (`"all"`, `"one"`, `"none"`)
+- **`compression`**: Message compression (`"gzip"`, `"snappy"`, `"lz4"`, `"zstd"`)
+
+#### Consumer Settings
+- **`groupID`**: Consumer group identifier for load balancing
+- **`fromOffset`**: Starting offset (`"first"`, `"last"`)
+- **`partition`**: Specific partition to consume from
+
+### Kafka Integration Testing
+
+Test end-to-end Kafka workflows:
+
+```yaml
+testcase: "Kafka Integration Test"
+description: "Test complete Kafka publish-consume workflow"
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    topic_name: "test-topic"
+    consumer_group: "test-group"
+    test_message: "Integration test message from Robogo"
+
+steps:
+  # Publish test message
+  - action: kafka
+    args:
+      - "publish"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      - "${test_message}"
+      -
+        acks: "all"
+        compression: "snappy"
+    result: publish_result
+
+  # Validate publish success
+  - action: assert
+    args: ["${publish_result.status}", "==", "message published"]
+
+  # Consume the message
+  - action: kafka
+    args:
+      - "consume"
+      - "${kafka_broker}"
+      - "${topic_name}"
+      -
+        groupID: "${consumer_group}"
+        fromOffset: "first"
+    result: consume_result
+
+  # Validate message content
+  - action: assert
+    args: ["${consume_result.message}", "==", "${test_message}", "Consumed message should match published message"]
+
+  # Validate metadata
+  - action: assert
+    args: ["${consume_result.topic}", "==", "${topic_name}", "Topic should match"]
+  
+  - action: assert
+    args: ["${consume_result.partition}", ">=", "0", "Partition should be valid"]
+  
+  - action: assert
+    args: ["${consume_result.offset}", ">=", "0", "Offset should be valid"]
+```
+
+### Kafka with Docker
+
+The project includes Docker Compose configuration for local Kafka development:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+    ports:
+      - "9092:9092"
+```
+
+Start Kafka for testing:
+```bash
+docker-compose up -d
 ```
 
 ## 📝 Test Case Format
@@ -524,37 +916,42 @@ steps:
 
 ### Core Functionality
 - **`examples/sample.robogo`** - Basic functionality demonstration
-- **`tests/test-syntax.robogo`** - Syntax and basic operations
-- **`tests/test-variables.robogo`** - Variable management and substitution
-- **`tests/test-assert.robogo`** - Assertion and validation examples
+- **`tests/core/test-syntax.robogo`** - Syntax and basic operations
+- **`tests/core/test-variables.robogo`** - Variable management and substitution
+- **`tests/core/test-assert.robogo`** - Assertion and validation examples
 
 ### Advanced Features
-- **`tests/test-tdm-simple.robogo`** - Simple Test Data Management
-- **`tests/test-tdm.robogo`** - Comprehensive TDM with PostgreSQL integration
-- **`tests/test-control-flow.robogo`** - Control flow features (if, for, while)
-- **`tests/test-retry.robogo`** - Retry mechanisms and error handling
+- **`tests/tdm/test-tdm-simple.robogo`** - Simple Test Data Management
+- **`tests/tdm/test-tdm.robogo`** - Comprehensive TDM with PostgreSQL integration
+- **`tests/core/test-control-flow.robogo`** - Control flow features (if, for, while)
+- **`tests/core/test-retry.robogo`** - Retry mechanisms and error handling
 
 ### SWIFT and Financial
-- **`tests/test-swift-working.robogo`** - SWIFT message generation and testing
-- **`tests/test-swift-messages.robogo`** - Advanced SWIFT message examples
-- **`tests/test-swift-advanced.robogo`** - Complex SWIFT workflows
+- **`tests/templates/swift/test-swift-working.robogo`** - SWIFT message generation and testing
+- **`tests/templates/swift/test-swift-messages.robogo`** - Advanced SWIFT message examples
+- **`tests/templates/swift/test-swift-advanced.robogo`** - Complex SWIFT workflows
 
 ### API and Database Testing
-- **`tests/test-http.robogo`** - HTTP API testing examples
-- **`tests/test-postgres.robogo`** - Database operations and queries
-- **`tests/test-secrets.robogo`** - Secret management and security
-- **`tests/test-parallelism.robogo`** - Parallel execution and batch operations
+- **`tests/integration/test-http.robogo`** - HTTP API testing examples
+- **`tests/integration/test-postgres.robogo`** - Database operations and queries
+- **`tests/core/test-secrets.robogo`** - Secret management and security
+- **`tests/integration/test-parallel.robogo`** - Parallel execution and batch operations
 
 ### Random Generation and Utilities
-- **`tests/test-random-decimals.robogo`** - Enhanced random number generation
-- **`tests/test-random-ranges.robogo`** - Random value ranges and validation
-- **`tests/test-random-edge-cases.robogo`** - Edge cases and boundary testing
-- **`tests/test-time-formats.robogo`** - Time formatting and manipulation
+- **`tests/core/test-random-decimals.robogo`** - Enhanced random number generation
+- **`tests/core/test-random-ranges.robogo`** - Random value ranges and validation
+- **`tests/core/test-random-edge-cases.robogo`** - Edge cases and boundary testing
+- **`tests/core/test-time-formats.robogo`** - Time formatting and manipulation
 
 ### Error Handling and Validation
-- **`tests/test-fail-in-loop.robogo`** - Error handling in loops
-- **`tests/test-continue-on-failure.robogo`** - Continue on failure scenarios
-- **`tests/test-verbosity.robogo`** - Verbosity levels and logging
+- **`tests/edge/test-fail-in-loop.robogo`** - Error handling in loops
+- **`tests/edge/test-continue-on-failure.robogo`** - Continue on failure scenarios
+- **`tests/edge/test-verbosity.robogo`** - Verbosity levels and logging
+
+### Test Suites
+- **`examples/test-suite.robogo`** - Basic test suite with setup/teardown
+- **`examples/multi-outcome-suite.robogo`** - Suite with mixed test outcomes
+- **`examples/step-results-suite.robogo`** - Suite demonstrating step-level reporting
 
 ## 🏗️ Project Structure
 
@@ -564,39 +961,75 @@ robogo/
 ├── internal/           # Core framework code
 │   ├── actions/        # Built-in actions (HTTP, DB, TDM, etc.)
 │   ├── parser/         # YAML parsing and test execution
-│   └── runner/         # Test orchestration and TDM integration
-├── tests/              # Comprehensive test examples (25+ test cases)
+│   ├── runner/         # Test orchestration and TDM integration
+│   └── util/           # Utility functions and validation
+├── tests/              # Comprehensive test examples
+│   ├── core/           # Core functionality tests
+│   ├── edge/           # Edge case and error handling tests
+│   ├── integration/    # Integration and end-to-end tests
+│   ├── tdm/            # Test Data Management tests
+│   └── templates/      # Template-based tests (SWIFT, SEPA)
 ├── examples/           # Basic examples and tutorials
 ├── docs/              # Documentation and guides
-│   ├── tdm-implementation.md    # TDM system documentation
-│   ├── tdm-evaluation-summary.md # TDM evaluation and analysis
-│   ├── actions.md      # Complete action reference
-│   ├── cli-reference.md # CLI documentation
-│   └── quickstart.md   # Getting started guide
 ├── prd/               # Product requirements and specifications
-└── .vscode/           # VS Code extension and configuration
+├── templates/         # Template files for SWIFT and SEPA messages
+├── .vscode/           # VS Code extension and configuration
+│   └── extensions/robogo/  # Complete VS Code extension
+└── run-extension.ps1  # Extension launcher script
 ```
 
 ## 🛠️ VS Code Extension
 
-Robogo includes a VS Code extension for enhanced development experience:
+Robogo includes a complete VS Code extension for enhanced development experience:
 
 ### Features
-- **Syntax Highlighting** - YAML syntax highlighting for `.robogo` files
-- **IntelliSense** - Autocomplete for actions, arguments, and variables
-- **Code Snippets** - Pre-built templates for common test patterns
-- **Error Detection** - Real-time validation and error highlighting
-- **Integrated Terminal** - Run tests directly from VS Code
+- **🎯 Rich Documentation & Hover Support** - Comprehensive action documentation with detailed parameters, examples, and best practices
+- **🔍 Intelligent Autocomplete** - Smart suggestions for actions, fields, parameters, and TDM structures
+- **✅ Real-time Validation** - Syntax validation, action verification, and TDM structure checking
+- **🎨 Enhanced Syntax Highlighting** - Color-coded highlighting for actions, control flow, TDM elements, and variables
+- **🚀 Test Execution** - One-click test execution with integrated terminal output
+- **📊 Step-Level Reporting** - Detailed step-by-step results with timing and error information
 
-### Installation
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Robogo"
-4. Install the extension
-5. Open any `.robogo` file to start using the enhanced features
+### Installation & Setup
 
-### Extension Configuration
-The extension automatically detects your Robogo installation and provides context-aware suggestions based on your available actions and test structure.
+#### Quick Setup
+```bash
+# Run the extension launcher (Windows PowerShell)
+./run-extension.ps1
+```
+
+#### Manual Setup
+```bash
+# Navigate to extension directory
+cd .vscode/extensions/robogo
+
+# Install dependencies
+npm install
+
+# Build the extension
+npm run compile
+
+# Launch VS Code with extension
+code --new-window --extensionDevelopmentPath="path/to/robogo/.vscode/extensions/robogo"
+```
+
+### Extension Commands
+- **`robogo.runTest`** - Run the current Robogo test file
+- **`robogo.runTestParallel`** - Run test with parallel execution
+- **`robogo.listActions`** - Display all available actions with documentation
+- **`robogo.validateTDM`** - Validate TDM configuration
+- **`robogo.generateTemplate`** - Generate test template
+- **`robogo.runWithOutput`** - Run test with specific output format
+
+### Configuration
+The extension provides several configuration options:
+- **`robogo.executablePath`** - Path to Robogo executable
+- **`robogo.outputFormat`** - Default output format (console, json, markdown)
+- **`robogo.showDetailedDocumentation`** - Enable detailed hover tooltips
+- **`robogo.enableParallelExecution`** - Enable parallel execution by default
+- **`robogo.maxConcurrency`** - Maximum concurrency for parallel execution
+- **`robogo.enableRealTimeValidation`** - Enable real-time validation
+- **`robogo.showVerboseOutput`** - Show verbose output in test execution
 
 ## 🔧 Development
 
@@ -607,10 +1040,10 @@ The extension automatically detects your Robogo installation and provides contex
 go test ./...
 
 # Run specific test
-./robogo.exe run tests/test-swift-working.robogo
+./robogo.exe run tests/templates/swift/test-swift-working.robogo
 
 # Run TDM test
-./robogo.exe run tests/test-tdm-simple.robogo
+./robogo.exe run tests/tdm/test-tdm-simple.robogo
 
 # Run with specific output format
 ./robogo.exe run test.robogo --output json
@@ -618,8 +1051,11 @@ go test ./...
 # Run tests in parallel
 ./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
 
-# Run with parallelism disabled
-./robogo.exe run test.robogo --no-parallel
+# Run test suite
+./robogo.exe run-suite examples/test-suite.robogo
+
+# Run suite with markdown output
+./robogo.exe run-suite examples/test-suite.robogo --output markdown
 ```
 
 ### Build
@@ -642,17 +1078,30 @@ go build -o robogo.exe ./cmd/robogo
 
 ## 📊 Output Formats
 
-Robogo supports multiple output formats with detailed analytics:
+Robogo supports multiple output formats with detailed analytics and step-level reporting:
 
+### Console Output (Default)
+Human-readable output with colors, formatting, and detailed step information:
 ```bash
-# Console output (default) - Human-readable with colors and formatting
 ./robogo.exe run test.robogo
+```
 
-# JSON output - Machine-readable for CI/CD integration
+### JSON Output
+Machine-readable format for CI/CD integration with complete step details:
+```bash
 ./robogo.exe run test.robogo --output json
+```
 
-# Markdown output - Documentation-friendly format
+### Markdown Output
+Documentation-friendly format with collapsible step details:
+```bash
 ./robogo.exe run test.robogo --output markdown
+```
+
+### Test Suite Output
+Comprehensive suite reporting with step-level summaries:
+```bash
+./robogo.exe run-suite examples/test-suite.robogo --output markdown
 ```
 
 ## 📚 Documentation
@@ -703,9 +1152,11 @@ Comprehensive documentation available in the [docs/](docs/) directory:
 - [x] **PostgreSQL Integration** - Database operations with connection pooling
 - [x] **Advanced Control Flow** - If, for, while loops with retry mechanisms
 - [x] **Secret Management** - Secure credential handling with masking
-- [x] **VS Code Integration** - Syntax highlighting and autocomplete
+- [x] **VS Code Extension** - Complete extension with syntax highlighting, autocomplete, and validation
 - [x] **Parallel Execution** - Test file and step-level parallelism with dependency analysis
 - [x] **Batch Operations** - Parallel HTTP requests and database operations
+- [x] **Step-Level Reporting** - Detailed step-by-step results in all output formats
+- [x] **Test Suite Support** - Suite execution with shared setup/teardown and comprehensive reporting
 
 ### Planned Features 🚧
 - [ ] **Plugin System** - Custom action development and extensibility
@@ -728,8 +1179,8 @@ We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.
 
 ## 📄 License
 
-[Add your license here]
+MIT License - see LICENSE file for details.
 
 ---
 
-**Robogo** - Modern test automation for the Go ecosystem, with powerful SWIFT message generation, comprehensive API testing, advanced Test Data Management capabilities, and parallel execution for high-performance testing. Built for financial services, API testing, and enterprise automation needs. 
+**Robogo** - Modern test automation for the Go ecosystem, with powerful SWIFT message generation, comprehensive API testing, advanced Test Data Management capabilities, parallel execution for high-performance testing, and a complete VS Code extension for enhanced development experience. Built for financial services, API testing, and enterprise automation needs. 
