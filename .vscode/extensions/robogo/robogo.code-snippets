@@ -702,8 +702,7 @@
             "",
             "parallel:",
             "  enabled: true",
-            "  steps: true,"  concurrency: $9:4""",
-            "steps:",
+            "  steps: true,"  concurrency: $9: 4""","steps:",
             "  - name: \"$10:Get timestamp\"",
             "    action: get_time",
             "    args: [\"iso\"]",
@@ -788,5 +787,128 @@
             "  args: [\"commit\", \"$3:tx\"]"
         ],
         "description": "Add database transaction with begin, execute, and commit"
+    },
+    "Kafka Message": {
+        "prefix": "kafka",
+        "body": [
+            "- name: \"$1:Kafka Message\"",
+            "  action: kafka",
+            "  args: [\"$2:publish\", \"$3:localhost:9092\", \"$4:test-topic\", \'$5:{\\\"key\\\": \\\"value\\\"}\']",
+            "  result: $6:publish_result"
+        ],
+        "description": "Add Kafka message publishing"
+    },
+    "RabbitMQ Message": {
+        "prefix": "rabbitmq",
+        "body": [
+            "- name: \"$1:RabbitMQ Message\"",
+            "  action: rabbitmq",
+            "  args: [\"$2:publish\", \"$3:amqp://localhost\", \"$4:test-exchange\", \"$5:test-routing-key\", \'$6:{\\\"key\\\": \\\"value\\\"}\']",
+            "  result: $7:publish_result"
+        ],
+        "description": "Add RabbitMQ message publishing"
+    },
+    "Spanner Query": {
+        "prefix": "spanner",
+        "body": [
+            "- name: \"$1:Spanner Query\"",
+            "  action: spanner",
+            "  args: [\"$2:query\", \"$3:projects/my-project/instances/my-instance/databases/my-db\", \"$4:SELECT * FROM users\"]",
+            "  result: $5:query_result"
+        ],
+        "description": "Add Google Cloud Spanner query"
+    },
+    "Template Generation": {
+        "prefix": "template",
+        "body": [
+            "- name: \"$1:Generate Template\"",
+            "  action: template",
+            "  args: [\"$2:templates/mt103.tmpl\", {\"$3:amount\": \"$4:1000.00\", \"$5:currency\": \"$6:EUR\"}]",
+            "  result: $7:generated_content"
+        ],
+        "description": "Generate content from template with variables"
+    },
+    "Skip Step": {
+        "prefix": "skip",
+        "body": [
+            "- name: \"$1:Skip Step\"",
+            "  action: skip",
+            "  args: [\"$2:This step is not needed in current environment\"]"
+        ],
+        "description": "Skip the current step with a reason"
+    },
+    "String Operations": {
+        "prefix": "string_ops",
+        "body": [
+            "- name: \"$1:Convert to uppercase\"",
+            "  action: string",
+            "  args: [\"$2:upper\", \"$3:hello world\"]",
+            "  result: $4:uppercase_string",
+            "",
+            "- name: \"$5:Replace text\"",
+            "  action: string",
+            "  args: [\"$6:replace\", \"$4:uppercase_string\", \"$7:WORLD\", \"$8:ROBOGO\"]",
+            "  result: $9:replaced_string"
+        ],
+        "description": "Add string manipulation operations"
+    },
+    "Time Operations": {
+        "prefix": "time_ops",
+        "body": [
+            "- name: \"$1:Add time\"",
+            "  action: time",
+            "  args: [\"$2:add\", \"$3:2024-01-01\", \"$4:24h\"]",
+            "  result: $5:future_date",
+            "",
+            "- name: \"$6:Format time\"",
+            "  action: time",
+            "  args: [\"$7:format\", \"$5:future_date\", \"$8:2006-01-02\"]",
+            "  result: $9:formatted_date"
+        ],
+        "description": "Add time manipulation operations"
+    },
+    "Test Suite": {
+        "prefix": "testsuite",
+        "body": [
+            "testsuite: \"$1:Test Suite Name\"",
+            "description: \"$2:Description of the test suite\"",
+            "parallel: $3:false",
+            "options:",
+            "  max_concurrency: $4:3",
+            "",
+            "variables:",
+            "  regular:",
+            "    api_url: \"$5:https://api.example.com\"",
+            "    default_user: \"$6:suiteuser\"",
+            "  secrets:",
+            "    api_key:",
+            "      file: \"$7:secret.txt\"",
+            "      mask_output: true",
+            "",
+            "setup:",
+            "  - name: \"$8:Suite Setup\"",
+            "    action: log",
+            "    args: [\"$9:Setting up the test suite\"]",
+            "",
+            "testcases:",
+            "  - file: $10:test1.robogo",
+            "  - file: $11:test2.robogo",
+            "",
+            "teardown:",
+            "  - name: \"$12:Suite Teardown\"",
+            "    action: log",
+            "    args: [\"$13:Cleaning up after test suite\"]"
+        ],
+        "description": "Create a test suite with multiple test cases"
+    },
+    "Conditional Skip": {
+        "prefix": "skip_conditional",
+        "body": [
+            "- name: \"$1:Conditional Step\"",
+            "  action: log",
+            "  args: [\"$2:This step runs conditionally\"]",
+            "  skip: \"$3:\\${environment} == 'prod'\""
+        ],
+        "description": "Add a step that skips based on a condition"
     }
 }

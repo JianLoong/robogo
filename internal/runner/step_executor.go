@@ -58,6 +58,19 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	output, err := executeStepWithRetry(tr, step, substitutedArgs, executor, silent)
 	stepDuration := time.Since(stepStart)
 
+	// Handle skip action error
+	if actions.IsSkipError(err) {
+		stepResult := parser.StepResult{
+			Step:      step,
+			Status:    "SKIPPED",
+			Duration:  stepDuration,
+			Output:    output,
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		}
+		return &stepResult, err // propagate skip error up
+	}
+
 	// Get verbosity level for this step
 	verbosityLevel := parser.GetVerbosityLevel(&step, testCase)
 

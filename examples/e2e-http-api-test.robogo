@@ -1,0 +1,143 @@
+testcase: "HTTP API Comprehensive Test"
+description: "Demonstrates advanced HTTP operations including GET, POST, PUT, DELETE, authentication, headers, and response validation"
+
+steps:
+  - name: "Test Setup - Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: test_start_time
+  
+  - name: "Log Test Start"
+    action: log
+    args: ["🌐 Starting HTTP API Comprehensive Test at ${test_start_time}"]
+  
+  - name: "Generate Random User ID"
+    action: get_random
+    args: [1, 100]
+    result: random_user_id
+  
+  - name: "HTTP GET - Fetch User Data"
+    action: http_get
+    args: ["${api_base_url}/users/${random_user_id}"]
+    result: user_response
+  
+  - name: "Validate User Response Status"
+    action: assert
+    args: ["${user_response.status_code}", "==", "200", "User API should return 200"]
+  
+  - name: "Validate User Response Structure"
+    action: assert
+    args: ["${user_response.body}", "contains", "id", "User response should contain id field"]
+  
+  - name: "Extract User Email"
+    action: variable
+    args: ["set", "user_email", "${user_response.body.email}"]
+  
+  - name: "HTTP POST - Create New Post"
+    action: http_post
+    args: [
+      "${api_base_url}/posts",
+      '{"title": "Test Post from Robogo", "body": "This is a test post created by Robogo E2E test", "userId": ${random_user_id}}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: post_response
+  
+  - name: "Validate Post Creation Response"
+    action: assert
+    args: ["${post_response.status_code}", "==", "201", "Post creation should return 201"]
+  
+  - name: "Extract Created Post ID"
+    action: variable
+    args: ["set", "created_post_id", "${post_response.body.id}"]
+  
+  - name: "HTTP PUT - Update Post"
+    action: http
+    args: [
+      "PUT",
+      "${api_base_url}/posts/${created_post_id}",
+      '{"title": "Updated Post from Robogo", "body": "This post was updated by Robogo E2E test", "userId": ${random_user_id}}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: update_response
+  
+  - name: "Validate Update Response"
+    action: assert
+    args: ["${update_response.status_code}", "==", "200", "Post update should return 200"]
+  
+  - name: "HTTP GET - Fetch Updated Post"
+    action: http_get
+    args: ["${api_base_url}/posts/${created_post_id}"]
+    result: updated_post_response
+  
+  - name: "Validate Updated Post Title"
+    action: assert
+    args: ["${updated_post_response.body.title}", "contains", "Updated Post", "Post title should be updated"]
+  
+  - name: "HTTP DELETE - Delete Post"
+    action: http
+    args: [
+      "DELETE",
+      "${api_base_url}/posts/${created_post_id}",
+      "",
+      {"Authorization": "Bearer ${api_key}"}
+    ]
+    result: delete_response
+  
+  - name: "Validate Delete Response"
+    action: assert
+    args: ["${delete_response.status_code}", "==", "200", "Post deletion should return 200"]
+  
+  - name: "HTTP GET - Verify Post Deletion"
+    action: http_get
+    args: ["${api_base_url}/posts/${created_post_id}"]
+    result: verify_delete_response
+  
+  - name: "Validate Post Not Found"
+    action: assert
+    args: ["${verify_delete_response.status_code}", "==", "404", "Deleted post should return 404"]
+  
+  - name: "HTTP Batch Request - Multiple Operations"
+    action: http
+    args: [
+      "POST",
+      "${api_base_url}/posts",
+      '{"requests": [{"method": "GET", "url": "${api_base_url}/users/1"}, {"method": "GET", "url": "${api_base_url}/users/2"}, {"method": "GET", "url": "${api_base_url}/users/3"}]}',
+      {"Content-Type": "application/json"}
+    ]
+    result: batch_response
+  
+  - name: "Validate Batch Response"
+    action: assert
+    args: ["${batch_response.status_code}", "==", "200", "Batch request should return 200"]
+  
+  - name: "Test Error Handling - Invalid User ID"
+    action: http_get
+    args: ["${api_base_url}/users/999999"]
+    result: error_response
+  
+  - name: "Validate Error Response"
+    action: assert
+    args: ["${error_response.status_code}", "==", "404", "Invalid user should return 404"]
+  
+  - name: "Calculate Test Duration"
+    action: get_time
+    args: ["iso"]
+    result: test_end_time
+  
+  - name: "Set Test Duration"
+    action: variable
+    args: ["set", "test_duration", "calculated"]
+  
+  - name: "Log Test Completion"
+    action: log
+    args: ["✅ HTTP API Comprehensive Test completed successfully in ${test_duration}"]
+  
+  - name: "Log Test Summary"
+    action: log
+    args: [
+      "📊 Test Summary:",
+      "  - Created user ID: ${random_user_id}",
+      "  - Created post ID: ${created_post_id}",
+      "  - User email: ${user_email}",
+      "  - All HTTP operations completed successfully"
+    ] 

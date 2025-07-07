@@ -247,11 +247,11 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 		}
 
 		if err != nil {
-			// Check if this is a skip error - this should be treated as a failure, not a skip
-			if actions.IsSkipError(err) {
-				caseResult.Status = "failed"
-				caseResult.Error = err.Error()
-				fmt.Printf("❌ Test case failed due to skip action: %v\n", err)
+			// Check if this is a skip error - this should be treated as a skipped test case
+			if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
+				caseResult.Status = "skipped"
+				caseResult.Error = testResult.ErrorMessage
+				fmt.Printf("⏭️ Test case skipped: %s\n", testCase.Name)
 			} else {
 				caseResult.Status = "failed"
 				caseResult.Error = err.Error()
@@ -351,15 +351,15 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 			}
 
 			if err != nil {
-				// Check if this is a skip error - this should be treated as a failure, not a skip
-				if actions.IsSkipError(err) {
-					caseResult.Status = "failed"
-					caseResult.Error = err.Error()
-					fmt.Printf("❌ Test case %d failed due to skip action: %v\n", index+1, err)
+				// Check if this is a skip error - this should be treated as a skipped test case
+				if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
+					caseResult.Status = "skipped"
+					caseResult.Error = testResult.ErrorMessage
+					fmt.Printf("⏭️ Test case skipped: %s\n", tc.Name)
 				} else {
 					caseResult.Status = "failed"
 					caseResult.Error = err.Error()
-					fmt.Printf("❌ Test case %d failed: %v\n", index+1, err)
+					fmt.Printf("❌ Test case failed: %v\n", err)
 				}
 				// After running the test case, print all step statuses and errors
 				if testResult != nil {

@@ -182,6 +182,10 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 	for idx, step := range steps {
 		stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, idx)
 		if err != nil {
+			if actions.IsSkipError(err) {
+				*stepResults = append(*stepResults, *stepResult)
+				return err // propagate skip error up
+			}
 			if step.ContinueOnFailure {
 				// Log and continue to next step
 				if !silent {

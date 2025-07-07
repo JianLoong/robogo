@@ -1,0 +1,276 @@
+testcase: "Database Comprehensive Test"
+description: "Demonstrates advanced PostgreSQL operations including CRUD operations, transactions, complex queries, and data validation"
+
+steps:
+  - name: "Test Setup - Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: db_test_start_time
+  
+  - name: "Log Database Test Start"
+    action: log
+    args: ["🗄️ Starting Database Comprehensive Test at ${db_test_start_time}"]
+  
+  - name: "Generate Random Table Suffix"
+    action: get_random
+    args: [1000, 9999]
+    result: table_suffix
+  
+  - name: "Set Unique Table Name"
+    action: variable
+    args: ["set", "unique_table_name", "${test_table_name}_${table_suffix}"]
+  
+  - name: "Database Connection Test"
+    action: postgres
+    args: ["connect", "${database_url}"]
+    result: connection_test
+  
+  - name: "Validate Database Connection"
+    action: assert
+    args: ["${connection_test.success}", "==", "true", "Database connection should be successful"]
+  
+  - name: "Create Test Table"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "CREATE TABLE IF NOT EXISTS ${unique_table_name} (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        full_name VARCHAR(100),
+        age INTEGER,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )"
+    ]
+    result: create_table_result
+  
+  - name: "Validate Table Creation"
+    action: assert
+    args: ["${create_table_result.success}", "==", "true", "Table creation should be successful"]
+  
+  - name: "Insert Single Test User"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "INSERT INTO ${unique_table_name} (username, email, full_name, age) VALUES ('testuser1', 'test1@robogo.com', 'Test User One', 25)"
+    ]
+    result: insert_single_result
+  
+  - name: "Validate Single Insert"
+    action: assert
+    args: ["${insert_single_result.success}", "==", "true", "Single user insert should be successful"]
+  
+  - name: "Insert Multiple Test Users"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "INSERT INTO ${unique_table_name} (username, email, full_name, age) VALUES 
+        ('testuser2', 'test2@robogo.com', 'Test User Two', 30),
+        ('testuser3', 'test3@robogo.com', 'Test User Three', 35),
+        ('testuser4', 'test4@robogo.com', 'Test User Four', 28),
+        ('testuser5', 'test5@robogo.com', 'Test User Five', 32)"
+    ]
+    result: insert_multiple_result
+  
+  - name: "Validate Multiple Insert"
+    action: assert
+    args: ["${insert_multiple_result.success}", "==", "true", "Multiple users insert should be successful"]
+  
+  - name: "Query All Users"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT id, username, email, full_name, age, is_active FROM ${unique_table_name} ORDER BY id"
+    ]
+    result: query_all_result
+  
+  - name: "Validate Query Result"
+    action: assert
+    args: ["${query_all_result.success}", "==", "true", "Query should be successful"]
+  
+  - name: "Validate User Count"
+    action: assert
+    args: ["${query_all_result.row_count}", "==", "5", "Should have 5 users in the table"]
+  
+  - name: "Query Specific User"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT * FROM ${unique_table_name} WHERE username = 'testuser1'"
+    ]
+    result: query_specific_result
+  
+  - name: "Validate Specific User Query"
+    action: assert
+    args: ["${query_specific_result.success}", "==", "true", "Specific user query should be successful"]
+  
+  - name: "Validate User Data"
+    action: assert
+    args: ["${query_specific_result.rows[0].email}", "==", "test1@robogo.com", "User email should match"]
+  
+  - name: "Update User Information"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "UPDATE ${unique_table_name} SET full_name = 'Updated Test User One', age = 26, updated_at = CURRENT_TIMESTAMP WHERE username = 'testuser1'"
+    ]
+    result: update_result
+  
+  - name: "Validate Update"
+    action: assert
+    args: ["${update_result.success}", "==", "true", "User update should be successful"]
+  
+  - name: "Verify Updated User"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT full_name, age FROM ${unique_table_name} WHERE username = 'testuser1'"
+    ]
+    result: verify_update_result
+  
+  - name: "Validate Updated Data"
+    action: assert
+    args: ["${verify_update_result.rows[0].full_name}", "==", "Updated Test User One", "Updated name should match"]
+  
+  - name: "Complex Query with Aggregation"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT 
+        COUNT(*) as total_users,
+        AVG(age) as average_age,
+        MIN(age) as min_age,
+        MAX(age) as max_age
+       FROM ${unique_table_name} WHERE is_active = true"
+    ]
+    result: aggregation_result
+  
+  - name: "Validate Aggregation Query"
+    action: assert
+    args: ["${aggregation_result.success}", "==", "true", "Aggregation query should be successful"]
+  
+  - name: "Validate Total Users Count"
+    action: assert
+    args: ["${aggregation_result.rows[0].total_users}", "==", "5", "Should have 5 active users"]
+  
+  - name: "Test Transaction - Rollback"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "BEGIN; INSERT INTO ${unique_table_name} (username, email, full_name, age) VALUES ('rollback_user', 'rollback@robogo.com', 'Rollback User', 40); ROLLBACK;"
+    ]
+    result: rollback_result
+  
+  - name: "Validate Rollback Transaction"
+    action: assert
+    args: ["${rollback_result.success}", "==", "true", "Rollback transaction should be successful"]
+  
+  - name: "Verify Rollback - User Should Not Exist"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT COUNT(*) as count FROM ${unique_table_name} WHERE username = 'rollback_user'"
+    ]
+    result: verify_rollback_result
+  
+  - name: "Validate Rollback Verification"
+    action: assert
+    args: ["${verify_rollback_result.rows[0].count}", "==", "0", "Rollback user should not exist"]
+  
+  - name: "Test Transaction - Commit"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "BEGIN; INSERT INTO ${unique_table_name} (username, email, full_name, age) VALUES ('commit_user', 'commit@robogo.com', 'Commit User', 45); COMMIT;"
+    ]
+    result: commit_result
+  
+  - name: "Validate Commit Transaction"
+    action: assert
+    args: ["${commit_result.success}", "==", "true", "Commit transaction should be successful"]
+  
+  - name: "Verify Commit - User Should Exist"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT COUNT(*) as count FROM ${unique_table_name} WHERE username = 'commit_user'"
+    ]
+    result: verify_commit_result
+  
+  - name: "Validate Commit Verification"
+    action: assert
+    args: ["${verify_commit_result.rows[0].count}", "==", "1", "Commit user should exist"]
+  
+  - name: "Delete Specific User"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "DELETE FROM ${unique_table_name} WHERE username = 'testuser2'"
+    ]
+    result: delete_result
+  
+  - name: "Validate Delete"
+    action: assert
+    args: ["${delete_result.success}", "==", "true", "User deletion should be successful"]
+  
+  - name: "Verify Deletion"
+    action: postgres
+    args: [
+      "query",
+      "${database_url}",
+      "SELECT COUNT(*) as count FROM ${unique_table_name} WHERE username = 'testuser2'"
+    ]
+    result: verify_delete_result
+  
+  - name: "Validate Deletion Verification"
+    action: assert
+    args: ["${verify_delete_result.rows[0].count}", "==", "0", "Deleted user should not exist"]
+  
+  - name: "Cleanup - Drop Test Table"
+    action: postgres
+    args: [
+      "execute",
+      "${database_url}",
+      "DROP TABLE IF EXISTS ${unique_table_name}"
+    ]
+    result: cleanup_result
+  
+  - name: "Validate Cleanup"
+    action: assert
+    args: ["${cleanup_result.success}", "==", "true", "Table cleanup should be successful"]
+  
+  - name: "Get Test End Time"
+    action: get_time
+    args: ["iso"]
+    result: db_test_end_time
+  
+  - name: "Log Database Test Completion"
+    action: log
+    args: ["✅ Database Comprehensive Test completed successfully"]
+  
+  - name: "Log Database Test Summary"
+    action: log
+    args: [
+      "📊 Database Test Summary:",
+      "  - Table created: ${unique_table_name}",
+      "  - Users inserted: 5",
+      "  - Users updated: 1",
+      "  - Users deleted: 1",
+      "  - Transactions tested: 2",
+      "  - All CRUD operations successful"
+    ] 

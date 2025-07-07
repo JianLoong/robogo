@@ -1,0 +1,380 @@
+testcase: "Control Flow Comprehensive Test"
+description: "Demonstrates advanced control flow operations including loops, conditionals, error handling, and complex logic"
+
+steps:
+  - name: "Test Setup - Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: control_test_start_time
+  
+  - name: "Log Control Flow Test Start"
+    action: log
+    args: ["🔄 Starting Control Flow Comprehensive Test at ${control_test_start_time}"]
+  
+  - name: "Generate Random Test ID"
+    action: get_random
+    args: [1000, 9999]
+    result: control_test_id
+  
+  - name: "Set Test ID Variable"
+    action: variable
+    args: ["set", "control_test_id", "${control_test_id}"]
+  
+  - name: "Initialize Counter Variable"
+    action: variable
+    args: ["set", "counter", "0"]
+  
+  - name: "Initialize Success Counter"
+    action: variable
+    args: ["set", "success_count", "0"]
+  
+  - name: "Initialize Error Counter"
+    action: variable
+    args: ["set", "error_count", "0"]
+
+  # Basic Control Flow Tests
+  - name: "Test Simple Conditional - True Condition"
+    action: control
+    args: [
+      "if",
+      "${test_condition}",
+      "log",
+      ["Condition is true - proceeding with test ${control_test_id}"]
+    ]
+    result: simple_conditional_result
+  
+  - name: "Validate Simple Conditional"
+    action: assert
+    args: ["${simple_conditional_result.success}", "==", "true", "Simple conditional should be successful"]
+  
+  - name: "Test Simple Conditional - False Condition"
+    action: control
+    args: [
+      "if",
+      "${error_condition}",
+      "log",
+      ["This should not execute"]
+    ]
+    result: false_conditional_result
+  
+  - name: "Validate False Conditional"
+    action: assert
+    args: ["${false_conditional_result.success}", "==", "true", "False conditional should be successful (no execution)"]
+  
+  - name: "Test If-Else Conditional"
+    action: control
+    args: [
+      "if_else",
+      "${test_condition}",
+      "log",
+      ["True branch executed for test ${control_test_id}"],
+      "log",
+      ["False branch executed"]
+    ]
+    result: if_else_result
+  
+  - name: "Validate If-Else Conditional"
+    action: assert
+    args: ["${if_else_result.success}", "==", "true", "If-else conditional should be successful"]
+
+  # Loop Tests
+  - name: "Test For Loop - Fixed Count"
+    action: control
+    args: [
+      "for",
+      "${max_iterations}",
+      "variable",
+      ["set", "counter", "${counter + 1}"]
+    ]
+    result: for_loop_result
+  
+  - name: "Validate For Loop"
+    action: assert
+    args: ["${for_loop_result.success}", "==", "true", "For loop should be successful"]
+  
+  - name: "Validate Counter Value"
+    action: assert
+    args: ["${counter}", "==", "${max_iterations}", "Counter should equal max iterations"]
+  
+  - name: "Test While Loop - Condition Based"
+    action: control
+    args: [
+      "while",
+      "${counter > 0}",
+      "variable",
+      ["set", "counter", "${counter - 1}"]
+    ]
+    result: while_loop_result
+  
+  - name: "Validate While Loop"
+    action: assert
+    args: ["${while_loop_result.success}", "==", "true", "While loop should be successful"]
+  
+  - name: "Validate Counter After While Loop"
+    action: assert
+    args: ["${counter}", "==", "0", "Counter should be zero after while loop"]
+  
+  - name: "Test For Each Loop - Array Data"
+    action: control
+    args: [
+      "for_each",
+      "${loop_data}",
+      "log",
+      ["Processing item: ${item}"]
+    ]
+    result: for_each_result
+  
+  - name: "Validate For Each Loop"
+    action: assert
+    args: ["${for_each_result.success}", "==", "true", "For each loop should be successful"]
+
+  # Complex Control Flow Tests
+  - name: "Test Nested Conditionals"
+    action: control
+    args: [
+      "nested_if",
+      "${test_condition}",
+      "log",
+      ["Outer condition true"],
+      "control",
+      ["if", "${test_condition}", "log", ["Inner condition also true"]]
+    ]
+    result: nested_conditional_result
+  
+  - name: "Validate Nested Conditionals"
+    action: assert
+    args: ["${nested_conditional_result.success}", "==", "true", "Nested conditionals should be successful"]
+  
+  - name: "Test Loop with Conditional Break"
+    action: control
+    args: [
+      "for_with_break",
+      "10",
+      "variable",
+      ["set", "counter", "${counter + 1}"],
+      "control",
+      ["if", "${counter >= 3}", "break"]
+    ]
+    result: loop_with_break_result
+  
+  - name: "Validate Loop with Break"
+    action: assert
+    args: ["${loop_with_break_result.success}", "==", "true", "Loop with break should be successful"]
+  
+  - name: "Validate Counter After Break"
+    action: assert
+    args: ["${counter}", "==", "3", "Counter should be 3 after break"]
+  
+  - name: "Test Loop with Continue"
+    action: control
+    args: [
+      "for_with_continue",
+      "5",
+      "control",
+      ["if", "${counter % 2 == 0}", "continue"],
+      "variable",
+      ["set", "success_count", "${success_count + 1}"]
+    ]
+    result: loop_with_continue_result
+  
+  - name: "Validate Loop with Continue"
+    action: assert
+    args: ["${loop_with_continue_result.success}", "==", "true", "Loop with continue should be successful"]
+
+  # Error Handling Tests
+  - name: "Test Try-Catch Block - Success Case"
+    action: control
+    args: [
+      "try_catch",
+      "log",
+      ["This should execute successfully"],
+      "log",
+      ["Error handler should not execute"]
+    ]
+    result: try_catch_success_result
+  
+  - name: "Validate Try-Catch Success"
+    action: assert
+    args: ["${try_catch_success_result.success}", "==", "true", "Try-catch success should be successful"]
+  
+  - name: "Test Try-Catch Block - Error Case"
+    action: control
+    args: [
+      "try_catch",
+      "assert",
+      ["false", "==", "true", "This should fail"],
+      "variable",
+      ["set", "error_count", "${error_count + 1}"]
+    ]
+    result: try_catch_error_result
+  
+  - name: "Validate Try-Catch Error"
+    action: assert
+    args: ["${try_catch_error_result.success}", "==", "true", "Try-catch error should be successful"]
+  
+  - name: "Validate Error Counter"
+    action: assert
+    args: ["${error_count}", "==", "1", "Error counter should be incremented"]
+
+  # Advanced Control Flow Tests
+  - name: "Test Switch Statement"
+    action: control
+    args: [
+      "switch",
+      "2",
+      "1",
+      "log",
+      ["Case 1 executed"],
+      "2",
+      "log",
+      ["Case 2 executed"],
+      "default",
+      "log",
+      ["Default case executed"]
+    ]
+    result: switch_result
+  
+  - name: "Validate Switch Statement"
+    action: assert
+    args: ["${switch_result.success}", "==", "true", "Switch statement should be successful"]
+  
+  - name: "Test Parallel Execution"
+    action: control
+    args: [
+      "parallel",
+      "log",
+      ["Parallel task 1"],
+      "log",
+      ["Parallel task 2"],
+      "log",
+      ["Parallel task 3"]
+    ]
+    result: parallel_result
+  
+  - name: "Validate Parallel Execution"
+    action: assert
+    args: ["${parallel_result.success}", "==", "true", "Parallel execution should be successful"]
+  
+  - name: "Test Sequential Execution"
+    action: control
+    args: [
+      "sequential",
+      "variable",
+      ["set", "step1", "completed"],
+      "variable",
+      ["set", "step2", "completed"],
+      "variable",
+      ["set", "step3", "completed"]
+    ]
+    result: sequential_result
+  
+  - name: "Validate Sequential Execution"
+    action: assert
+    args: ["${sequential_result.success}", "==", "true", "Sequential execution should be successful"]
+  
+  - name: "Validate Sequential Steps"
+    action: assert
+    args: ["${step1}", "==", "completed", "Step 1 should be completed"]
+  
+  - name: "Validate Sequential Steps 2"
+    action: assert
+    args: ["${step2}", "==", "completed", "Step 2 should be completed"]
+  
+  - name: "Validate Sequential Steps 3"
+    action: assert
+    args: ["${step3}", "==", "completed", "Step 3 should be completed"]
+
+  # Data Processing Tests
+  - name: "Test Data Transformation Loop"
+    action: control
+    args: [
+      "for",
+      "3",
+      "variable",
+      ["set", "transformed_item_${counter}", "processed_${counter}"]
+    ]
+    result: data_transform_result
+  
+  - name: "Validate Data Transformation"
+    action: assert
+    args: ["${data_transform_result.success}", "==", "true", "Data transformation should be successful"]
+  
+  - name: "Test Conditional Data Processing"
+    action: control
+    args: [
+      "for_each",
+      "${loop_data}",
+      "control",
+      ["if", "${item contains 'item'}", "variable", ["set", "processed_${item}", "true"]]
+    ]
+    result: conditional_data_result
+  
+  - name: "Validate Conditional Data Processing"
+    action: assert
+    args: ["${conditional_data_result.success}", "==", "true", "Conditional data processing should be successful"]
+
+  # Performance and Timing Tests
+  - name: "Test Loop Performance"
+    action: control
+    args: [
+      "for",
+      "100",
+      "variable",
+      ["set", "performance_counter", "${performance_counter + 1}"]
+    ]
+    result: performance_result
+  
+  - name: "Validate Loop Performance"
+    action: assert
+    args: ["${performance_result.success}", "==", "true", "Loop performance should be successful"]
+  
+  - name: "Validate Performance Counter"
+    action: assert
+    args: ["${performance_counter}", "==", "100", "Performance counter should be 100"]
+  
+  - name: "Test Timeout Control"
+    action: control
+    args: [
+      "timeout",
+      "5",
+      "log",
+      ["This should complete within timeout"]
+    ]
+    result: timeout_result
+  
+  - name: "Validate Timeout Control"
+    action: assert
+    args: ["${timeout_result.success}", "==", "true", "Timeout control should be successful"]
+
+  # Final Validation and Cleanup
+  - name: "Calculate Final Statistics"
+    action: variable
+    args: ["set", "total_operations", "${success_count + error_count}"]
+  
+  - name: "Validate Final Statistics"
+    action: assert
+    args: ["${total_operations}", ">=", "1", "Should have at least one operation"]
+  
+  - name: "Get Test End Time"
+    action: get_time
+    args: ["iso"]
+    result: control_test_end_time
+  
+  - name: "Log Control Flow Test Completion"
+    action: log
+    args: ["✅ Control Flow Comprehensive Test completed successfully"]
+  
+  - name: "Log Control Flow Test Summary"
+    action: log
+    args: [
+      "📊 Control Flow Test Summary:",
+      "  - Test ID: ${control_test_id}",
+      "  - Loops Tested: 6 (for, while, for_each, with break/continue)",
+      "  - Conditionals Tested: 4 (if, if_else, nested, switch)",
+      "  - Error Handling: 2 (try_catch)",
+      "  - Execution Patterns: 3 (parallel, sequential, timeout)",
+      "  - Success Count: ${success_count}",
+      "  - Error Count: ${error_count}",
+      "  - Total Operations: ${total_operations}",
+      "  - All control flow operations successful"
+    ] 

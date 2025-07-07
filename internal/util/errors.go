@@ -98,41 +98,6 @@ func NewConfigurationError(message string, field string, value interface{}) *Rob
 	}
 }
 
-// NewNetworkError creates a new network error
-func NewNetworkError(message string, cause error, url string) *RobogoError {
-	return &RobogoError{
-		Type:    ErrorTypeNetwork,
-		Message: message,
-		Cause:   cause,
-		Details: map[string]interface{}{
-			"url": url,
-		},
-	}
-}
-
-// NewDatabaseError creates a new database error
-func NewDatabaseError(message string, cause error, operation string) *RobogoError {
-	return &RobogoError{
-		Type:    ErrorTypeDatabase,
-		Message: message,
-		Cause:   cause,
-		Details: map[string]interface{}{
-			"operation": operation,
-		},
-	}
-}
-
-// NewTimeoutError creates a new timeout error
-func NewTimeoutError(message string, duration string) *RobogoError {
-	return &RobogoError{
-		Type:    ErrorTypeTimeout,
-		Message: message,
-		Details: map[string]interface{}{
-			"timeout": duration,
-		},
-	}
-}
-
 // IsRobogoError checks if an error is a RobogoError
 func IsRobogoError(err error) bool {
 	_, ok := err.(*RobogoError)

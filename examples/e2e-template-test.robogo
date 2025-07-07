@@ -1,0 +1,305 @@
+testcase: "Template and String Operations Test"
+description: "Demonstrates advanced string operations, variable manipulation, and data transformation capabilities"
+
+steps:
+  - name: "Test Setup - Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: template_test_start_time
+  
+  - name: "Log Template Test Start"
+    action: log
+    args: ["📄 Starting Template and String Operations Test at ${template_test_start_time}"]
+  
+  - name: "Generate Random Transaction ID"
+    action: get_random
+    args: [100000000, 999999999]
+    result: transaction_id
+  
+  - name: "Set Transaction ID Variable"
+    action: variable
+    args: ["set", "transaction_id", "${transaction_id}"]
+  
+  - name: "Generate Current Date for SWIFT"
+    action: get_time
+    args: ["swift"]
+    result: swift_date
+  
+  - name: "Generate Current Time for SWIFT"
+    action: get_time
+    args: ["swift_time"]
+    result: swift_time
+  
+  - name: "Generate Random Amount"
+    action: get_random
+    args: [1000, 50000]
+    result: random_amount
+  
+  - name: "Format Amount for SWIFT"
+    action: variable
+    args: ["set", "formatted_amount", "${random_amount}.00"]
+  
+  - name: "Create MT103 Message Header"
+    action: concat
+    args: [
+      "MT103",
+      "${message_id}",
+      "${swift_bank_bic}",
+      "${receiver_bic}",
+      "${swift_date}",
+      "${swift_time}"
+    ]
+    result: mt103_header
+  
+  - name: "Create MT103 Message Body"
+    action: concat
+    args: [
+      "32A:${swift_date}${swift_currency}${formatted_amount}",
+      "50K:${sender_name}",
+      "59:${receiver_name}",
+      "71A:SHA",
+      "72:/ACC/${receiver_account}"
+    ]
+    result: mt103_body
+  
+  - name: "Combine MT103 Message"
+    action: concat
+    args: [
+      "${mt103_header}",
+      "${mt103_body}"
+    ]
+    result: mt103_message
+  
+  - name: "Validate MT103 Message Generation"
+    action: assert
+    args: ["${mt103_message}", "contains", "MT103", "MT103 message should contain message type"]
+  
+  - name: "Validate MT103 Amount"
+    action: assert
+    args: ["${mt103_message}", "contains", "${formatted_amount}", "MT103 message should contain correct amount"]
+  
+  - name: "Create MT202 Message Header"
+    action: concat
+    args: [
+      "MT202",
+      "MSG${transaction_id}",
+      "${swift_bank_bic}",
+      "${receiver_bic}",
+      "${swift_date}",
+      "${swift_time}"
+    ]
+    result: mt202_header
+  
+  - name: "Create MT202 Message Body"
+    action: concat
+    args: [
+      "32A:${swift_date}${swift_currency}${formatted_amount}",
+      "52A:${sender_account}",
+      "58A:${receiver_account}",
+      "72:/REF/${transfer_reference}"
+    ]
+    result: mt202_body
+  
+  - name: "Combine MT202 Message"
+    action: concat
+    args: [
+      "${mt202_header}",
+      "${mt202_body}"
+    ]
+    result: mt202_message
+  
+  - name: "Validate MT202 Message Generation"
+    action: assert
+    args: ["${mt202_message}", "contains", "MT202", "MT202 message should contain message type"]
+  
+  - name: "Create SEPA XML Header"
+    action: concat
+    args: [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">',
+      '<CstmrCdtTrfInitn>',
+      '<GrpHdr>',
+      '<MsgId>MSG${transaction_id}</MsgId>',
+      '<CreDtTm>${swift_date}</CreDtTm>',
+      '<NbOfTxs>1</NbOfTxs>',
+      '<CtrlSum>${formatted_amount}</CtrlSum>',
+      '</GrpHdr>'
+    ]
+    result: sepa_header
+  
+  - name: "Create SEPA XML Body"
+    action: concat
+    args: [
+      '<PmtInf>',
+      '<PmtInfId>PMT${transaction_id}</PmtInfId>',
+      '<PmtMtd>TRF</PmtMtd>',
+      '<BtchBookg>false</BtchBookg>',
+      '<NbOfTxs>1</NbOfTxs>',
+      '<CtrlSum>${formatted_amount}</CtrlSum>',
+      '<PmtTpInf>',
+      '<SvcLvl>',
+      '<Cd>SEPA</Cd>',
+      '</SvcLvl>',
+      '</PmtTpInf>',
+      '<ReqdExctnDt>${swift_date}</ReqdExctnDt>',
+      '<Dbtr>',
+      '<Nm>${sender_name}</Nm>',
+      '<PstlAdr>',
+      '<Ctry>DE</Ctry>',
+      '</PstlAdr>',
+      '</Dbtr>',
+      '<DbtrAcct>',
+      '<Id>',
+      '<IBAN>${sender_account}</IBAN>',
+      '</Id>',
+      '</DbtrAcct>',
+      '<DbtrAgt>',
+      '<FinInstnId>',
+      '<BIC>${swift_bank_bic}</BIC>',
+      '</FinInstnId>',
+      '</DbtrAgt>',
+      '<CdtTrfTxInf>',
+      '<PmtId>',
+      '<InstrId>INSTR${transaction_id}</InstrId>',
+      '<EndToEndId>E2E${transaction_id}</EndToEndId>',
+      '</PmtId>',
+      '<Amt>',
+      '<InstdAmt Ccy="${swift_currency}">${formatted_amount}</InstdAmt>',
+      '</Amt>',
+      '<CdtrAgt>',
+      '<FinInstnId>',
+      '<BIC>${receiver_bic}</BIC>',
+      '</FinInstnId>',
+      '</CdtrAgt>',
+      '<Cdtr>',
+      '<Nm>${receiver_name}</Nm>',
+      '<PstlAdr>',
+      '<Ctry>FR</Ctry>',
+      '</PstlAdr>',
+      '</Cdtr>',
+      '<CdtrAcct>',
+      '<Id>',
+      '<IBAN>${receiver_account}</IBAN>',
+      '</Id>',
+      '</CdtrAcct>',
+      '<RmtInf>',
+      '<Ustrd>Payment for ${transfer_reference}</Ustrd>',
+      '</RmtInf>',
+      '</CdtTrfTxInf>',
+      '</PmtInf>',
+      '</CstmrCdtTrfInitn>',
+      '</Document>'
+    ]
+    result: sepa_body
+  
+  - name: "Combine SEPA XML Message"
+    action: concat
+    args: [
+      "${sepa_header}",
+      "${sepa_body}"
+    ]
+    result: sepa_message
+  
+  - name: "Validate SEPA Message Generation"
+    action: assert
+    args: ["${sepa_message}", "contains", "Document", "SEPA message should contain Document element"]
+  
+  - name: "Validate SEPA Amount"
+    action: assert
+    args: ["${sepa_message}", "contains", "${formatted_amount}", "SEPA message should contain correct amount"]
+  
+  - name: "Test String Length Operations"
+    action: length
+    args: ["${mt103_message}"]
+    result: mt103_length
+  
+  - name: "Validate MT103 Message Length"
+    action: assert
+    args: ["${mt103_length}", ">", "50", "MT103 message should have reasonable length"]
+  
+  - name: "Test String Length for SEPA"
+    action: length
+    args: ["${sepa_message}"]
+    result: sepa_length
+  
+  - name: "Validate SEPA Message Length"
+    action: assert
+    args: ["${sepa_length}", ">", "500", "SEPA message should have substantial length"]
+  
+  - name: "Create Complex Message with Multiple Variables"
+    action: concat
+    args: [
+      "Complex payment message:",
+      "ID: ${transaction_id}",
+      "Date: ${swift_date}",
+      "Time: ${swift_time}",
+      "Amount: ${formatted_amount} ${swift_currency}",
+      "From: ${sender_name} (${sender_account})",
+      "To: ${receiver_name} (${receiver_account})",
+      "Reference: ${transfer_reference}"
+    ]
+    result: complex_message
+  
+  - name: "Validate Complex Message"
+    action: assert
+    args: ["${complex_message}", "contains", "${transaction_id}", "Complex message should contain transaction ID"]
+  
+  - name: "Test String Concatenation with Arrays"
+    action: concat
+    args: [
+      "Payment tags:",
+      "urgent",
+      "international",
+      "high_value",
+      "session_${transaction_id}"
+    ]
+    result: array_message
+  
+  - name: "Validate Array Message"
+    action: assert
+    args: ["${array_message}", "contains", "urgent", "Array message should contain tags"]
+  
+  - name: "Test Error Handling - Invalid String Operation"
+    action: length
+    args: [""]
+    result: empty_string_result
+  
+  - name: "Validate Empty String Handling"
+    action: assert
+    args: ["${empty_string_result}", "==", "0", "Empty string should have length 0"]
+  
+  - name: "Create Nested Object Representation"
+    action: concat
+    args: [
+      '{"sender": {"name": "${sender_name}", "account": "${sender_account}", "details": {"type": "individual", "country": "DE"}},',
+      '"receiver": {"name": "${receiver_name}", "account": "${receiver_account}", "details": {"type": "business", "country": "FR"}},',
+      '"transaction": {"id": "${transaction_id}", "amount": "${formatted_amount}", "currency": "${swift_currency}", "reference": "${transfer_reference}"}}'
+    ]
+    result: nested_object_message
+  
+  - name: "Validate Nested Object Message"
+    action: assert
+    args: ["${nested_object_message}", "contains", "${sender_name}", "Nested object should contain sender name"]
+  
+  - name: "Get Test End Time"
+    action: get_time
+    args: ["iso"]
+    result: template_test_end_time
+  
+  - name: "Log Template Test Completion"
+    action: log
+    args: ["✅ Template and String Operations Test completed successfully"]
+  
+  - name: "Log Template Test Summary"
+    action: log
+    args: [
+      "📊 Template Test Summary:",
+      "  - SWIFT Messages Generated: 2 (MT103, MT202)",
+      "  - SEPA Transfer Generated: 1",
+      "  - Complex Messages: 3",
+      "  - Transaction ID: ${transaction_id}",
+      "  - Amount: ${formatted_amount} ${swift_currency}",
+      "  - MT103 Length: ${mt103_length}",
+      "  - SEPA Length: ${sepa_length}",
+      "  - All string operations successful"
+    ] 

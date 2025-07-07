@@ -1,0 +1,277 @@
+testcase: "Messaging and Data Flow Test"
+description: "Demonstrates messaging-like operations using HTTP requests, data transformation, and flow control"
+
+steps:
+  - name: "Test Setup - Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: messaging_test_start_time
+  
+  - name: "Log Messaging Test Start"
+    action: log
+    args: ["📨 Starting Messaging and Data Flow Test at ${messaging_test_start_time}"]
+  
+  - name: "Generate Random Session ID"
+    action: get_random
+    args: [100000, 999999]
+    result: messaging_session_id
+  
+  - name: "Set Session ID Variable"
+    action: variable
+    args: ["set", "messaging_session_id", "${messaging_session_id}"]
+  
+  - name: "Generate Test Message Data"
+    action: variable
+    args: ["set", "test_message", "Hello from Robogo E2E test session ${messaging_session_id}"]
+  
+  - name: "Generate JSON Test Message"
+    action: variable
+    args: ["set", "json_message", '{"session_id": "${messaging_session_id}", "timestamp": "${messaging_test_start_time}", "message": "JSON test message from Robogo", "type": "test"}']
+  
+  - name: "Initialize Message Counter"
+    action: variable
+    args: ["set", "message_counter", "0"]
+  
+  - name: "Initialize Success Counter"
+    action: variable
+    args: ["set", "success_count", "0"]
+
+  # Simulate Message Publishing via HTTP
+  - name: "Simulate Message Publish - Single Message"
+    action: http_post
+    args: [
+      "${api_base_url}/messages",
+      '{"topic": "${test_topic}", "message": "${test_message}", "session_id": "${messaging_session_id}"}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: message_publish_result
+  
+  - name: "Validate Message Publish"
+    action: assert
+    args: ["${message_publish_result.status_code}", "==", "201", "Message publish should return 201"]
+  
+  - name: "Increment Message Counter"
+    action: variable
+    args: ["set", "message_counter", "${message_counter + 1}"]
+  
+  - name: "Simulate Message Publish - JSON Message"
+    action: http_post
+    args: [
+      "${api_base_url}/messages",
+      '{"topic": "${test_topic}", "message": ${json_message}, "session_id": "${messaging_session_id}"}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: json_publish_result
+  
+  - name: "Validate JSON Message Publish"
+    action: assert
+    args: ["${json_publish_result.status_code}", "==", "201", "JSON message publish should return 201"]
+  
+  - name: "Increment Message Counter Again"
+    action: variable
+    args: ["set", "message_counter", "${message_counter + 1}"]
+  
+  - name: "Simulate Batch Message Publish"
+    action: http_post
+    args: [
+      "${api_base_url}/messages/batch",
+      '{
+        "topic": "${test_topic}",
+        "messages": [
+          {"key": "batch-key-1", "value": "Batch message 1 from session ${messaging_session_id}"},
+          {"key": "batch-key-2", "value": "Batch message 2 from session ${messaging_session_id}"},
+          {"key": "batch-key-3", "value": "Batch message 3 from session ${messaging_session_id}"}
+        ],
+        "session_id": "${messaging_session_id}"
+      }',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: batch_publish_result
+  
+  - name: "Validate Batch Message Publish"
+    action: assert
+    args: ["${batch_publish_result.status_code}", "==", "201", "Batch message publish should return 201"]
+  
+  - name: "Increment Message Counter for Batch"
+    action: variable
+    args: ["set", "message_counter", "${message_counter + 3}"]
+
+  # Simulate Message Consumption via HTTP
+  - name: "Simulate Message Consumption"
+    action: http_get
+    args: ["${api_base_url}/messages/${test_topic}?limit=5&session_id=${messaging_session_id}"]
+    result: message_consume_result
+  
+  - name: "Validate Message Consumption"
+    action: assert
+    args: ["${message_consume_result.status_code}", "==", "200", "Message consumption should return 200"]
+  
+  - name: "Validate Consumed Message Count"
+    action: assert
+    args: ["${message_consume_result.body}", "contains", "messages", "Response should contain messages"]
+  
+  - name: "Simulate Queue Information Request"
+    action: http_get
+    args: ["${api_base_url}/queues/${test_queue}?session_id=${messaging_session_id}"]
+    result: queue_info_result
+  
+  - name: "Validate Queue Information"
+    action: assert
+    args: ["${queue_info_result.status_code}", "==", "200", "Queue information should return 200"]
+
+  # Data Flow and Transformation Tests
+  - name: "Create Message Processing Pipeline"
+    action: concat
+    args: [
+      "Processing pipeline for session ${messaging_session_id}:",
+      "1. Message received",
+      "2. Validation completed",
+      "3. Transformation applied",
+      "4. Storage confirmed"
+    ]
+    result: processing_pipeline
+  
+  - name: "Validate Processing Pipeline"
+    action: assert
+    args: ["${processing_pipeline}", "contains", "Processing pipeline", "Pipeline should be created"]
+  
+  - name: "Simulate Message Transformation"
+    action: concat
+    args: [
+      '{"original_message": "${test_message}",',
+      '"transformed": {',
+      '"session_id": "${messaging_session_id}",',
+      '"timestamp": "${messaging_test_start_time}",',
+      '"processed": true,',
+      '"metadata": {"source": "robogo", "type": "test"}}'
+    ]
+    result: transformed_message
+  
+  - name: "Validate Message Transformation"
+    action: assert
+    args: ["${transformed_message}", "contains", "transformed", "Message should be transformed"]
+  
+  - name: "Simulate Message Routing"
+    action: http_post
+    args: [
+      "${api_base_url}/messages/route",
+      '{"message": ${transformed_message}, "routes": ["queue1", "queue2", "topic1"], "session_id": "${messaging_session_id}"}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: message_routing_result
+  
+  - name: "Validate Message Routing"
+    action: assert
+    args: ["${message_routing_result.status_code}", "==", "200", "Message routing should return 200"]
+
+  # Error Handling and Recovery Tests
+  - name: "Test Error Handling - Invalid Topic"
+    action: http_post
+    args: [
+      "${api_base_url}/messages",
+      '{"topic": "invalid-topic-${messaging_session_id}", "message": "test message", "session_id": "${messaging_session_id}"}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: error_handling_result
+  
+  - name: "Validate Error Handling"
+    action: assert
+    args: ["${error_handling_result.status_code}", "==", "400", "Invalid topic should return 400"]
+  
+  - name: "Simulate Message Recovery"
+    action: http_post
+    args: [
+      "${api_base_url}/messages/recover",
+      '{"session_id": "${messaging_session_id}", "failed_messages": ["msg1", "msg2"]}',
+      {"Content-Type": "application/json", "Authorization": "Bearer ${api_key}"}
+    ]
+    result: recovery_result
+  
+  - name: "Validate Message Recovery"
+    action: assert
+    args: ["${recovery_result.status_code}", "==", "200", "Message recovery should return 200"]
+
+  # Performance and Monitoring Tests
+  - name: "Simulate Performance Monitoring"
+    action: http_get
+    args: ["${api_base_url}/metrics?session_id=${messaging_session_id}"]
+    result: metrics_result
+  
+  - name: "Validate Performance Monitoring"
+    action: assert
+    args: ["${metrics_result.status_code}", "==", "200", "Performance monitoring should return 200"]
+  
+  - name: "Simulate Health Check"
+    action: http_get
+    args: ["${api_base_url}/health?session_id=${messaging_session_id}"]
+    result: health_check_result
+  
+  - name: "Validate Health Check"
+    action: assert
+    args: ["${health_check_result.status_code}", "==", "200", "Health check should return 200"]
+
+  # Data Validation and Quality Tests
+  - name: "Validate Message Format"
+    action: length
+    args: ["${test_message}"]
+    result: message_length
+  
+  - name: "Validate Message Length"
+    action: assert
+    args: ["${message_length}", ">", "10", "Message should have reasonable length"]
+  
+  - name: "Validate JSON Message Structure"
+    action: length
+    args: ["${json_message}"]
+    result: json_length
+  
+  - name: "Validate JSON Length"
+    action: assert
+    args: ["${json_length}", ">", "50", "JSON message should have substantial length"]
+
+  # Final Statistics and Cleanup
+  - name: "Calculate Final Statistics"
+    action: variable
+    args: ["set", "total_messages", "${message_counter}"]
+  
+  - name: "Validate Final Statistics"
+    action: assert
+    args: ["${total_messages}", "==", "5", "Should have processed 5 messages"]
+  
+  - name: "Simulate Cleanup Operation"
+    action: http
+    args: [
+      "DELETE",
+      "${api_base_url}/messages/${test_topic}?session_id=${messaging_session_id}",
+      "",
+      {"Authorization": "Bearer ${api_key}"}
+    ]
+    result: cleanup_result
+  
+  - name: "Validate Cleanup Operation"
+    action: assert
+    args: ["${cleanup_result.status_code}", "==", "200", "Cleanup should return 200"]
+  
+  - name: "Get Test End Time"
+    action: get_time
+    args: ["iso"]
+    result: messaging_test_end_time
+  
+  - name: "Log Messaging Test Completion"
+    action: log
+    args: ["✅ Messaging and Data Flow Test completed successfully"]
+  
+  - name: "Log Messaging Test Summary"
+    action: log
+    args: [
+      "📊 Messaging Test Summary:",
+      "  - Session ID: ${messaging_session_id}",
+      "  - Messages Published: ${total_messages}",
+      "  - HTTP Operations: 10 (publish, consume, route, monitor)",
+      "  - Data Transformations: 3",
+      "  - Error Handling: 2",
+      "  - Test Topic: ${test_topic}",
+      "  - Message Length: ${message_length}",
+      "  - JSON Length: ${json_length}",
+      "  - All messaging operations successful"
+    ] 

@@ -92,7 +92,20 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	var err error
 	err = executeStepsWithConfig(engine.runner, testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
 	if err != nil {
-		// Error occurred during step execution
+		if actions.IsSkipError(err) {
+			result.Status = "SKIPPED"
+			// Set skip reason from the first skipped step
+			for _, sr := range result.StepResults {
+				if sr.Status == "SKIPPED" {
+					result.ErrorMessage = sr.Error
+					break
+				}
+			}
+			// Skip TDM teardown for skipped tests
+			engine.calculateTestResults(result, startTime)
+			return result, nil
+		}
+		// Error occurred during step execution (not skip)
 	}
 
 	// Execute TDM teardown if configured

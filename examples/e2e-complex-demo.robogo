@@ -1,0 +1,126 @@
+testsuite: "E2E Complex Demo Suite"
+description: "Comprehensive demonstration of Robogo's advanced features including templates, database operations, HTTP requests, messaging, and complex control flow"
+parallel: false
+options:
+  max_concurrency: 3
+
+# --- Default variables for local/demo use ---
+variables:
+  vars:
+    api_base_url: "https://jsonplaceholder.typicode.com"  # Public demo API
+    database_url: "postgres://testuser:testpass@localhost:5432/testdb"  # Dummy local Postgres
+    kafka_brokers: "localhost:9092"
+    rabbitmq_url: "amqp://localhost"
+    swift_bank_bic: "DEUTDEFF"
+    swift_currency: "EUR"
+    test_amount: "1000.00"
+    test_user_count: 5
+  secrets:
+    api_key:
+      file: "secret.txt"
+      mask_output: true
+    database_password:
+      file: "db_secret.txt"
+      mask_output: true
+
+data_management:
+  environment: "demo"
+  isolation: true
+  cleanup: true
+  data_sets:
+    - name: "demo_users"
+      description: "Demo user data for testing"
+      version: "1.0"
+      data:
+        admin_user:
+          name: "Admin User"
+          email: "admin@demo.com"
+          role: "admin"
+          permissions: ["read", "write", "delete"]
+        regular_user:
+          name: "Regular User"
+          email: "user@demo.com"
+          role: "user"
+          permissions: ["read", "write"]
+        guest_user:
+          name: "Guest User"
+          email: "guest@demo.com"
+          role: "guest"
+          permissions: ["read"]
+      schema:
+        name: "string"
+        email: "email"
+        role: "string"
+        permissions: "array"
+      required: ["name", "email", "role"]
+      unique: ["email"]
+
+  validation:
+    - name: "email_validation"
+      type: "format"
+      field: "demo_users.admin_user.email"
+      rule: "email"
+      message: "User email must be valid"
+      severity: "error"
+
+setup:
+  - name: "Suite Setup - Initialize Demo Environment"
+    action: log
+    args: ["🚀 Starting E2E Complex Demo Suite"]
+  
+  - name: "Get Current Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: suite_start_time
+  
+  - name: "Log Suite Start Time"
+    action: log
+    args: ["Suite started at: ${suite_start_time}"]
+  
+  - name: "Generate Random Session ID"
+    action: get_random
+    args: [100000, 999999]
+    result: session_id
+  
+  - name: "Set Session ID Variable"
+    action: variable
+    args: ["set", "session_id", "${session_id}"]
+  
+  - name: "Load Demo Data Set"
+    action: tdm
+    args: ["load_dataset", "demo_users"]
+  
+  - name: "Generate Test Users"
+    action: tdm
+    args: ["generate", "user_{index}@demo.com", "${test_user_count}"]
+    result: generated_users
+
+testcases:
+  - file: e2e-http-api-test.robogo
+  - file: e2e-database-test.robogo
+  - file: e2e-template-test.robogo
+  - file: e2e-messaging-test.robogo
+  - file: e2e-control-flow-test.robogo
+
+teardown:
+  - name: "Suite Teardown - Cleanup Demo Environment"
+    action: log
+    args: ["🧹 Cleaning up E2E Complex Demo Suite"]
+  
+  - name: "Get End Timestamp"
+    action: get_time
+    args: ["iso"]
+    result: suite_end_time
+  
+  - name: "Calculate Suite Duration"
+    action: time
+    args: ["sub", "${suite_end_time}", "${suite_start_time}"]
+    result: suite_duration
+  
+  - name: "Log Suite Completion"
+    action: log
+    args: ["✅ E2E Complex Demo Suite completed in ${suite_duration}"]
+  
+  - name: "Cleanup Generated Data"
+    action: tdm
+    args: ["cleanup"] 

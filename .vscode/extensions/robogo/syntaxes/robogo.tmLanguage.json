@@ -18,6 +18,12 @@
             "include": "#actions"
         },
         {
+            "include": "#control_flow"
+        },
+        {
+            "include": "#tdm_elements"
+        },
+        {
             "include": "#var_keys"
         },
         {
@@ -25,6 +31,15 @@
         },
         {
             "include": "#numbers"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#http_methods"
+        },
+        {
+            "include": "#time_formats"
         }
     ],
     "repository": {
@@ -46,6 +61,10 @@
                         {
                             "name": "constant.character.escape.robogo",
                             "match": "\\\\."
+                        },
+                        {
+                            "name": "variable.other.robogo",
+                            "match": "\\$\\{[^}]+\\}"
                         }
                     ]
                 },
@@ -57,6 +76,10 @@
                         {
                             "name": "constant.character.escape.robogo",
                             "match": "\\\\."
+                        },
+                        {
+                            "name": "variable.other.robogo",
+                            "match": "\\$\\{[^}]+\\}"
                         }
                     ]
                 }
@@ -66,7 +89,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.robogo",
-                    "match": "\\b(testcase|description|steps|variables|verbose|name|action|args|result|if|for|while|then|else|retry|attempts|backoff|continue_on_failure|condition|var|secrets|data_management|environments|data_sets|validation|setup|teardown|isolation|cleanup|environment|schema|required|unique|relations|version|overrides|mask_output|value|file)\\b"
+                    "match": "\\b(testcase|description|steps|variables|verbose|name|action|args|result|retry|attempts|backoff|continue_on_failure|var|secrets|data_management|environments|data_sets|validation|setup|teardown|isolation|cleanup|environment|schema|required|unique|relations|version|overrides|mask_output|value|file|skip|condition|then|else|max_iterations|steps|parallel|options|max_concurrency|failfast|testsuite|testcases|regular)\\b"
                 }
             ]
         },
@@ -74,7 +97,23 @@
             "patterns": [
                 {
                     "name": "support.function.action.robogo",
-                    "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post|postgres|variable|control|tdm)\\b"
+                    "match": "\\b(log|sleep|assert|get_time|get_random|concat|length|http|http_get|http_post|postgres|variable|control|tdm|kafka|rabbitmq|spanner|template|interface|builtin|registry|secrets|skip|string|time)\\b"
+                }
+            ]
+        },
+        "control_flow": {
+            "patterns": [
+                {
+                    "name": "keyword.control.flow.robogo",
+                    "match": "\\b(if|for|while|then|else|break|continue|return)\\b"
+                }
+            ]
+        },
+        "tdm_elements": {
+            "patterns": [
+                {
+                    "name": "entity.name.tag.tdm.robogo",
+                    "match": "\\b(data_management|environments|data_sets|validation|setup|teardown|isolation|cleanup|environment|schema|required|unique|relations|version|overrides|testcases)\\b"
                 }
             ]
         },
@@ -99,6 +138,34 @@
                 {
                     "name": "constant.numeric.robogo",
                     "match": "\\b\\d+(\\.\\d+)?\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.comparison.robogo",
+                    "match": "\\b(==|!=|>|<|>=|<=|contains|starts_with|ends_with|in|not_in)\\b"
+                },
+                {
+                    "name": "keyword.operator.logical.robogo",
+                    "match": "\\b(and|or|not|&&|\\|\\|)\\b"
+                }
+            ]
+        },
+        "http_methods": {
+            "patterns": [
+                {
+                    "name": "constant.language.http.method.robogo",
+                    "match": "\\b(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\\b"
+                }
+            ]
+        },
+        "time_formats": {
+            "patterns": [
+                {
+                    "name": "constant.language.time.format.robogo",
+                    "match": "\\b(iso|datetime|date|time|unix|unix_ms|RFC3339|RFC822|RFC850|RFC1123)\\b"
                 }
             ]
         }

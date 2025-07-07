@@ -63,13 +63,28 @@ export function activate(context: vscode.ExtensionContext) {
         await runWithOutput();
     });
 
+    const runTestSuiteCommand = vscode.commands.registerCommand('robogo.runTestSuite', async () => {
+        await runTestSuite();
+    });
+
+    const showDocumentationCommand = vscode.commands.registerCommand('robogo.showDocumentation', async () => {
+        await showDocumentation();
+    });
+
+    const validateSyntaxCommand = vscode.commands.registerCommand('robogo.validateSyntax', async () => {
+        await validateSyntax();
+    });
+
     context.subscriptions.push(
         runTestCommand,
         runTestParallelCommand,
+        runTestSuiteCommand,
         listActionsCommand,
         validateTDMCommand,
         generateTemplateCommand,
-        runWithOutputCommand
+        runWithOutputCommand,
+        showDocumentationCommand,
+        validateSyntaxCommand
     );
 }
 
@@ -131,14 +146,24 @@ class RobogoDiagnosticProvider {
                     vscode.DiagnosticSeverity.Error
                 ));
             } else {
-                // Validate test case structure
-                this.validateTestCase(parsed, document, diagnostics);
+                // Distinguish between testsuite and testcase
+                if (parsed.testsuite) {
+                    this.validateTestSuite(parsed, document, diagnostics);
+                } else if (parsed.testcase) {
+                    this.validateTestCase(parsed, document, diagnostics);
+                } else {
+                    diagnostics.push(this.createDiagnostic(
+                        new vscode.Range(0, 0, 0, 0),
+                        'Missing required field: testcase or testsuite',
+                        vscode.DiagnosticSeverity.Error
+                    ));
+                }
             }
         } catch (error) {
             // YAML parsing error
             const errorMessage = error instanceof Error ? error.message : 'Unknown YAML error';
             const lineMatch = errorMessage.match(/line (\d+)/);
-            const line = lineMatch ? parseInt(lineMatch[1]) - 1 : 0;
+            const line = lineMatch && lineMatch[1] ? parseInt(lineMatch[1]) - 1 : 0;
 
             diagnostics.push(this.createDiagnostic(
                 new vscode.Range(line, 0, line, 0),
@@ -148,6 +173,19 @@ class RobogoDiagnosticProvider {
         }
 
         this.diagnosticCollection.set(document.uri, diagnostics);
+    }
+
+    // Add this new method for suite validation
+    private validateTestSuite(suite: any, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        // Require 'testcases' as an array
+        if (!suite.testcases || !Array.isArray(suite.testcases)) {
+            diagnostics.push(this.createDiagnostic(
+                new vscode.Range(0, 0, 0, 0),
+                'Missing or invalid testcases array in testsuite',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+        // Optionally, validate other suite-level fields here (setup, teardown, variables, etc.)
     }
 
     private validateTestCase(testCase: any, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
@@ -632,16 +670,17 @@ class RobogoDiagnosticProvider {
         let inSteps = false;
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
+            const line = lines[i] ?? '';
+            const trimmedLine = line.trim();
 
             // Check if we're entering the steps section
-            if (line === 'steps:' || line.startsWith('steps:')) {
+            if (trimmedLine === 'steps:' || trimmedLine.startsWith('steps:')) {
                 inSteps = true;
                 continue;
             }
 
             // Only count steps when we're in the steps section
-            if (inSteps && line.startsWith('-')) {
+            if (inSteps && trimmedLine.startsWith('-')) {
                 if (stepCount === stepIndex) {
                     return i;
                 }
@@ -661,7 +700,7 @@ class RobogoDiagnosticProvider {
         let currentIndent = 0;
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            const line = lines[i] ?? '';
             const trimmedLine = line.trim();
 
             // Skip empty lines
@@ -939,7 +978,7 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
         return items;
     }
 
-    private async getActions(): Promise<RobogoAction[]> {
+    public async getActions(): Promise<RobogoAction[]> {
         return [
             {
                 Name: 'log',
@@ -1199,6 +1238,132 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                 Operators: ['==', '!=', '>', '<', '>=', '<=', 'contains', 'starts_with', 'ends_with', '&&', '||', '!'],
                 UseCases: ['Conditional execution', 'Loop control', 'Flow management', 'Dynamic testing'],
                 Notes: 'If conditions return boolean for use in if/else blocks. For loops support range, array, and count formats. While conditions return boolean for loop continuation. Use max_iterations to prevent infinite loops.'
+            },
+            {
+                Name: 'kafka',
+                Description: 'Apache Kafka operations for message publishing and consuming.',
+                Example: '- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", \'{"key": "value"}\']\n  result: publish_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Kafka operation (publish, consume)', required: true },
+                    { name: 'brokers', type: 'string', description: 'Comma-separated list of Kafka brokers', required: true },
+                    { name: 'topic', type: 'string', description: 'Kafka topic name', required: true },
+                    { name: 'message', type: 'string', description: 'Message to publish (for publish operation)', required: false },
+                    { name: 'options', type: 'object', description: 'Kafka configuration options', required: false }
+                ],
+                Returns: 'Operation result with status and data',
+                Examples: [
+                    '- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", \'{"key": "value"}\']',
+                    '- action: kafka\n  args: ["consume", "localhost:9092", "test-topic", "", {"timeout": "30s"}]'
+                ],
+                UseCases: ['Message queue testing', 'Event-driven testing', 'Integration testing', 'Performance testing'],
+                Notes: 'Supports both publishing and consuming messages. Configure timeout for consume operations. Messages are JSON-encoded strings.'
+            },
+            {
+                Name: 'rabbitmq',
+                Description: 'RabbitMQ operations for message publishing and consuming.',
+                Example: '- action: rabbitmq\n  args: ["publish", "amqp://localhost", "test-exchange", "test-routing-key", \'{"key": "value"}\']\n  result: publish_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'RabbitMQ operation (publish, consume)', required: true },
+                    { name: 'url', type: 'string', description: 'RabbitMQ connection URL', required: true },
+                    { name: 'exchange', type: 'string', description: 'Exchange name', required: true },
+                    { name: 'routing_key', type: 'string', description: 'Routing key', required: true },
+                    { name: 'message', type: 'string', description: 'Message to publish (for publish operation)', required: false },
+                    { name: 'options', type: 'object', description: 'RabbitMQ configuration options', required: false }
+                ],
+                Returns: 'Operation result with status and data',
+                Examples: [
+                    '- action: rabbitmq\n  args: ["publish", "amqp://localhost", "test-exchange", "test-routing-key", \'{"key": "value"}\']',
+                    '- action: rabbitmq\n  args: ["consume", "amqp://localhost", "test-exchange", "test-routing-key", "", {"timeout": "30s"}]'
+                ],
+                UseCases: ['Message queue testing', 'Event-driven testing', 'Integration testing', 'Performance testing'],
+                Notes: 'Supports both publishing and consuming messages. Configure timeout for consume operations. Messages are JSON-encoded strings.'
+            },
+            {
+                Name: 'spanner',
+                Description: 'Google Cloud Spanner database operations.',
+                Example: '- action: spanner\n  args: ["query", "projects/my-project/instances/my-instance/databases/my-db", "SELECT * FROM users"]\n  result: query_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Spanner operation (query, execute, read)', required: true },
+                    { name: 'database', type: 'string', description: 'Spanner database path', required: true },
+                    { name: 'sql', type: 'string', description: 'SQL query or statement', required: false },
+                    { name: 'params', type: 'array', description: 'Query parameters', required: false },
+                    { name: 'options', type: 'object', description: 'Spanner configuration options', required: false }
+                ],
+                Returns: 'Query results or operation status',
+                Examples: [
+                    '- action: spanner\n  args: ["query", "projects/my-project/instances/my-instance/databases/my-db", "SELECT * FROM users"]',
+                    '- action: spanner\n  args: ["execute", "projects/my-project/instances/my-instance/databases/my-db", "INSERT INTO users (id, name) VALUES (@id, @name)", [{"id": 1, "name": "John"}]]'
+                ],
+                UseCases: ['Cloud database testing', 'Data validation', 'Setup/teardown operations', 'Data verification'],
+                Notes: 'Requires Google Cloud authentication. Supports parameterized queries with named parameters. Use read operation for large result sets.'
+            },
+            {
+                Name: 'template',
+                Description: 'Generate content from templates with variable substitution.',
+                Example: '- action: template\n  args: ["templates/mt103.tmpl", {"amount": "1000.00", "currency": "EUR"}]\n  result: swift_message',
+                Parameters: [
+                    { name: 'template_path', type: 'string', description: 'Path to template file', required: true },
+                    { name: 'variables', type: 'object', description: 'Variables to substitute in template', required: true }
+                ],
+                Returns: 'Generated content as string',
+                Examples: [
+                    '- action: template\n  args: ["templates/mt103.tmpl", {"amount": "1000.00", "currency": "EUR"}]',
+                    '- action: template\n  args: ["templates/sepa-credit-transfer.xml.tmpl", {"debtor": "John Doe", "creditor": "Jane Smith", "amount": "500.00"}]'
+                ],
+                UseCases: ['SWIFT message generation', 'XML document creation', 'Email template generation', 'Report generation'],
+                Notes: 'Uses Go template syntax. Variables are substituted using {{.variable_name}} syntax. Supports nested objects and arrays.'
+            },
+            {
+                Name: 'skip',
+                Description: 'Skip the current step or test case based on conditions.',
+                Example: '- name: "Skip step"\n  action: skip\n  args: ["This step is not needed in current environment"]',
+                Parameters: [
+                    { name: 'reason', type: 'string', description: 'Reason for skipping', required: true }
+                ],
+                Returns: 'Skip confirmation message',
+                Examples: [
+                    '- action: skip\n  args: ["This step is not needed in current environment"]',
+                    '- action: skip\n  args: ["Feature not implemented yet"]'
+                ],
+                UseCases: ['Conditional test execution', 'Feature toggles', 'Environment-specific tests', 'Temporary test disabling'],
+                Notes: 'Immediately stops execution of current step or test case. Use skip field in step definition for conditional skipping.'
+            },
+            {
+                Name: 'string',
+                Description: 'String manipulation operations.',
+                Example: '- action: string\n  args: ["upper", "hello world"]\n  result: uppercase_string',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'String operation (upper, lower, trim, replace, split, join)', required: true },
+                    { name: 'input', type: 'string', description: 'Input string', required: true },
+                    { name: '...args', type: 'any', description: 'Additional operation-specific arguments', required: false }
+                ],
+                Returns: 'Manipulated string',
+                Examples: [
+                    '- action: string\n  args: ["upper", "hello world"]',
+                    '- action: string\n  args: ["replace", "hello world", "world", "robogo"]',
+                    '- action: string\n  args: ["split", "a,b,c", ","]'
+                ],
+                UseCases: ['Text processing', 'Data cleaning', 'Format conversion', 'String validation'],
+                Notes: 'Supports common string operations like case conversion, trimming, replacement, splitting, and joining.'
+            },
+            {
+                Name: 'time',
+                Description: 'Time manipulation and formatting operations.',
+                Example: '- action: time\n  args: ["add", "2024-01-01", "24h"]\n  result: future_date',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Time operation (add, sub, format, parse)', required: true },
+                    { name: 'time', type: 'string', description: 'Time value or timestamp', required: true },
+                    { name: 'duration', type: 'string', description: 'Duration to add/subtract (for add/sub operations)', required: false },
+                    { name: 'format', type: 'string', description: 'Output format (for format operation)', required: false }
+                ],
+                Returns: 'Manipulated or formatted time',
+                Examples: [
+                    '- action: time\n  args: ["add", "2024-01-01", "24h"]',
+                    '- action: time\n  args: ["format", "2024-01-01T12:00:00Z", "2006-01-02"]',
+                    '- action: time\n  args: ["parse", "01/02/2024", "01/02/2006"]'
+                ],
+                UseCases: ['Date/time calculations', 'Time formatting', 'Schedule testing', 'Time-based validation'],
+                Notes: 'Supports adding/subtracting durations, formatting timestamps, and parsing time strings. Uses Go time package for operations.'
             }
         ];
     }
@@ -1215,7 +1380,7 @@ class RobogoHoverProvider implements vscode.HoverProvider {
 
         // Check if we're hovering over an action name
         const actionMatch = text.match(/action:\s*(\w+)/);
-        if (actionMatch) {
+        if (actionMatch && actionMatch[1]) {
             const actionName = actionMatch[1];
             const actions = await this.getActions();
             const action = actions.find(a => a.Name === actionName);
@@ -1299,7 +1464,7 @@ class RobogoHoverProvider implements vscode.HoverProvider {
 
         // Check if we're hovering over field names (TDM, environment, etc.)
         const fieldMatch = text.match(/^(\s*)(\w+):/);
-        if (fieldMatch) {
+        if (fieldMatch && fieldMatch[2]) {
             const fieldName = fieldMatch[2];
             const fieldDoc = this.getFieldDocumentation(fieldName);
             if (fieldDoc) {
@@ -1435,6 +1600,41 @@ class RobogoHoverProvider implements vscode.HoverProvider {
                 type: 'object',
                 required: false,
                 example: 'retry:\n  attempts: 3\n  delay: 1s\n  backoff: exponential'
+            },
+            'testcases': {
+                name: 'Test Cases',
+                description: 'Array of test case files to include in the test suite.',
+                type: 'array',
+                required: false,
+                example: 'testcases:\n  - file: test1.robogo\n  - file: test2.robogo'
+            },
+            'testsuite': {
+                name: 'Test Suite',
+                description: 'The name of the test suite. This is a required field for test suite files.',
+                type: 'string',
+                required: true,
+                example: 'testsuite: "API Test Suite"'
+            },
+            'parallel': {
+                name: 'Parallel Execution',
+                description: 'Enable or disable parallel execution for the test suite.',
+                type: 'boolean',
+                required: false,
+                example: 'parallel: false'
+            },
+            'options': {
+                name: 'Options',
+                description: 'Test suite options including max_concurrency and other settings.',
+                type: 'object',
+                required: false,
+                example: 'options:\n  max_concurrency: 3'
+            },
+            'regular': {
+                name: 'Regular Variables',
+                description: 'Regular variables section in test suite variables.',
+                type: 'object',
+                required: false,
+                example: 'regular:\n  api_url: "https://api.example.com"'
             }
         };
 
@@ -1837,6 +2037,157 @@ async function runWithOutput() {
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to run test with output format: ${error}`);
     }
+}
+
+async function runTestSuite() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const document = editor.document;
+    if (!document.fileName.endsWith('.robogo')) {
+        vscode.window.showErrorMessage('Not a Robogo file');
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('robogo');
+    const executablePath = config.get<string>('executablePath', 'robogo');
+
+    try {
+        const terminal = vscode.window.createTerminal('Robogo Test Suite');
+        terminal.sendText(`${executablePath} run-suite "${document.fileName}"`);
+        terminal.show();
+        vscode.window.showInformationMessage('Test suite execution started');
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to run test suite: ${error}`);
+    }
+}
+
+async function showDocumentation() {
+    const actions = await new RobogoCompletionProvider().getActions();
+
+    const markdown = new vscode.MarkdownString();
+    markdown.appendMarkdown('# Robogo Actions Documentation\n\n');
+
+    // Group actions by category
+    const categories: { [key: string]: RobogoAction[] } = {};
+    actions.forEach(action => {
+        const category = getActionCategory(action.Name);
+        if (!categories[category]) {
+            categories[category] = [];
+        }
+        categories[category].push(action);
+    });
+
+    Object.keys(categories).sort().forEach(category => {
+        markdown.appendMarkdown(`## ${category}\n\n`);
+        categories[category]?.forEach(action => {
+            markdown.appendMarkdown(`### ${action.Name}\n\n`);
+            markdown.appendMarkdown(`${action.Description}\n\n`);
+            markdown.appendMarkdown(`**Example:**\n\`\`\`yaml\n${action.Example}\n\`\`\`\n\n`);
+
+            if (action.Parameters && action.Parameters.length > 0) {
+                markdown.appendMarkdown(`**Parameters:**\n`);
+                action.Parameters.forEach(param => {
+                    const required = param.required ? 'required' : 'optional';
+                    markdown.appendMarkdown(`- \`${param.name}\` (${param.type}, ${required}): ${param.description}\n`);
+                });
+                markdown.appendMarkdown(`\n`);
+            }
+
+            if (action.Returns) {
+                markdown.appendMarkdown(`**Returns:** ${action.Returns}\n\n`);
+            }
+
+            if (action.Notes) {
+                markdown.appendMarkdown(`**Notes:** ${action.Notes}\n\n`);
+            }
+        });
+    });
+
+    // Show documentation in a new document
+    const doc = await vscode.workspace.openTextDocument({
+        content: markdown.value,
+        language: 'markdown'
+    });
+    await vscode.window.showTextDocument(doc);
+}
+
+async function validateSyntax() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+    }
+
+    const document = editor.document;
+    if (!document.fileName.endsWith('.robogo')) {
+        vscode.window.showErrorMessage('Not a Robogo file');
+        return;
+    }
+
+    try {
+        const text = document.getText();
+        const parsed = yaml.load(text) as any;
+
+        if (!parsed) {
+            vscode.window.showErrorMessage('Invalid YAML syntax');
+            return;
+        }
+
+        // Basic validation
+        const errors: string[] = [];
+
+        if (!parsed.testcase && !parsed.testsuite) {
+            errors.push('Missing required field: testcase or testsuite');
+        }
+
+        if (parsed.testcase && !parsed.steps) {
+            errors.push('Missing required field: steps');
+        }
+
+        if (parsed.steps && !Array.isArray(parsed.steps)) {
+            errors.push('Steps must be an array');
+        }
+
+        if (errors.length > 0) {
+            vscode.window.showErrorMessage(`Validation errors:\n${errors.join('\n')}`);
+        } else {
+            vscode.window.showInformationMessage('Syntax validation passed');
+        }
+    } catch (error) {
+        vscode.window.showErrorMessage(`Syntax error: ${error}`);
+    }
+}
+
+function getActionCategory(actionName: string): string {
+    const categoryMap: { [key: string]: string } = {
+        'log': 'Basic',
+        'sleep': 'Basic',
+        'assert': 'Basic',
+        'get_time': 'Basic',
+        'get_random': 'Basic',
+        'concat': 'Basic',
+        'length': 'Basic',
+        'http': 'HTTP',
+        'http_get': 'HTTP',
+        'http_post': 'HTTP',
+        'postgres': 'Database',
+        'spanner': 'Database',
+        'kafka': 'Messaging',
+        'rabbitmq': 'Messaging',
+        'variable': 'Variables',
+        'tdm': 'TDM',
+        'control': 'Control Flow',
+        'template': 'Templates',
+        'skip': 'Control Flow',
+        'string': 'Utilities',
+        'time': 'Utilities'
+    };
+
+    return categoryMap[actionName] || 'Other';
 }
 
 export function deactivate() { } 

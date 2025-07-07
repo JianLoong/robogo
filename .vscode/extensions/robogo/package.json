@@ -2,10 +2,10 @@
   "name": "robogo",
   "displayName": "Robogo",
   "description": "Comprehensive support for Robogo test automation framework with rich documentation, syntax highlighting, autocomplete, validation, parallel execution, TDM, and SWIFT message support",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "robogo",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages",
@@ -28,7 +28,10 @@
     "variables",
     "control-flow",
     "http",
-    "database"
+    "database",
+    "kafka",
+    "rabbitmq",
+    "spanner"
   ],
   "activationEvents": [
     "onLanguage:robogo",
@@ -68,6 +71,11 @@
         "category": "Robogo"
       },
       {
+        "command": "robogo.runTestSuite",
+        "title": "Run Robogo Test Suite",
+        "category": "Robogo"
+      },
+      {
         "command": "robogo.listActions",
         "title": "List Robogo Actions",
         "category": "Robogo"
@@ -86,6 +94,16 @@
         "command": "robogo.runWithOutput",
         "title": "Run Test with Output Format",
         "category": "Robogo"
+      },
+      {
+        "command": "robogo.showDocumentation",
+        "title": "Show Robogo Documentation",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.validateSyntax",
+        "title": "Validate Robogo Syntax",
+        "category": "Robogo"
       }
     ],
     "menus": {
@@ -96,6 +114,10 @@
         },
         {
           "command": "robogo.runTestParallel",
+          "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.runTestSuite",
           "when": "resourceExtname == .robogo"
         },
         {
@@ -113,6 +135,14 @@
         {
           "command": "robogo.runWithOutput",
           "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.showDocumentation",
+          "when": "resourceExtname == .robogo"
+        },
+        {
+          "command": "robogo.validateSyntax",
+          "when": "resourceExtname == .robogo"
         }
       ],
       "editor/context": [
@@ -127,7 +157,17 @@
           "group": "navigation"
         },
         {
+          "command": "robogo.runTestSuite",
+          "when": "resourceExtname == .robogo",
+          "group": "navigation"
+        },
+        {
           "command": "robogo.validateTDM",
+          "when": "resourceExtname == .robogo",
+          "group": "navigation"
+        },
+        {
+          "command": "robogo.validateSyntax",
           "when": "resourceExtname == .robogo",
           "group": "navigation"
         }
@@ -175,6 +215,26 @@
           "type": "boolean",
           "default": false,
           "description": "Show verbose output in test execution"
+        },
+        "robogo.enableAutoComplete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable intelligent autocomplete suggestions"
+        },
+        "robogo.enableHoverDocumentation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover documentation for actions and fields"
+        },
+        "robogo.enableSyntaxHighlighting": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable enhanced syntax highlighting"
+        },
+        "robogo.enableCodeSnippets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable code snippets for quick template generation"
         }
       }
     },
@@ -183,21 +243,39 @@
         "language": "robogo",
         "path": "./robogo.code-snippets"
       }
+    ],
+    "themes": [
+      {
+        "label": "Robogo Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/robogo-dark-color-theme.json"
+      },
+      {
+        "label": "Robogo Light",
+        "uiTheme": "vs",
+        "path": "./themes/robogo-light-color-theme.json"
+      }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "yaml": "^2.4.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@types/node": "16.x",
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.0.0",
     "@types/js-yaml": "^4.0.5",
-    "typescript": "^5.0.0"
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.0"
   },
   "repository": {
     "type": "git",
