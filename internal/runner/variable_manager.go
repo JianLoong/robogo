@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -58,7 +59,8 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 			changed := false
 			for key, value := range vm.variables {
 				substitutedValue := vm.substituteValue(value)
-				if substitutedValue != value {
+				// Safe comparison that handles map types
+				if !vm.valuesEqual(substitutedValue, value) {
 					vm.variables[key] = substitutedValue
 					changed = true
 				}
@@ -215,4 +217,18 @@ func (vm *VariableManager) GetVariableNames() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// valuesEqual safely compares two values, handling map types that are not directly comparable
+func (vm *VariableManager) valuesEqual(a, b interface{}) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if reflect.TypeOf(a) != nil && reflect.TypeOf(a).Kind() == reflect.Map {
+		return false
+	}
+	if reflect.TypeOf(b) != nil && reflect.TypeOf(b).Kind() == reflect.Map {
+		return false
+	}
+	return reflect.DeepEqual(a, b)
 }
