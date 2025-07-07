@@ -104,3 +104,4 @@ junit-output.xml
 
 # Negation rule to ensure cmd/robogo/main.go is always tracked by git
 !cmd/robogo/main.go 
+data

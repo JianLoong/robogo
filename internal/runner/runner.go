@@ -309,7 +309,7 @@ func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
 		for _, result := range validationResults {
 			if result.Status == parser.StatusFailed {
 				PrintDataValidationFailure(result.Name, result.Message)
-			} else if result.Status == parser.StatusWarning {
+			} else if result.Status == "WARNING" {
 				PrintDataValidationWarning(result.Name, result.Message)
 			}
 		}
