@@ -17,7 +17,8 @@ $instanceExists = gcloud spanner instances list | Select-String $instance
 if (-not $instanceExists) {
     Write-Host "[Spanner Emulator Setup] Creating instance '$instance'..."
     gcloud spanner instances create $instance --config=emulator-config --description="Test Instance" --nodes=1
-} else {
+}
+else {
     Write-Host "[Spanner Emulator Setup] Instance '$instance' already exists."
 }
 
@@ -26,6 +27,6 @@ Write-Host "[Spanner Emulator Setup] Dropping existing database '$database' if i
 gcloud spanner databases delete $database --instance=$instance --quiet 2>$null | Out-Null
 
 Write-Host "[Spanner Emulator Setup] Creating database '$database' with schema..."
-gcloud spanner databases create $database --instance=$instance --ddl="CREATE TABLE integration_test (id STRING(MAX) NOT NULL, name STRING(MAX)) PRIMARY KEY (id)"
+gcloud spanner databases create $database --instance=$instance --ddl="CREATE TABLE integration_test (id STRING(MAX) NOT NULL, name STRING(MAX)) PRIMARY KEY (id)" --ddl="CREATE TABLE payments (transaction_id STRING(64) NOT NULL, sender_bic STRING(16), sender_account STRING(34), beneficiary_account STRING(34), amount FLOAT64) PRIMARY KEY (transaction_id)"
 
-Write-Host "[Spanner Emulator Setup] Database '$database' created successfully with table 'integration_test'." 
+Write-Host "[Spanner Emulator Setup] Database '$database' created successfully with table 'integration_test' and 'payments'." 

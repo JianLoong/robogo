@@ -217,7 +217,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (int
 		fmt.Printf("🗄️  Query executed: %d rows returned in %v\n", len(resultRows), duration)
 	}
 
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // executeBatchOperations executes multiple database operations in parallel
@@ -311,7 +311,7 @@ func executeBatchOperations(connectionString string, args []interface{}, silent 
 		fmt.Printf("🗄️  Batch database operations completed: %d operations, %d concurrent\n", len(operations), maxConcurrency)
 	}
 
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // executeSingleBatchOperation executes a single operation within a batch
@@ -538,7 +538,7 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 		fmt.Printf("🗄️  Statement executed: %d rows affected in %v\n", rowsAffected, duration)
 	}
 
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // testConnection tests a database connection
@@ -569,7 +569,7 @@ func testConnection(connectionString string) (interface{}, error) {
 	}
 
 	fmt.Printf("🗄️  Connection test successful in %v\n", duration)
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // closeConnection closes a PostgreSQL connection
@@ -595,7 +595,7 @@ func closeConnection(connectionString string) (interface{}, error) {
 		}
 
 		fmt.Printf("🗄️  PostgreSQL connection closed successfully\n")
-		return jsonResult, nil
+		return string(jsonResult), nil
 	}
 
 	return nil, fmt.Errorf("no PostgreSQL connection found for the given connection string")

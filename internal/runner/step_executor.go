@@ -263,11 +263,17 @@ func validateExpectedError(tr *TestRunner, expectError interface{}, actualErr er
 		}
 		result = !matched
 	case "exact":
-		result = actualErrorMsg == expectedMessage
+		actualStr := fmt.Sprintf("%v", actualErrorMsg)
+		expectedStr := fmt.Sprintf("%v", expectedMessage)
+		result = actualStr == expectedStr
 	case "starts_with":
-		result = strings.HasPrefix(actualErrorMsg, expectedMessage)
+		actualStr := fmt.Sprintf("%v", actualErrorMsg)
+		expectedStr := fmt.Sprintf("%v", expectedMessage)
+		result = strings.HasPrefix(actualStr, expectedStr)
 	case "ends_with":
-		result = strings.HasSuffix(actualErrorMsg, expectedMessage)
+		actualStr := fmt.Sprintf("%v", actualErrorMsg)
+		expectedStr := fmt.Sprintf("%v", expectedMessage)
+		result = strings.HasSuffix(actualStr, expectedStr)
 	default:
 		return fmt.Errorf("unsupported error type: %s (supported: any, contains, not_contains, matches, not_matches, exact, starts_with, ends_with)", errorType)
 	}

@@ -14,13 +14,16 @@ variables:
     
     # Payment details
     currency: "EUR"
-    amount: "1000.00"
+    amount: 1000.00
     reference: "INV-2024-001"
     
     # Mock API endpoint
     payment_api_url: "https://mock-payment-api.example.com/api/v1/payments"
+    # Spanner connection string (update as needed)
+    spanner_connection: "projects/test-project/instances/test-instance/databases/test-database"
 
 steps:
+
   - name: "Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
@@ -87,6 +90,29 @@ steps:
   - name: "Assert Response Contains Transaction ID"
     action: assert
     args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should contain the transaction ID"]
+
+  - name: "Insert Payment Record into Spanner"
+    action: spanner
+    args:
+      - execute
+      - "${spanner_connection}"
+      - "INSERT INTO payments (transaction_id, sender_bic, sender_account, beneficiary_account, amount) VALUES ('${transaction_id}', '${sender_bic}', '${sender_account}', '${beneficiary_account}', ${amount})"
+    result: spanner_insert_result
+
+  - name: "Query Payment Record from Spanner"
+    action: spanner
+    args:
+      - query
+      - "${spanner_connection}"
+      - "SELECT * FROM payments WHERE transaction_id = '${transaction_id}'"
+    result: spanner_query_result
+
+  - name: "Assert Spanner Query Result"
+    action: assert
+    args:
+      - "${spanner_query_result}"
+      - contains
+      - "${transaction_id}"
 
   - name: "Log Payment Flow Completion"
     action: log

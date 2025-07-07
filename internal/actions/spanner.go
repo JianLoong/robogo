@@ -221,13 +221,12 @@ func executeSpannerQuery(connectionString string, args []interface{}, silent boo
 		result["values"] = values
 	}
 
-	// Convert to JSON
+	// Marshal to JSON and return the string
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
-
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // executeSpannerStatement executes an INSERT/UPDATE/DELETE statement
@@ -286,13 +285,12 @@ func executeSpannerStatement(connectionString string, args []interface{}, silent
 		},
 	}
 
-	// Convert to JSON
+	// Marshal to JSON and return the string
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
-
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // testSpannerConnection tests the Spanner connection
@@ -321,12 +319,12 @@ func testSpannerConnection(connectionString string) (interface{}, error) {
 		"message":           "Spanner connection test successful",
 	}
 
+	// Marshal to JSON and return the string
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
-
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // closeSpannerConnection closes the Spanner connection
@@ -345,12 +343,12 @@ func closeSpannerConnection(connectionString string) (interface{}, error) {
 		"message":           "Spanner connection closed successfully",
 	}
 
+	// Marshal to JSON and return the string
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
-
-	return jsonResult, nil
+	return string(jsonResult), nil
 }
 
 // getSpannerClient gets or creates a Spanner client
