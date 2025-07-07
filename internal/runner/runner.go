@@ -74,7 +74,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 			if err != nil {
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
-					Status:       "FAILED",
+					Status:       parser.StatusFailed,
 					ErrorMessage: err.Error(),
 				}
 			}
@@ -107,7 +107,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 				// create a dummy result to report the failure.
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
-					Status:       "FAILED",
+					Status:       parser.StatusFailed,
 					ErrorMessage: err.Error(),
 				}
 			}
@@ -307,9 +307,9 @@ func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
 	if len(testCase.DataManagement.Validation) > 0 {
 		validationResults := tr.tdmManager.ValidateData(testCase.DataManagement.Validation)
 		for _, result := range validationResults {
-			if result.Status == "FAILED" {
+			if result.Status == parser.StatusFailed {
 				PrintDataValidationFailure(result.Name, result.Message)
-			} else if result.Status == "WARNING" {
+			} else if result.Status == parser.StatusWarning {
 				PrintDataValidationWarning(result.Name, result.Message)
 			}
 		}

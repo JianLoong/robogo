@@ -80,7 +80,7 @@ func (tdm *TDMManager) LoadDataSets(dataSets []parser.DataSet) error {
 			Name:     ds.Name,
 			Version:  ds.Version,
 			Records:  len(ds.Data),
-			Status:   "loaded",
+			Status:   parser.StatusLoaded,
 			LoadTime: time.Now().Format(time.RFC3339),
 		}
 	}
@@ -158,7 +158,7 @@ func (tdm *TDMManager) ValidateData(validations []parser.Validation) []parser.Va
 func (tdm *TDMManager) validateField(validation parser.Validation) parser.ValidationResult {
 	result := parser.ValidationResult{
 		Name:     validation.Name,
-		Status:   "PASSED",
+		Status:   parser.StatusPassed,
 		Message:  "Validation passed",
 		Severity: validation.Severity,
 	}
@@ -166,7 +166,7 @@ func (tdm *TDMManager) validateField(validation parser.Validation) parser.Valida
 	// Get field value
 	value, exists := tdm.variables[validation.Field]
 	if !exists {
-		result.Status = "FAILED"
+		result.Status = parser.StatusFailed
 		result.Message = fmt.Sprintf("Field '%s' not found", validation.Field)
 		return result
 	}
@@ -175,31 +175,31 @@ func (tdm *TDMManager) validateField(validation parser.Validation) parser.Valida
 	switch validation.Type {
 	case "format":
 		if err := tdm.validateFormat(value, validation.Rule); err != nil {
-			result.Status = "FAILED"
+			result.Status = parser.StatusFailed
 			result.Message = err.Error()
 		}
 	case "range":
 		if err := tdm.validateRange(value, validation.Rule); err != nil {
-			result.Status = "FAILED"
+			result.Status = parser.StatusFailed
 			result.Message = err.Error()
 		}
 	case "length":
 		if err := tdm.validateLength(value, validation.Rule); err != nil {
-			result.Status = "FAILED"
+			result.Status = parser.StatusFailed
 			result.Message = err.Error()
 		}
 	case "required":
 		if err := tdm.validateRequired(value); err != nil {
-			result.Status = "FAILED"
+			result.Status = parser.StatusFailed
 			result.Message = err.Error()
 		}
 	case "unique":
 		if err := tdm.validateUnique(validation.Field, value); err != nil {
-			result.Status = "FAILED"
+			result.Status = parser.StatusFailed
 			result.Message = err.Error()
 		}
 	default:
-		result.Status = "WARNING"
+		result.Status = parser.StatusWarning
 		result.Message = fmt.Sprintf("Unknown validation type: %s", validation.Type)
 	}
 
@@ -494,7 +494,7 @@ func generateTestData(args []interface{}) (interface{}, error) {
 		"pattern":   pattern,
 		"count":     count,
 		"data":      data,
-		"status":    "success",
+		"status":    parser.StatusSuccess,
 	}
 
 	return result, nil
@@ -509,7 +509,7 @@ func validateTestData(args []interface{}) (interface{}, error) {
 	// This is a placeholder - in a real implementation, you'd parse validation rules
 	result := map[string]interface{}{
 		"operation": "validate",
-		"status":    "not_implemented",
+		"status":    parser.StatusNotImplemented,
 		"message":   "Data validation requires TDM manager integration",
 	}
 
@@ -527,7 +527,7 @@ func loadDataSet(args []interface{}) (interface{}, error) {
 	result := map[string]interface{}{
 		"operation": "load_dataset",
 		"dataset":   datasetName,
-		"status":    "not_implemented",
+		"status":    parser.StatusNotImplemented,
 		"message":   "Dataset loading requires TDM manager integration",
 	}
 
@@ -545,7 +545,7 @@ func setEnvironment(args []interface{}) (interface{}, error) {
 	result := map[string]interface{}{
 		"operation":   "set_environment",
 		"environment": envName,
-		"status":      "not_implemented",
+		"status":      parser.StatusNotImplemented,
 		"message":     "Environment setting requires TDM manager integration",
 	}
 

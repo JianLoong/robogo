@@ -20,11 +20,11 @@ func getTemplateNames(templates map[string]string) string {
 // getStepStatusIcon returns the appropriate icon for a step status
 func getStepStatusIcon(status string) string {
 	switch status {
-	case "PASSED":
+	case parser.StatusPassed:
 		return "✅"
-	case "FAILED":
+	case parser.StatusFailed:
 		return "❌"
-	case "SKIPPED":
+	case parser.StatusSkipped:
 		return "⏭️"
 	default:
 		return "❓"
@@ -34,11 +34,11 @@ func getStepStatusIcon(status string) string {
 // getTestStatusIcon returns the appropriate icon for a test status
 func getTestStatusIcon(status string) string {
 	switch status {
-	case "PASSED":
+	case parser.StatusPassed:
 		return "✅"
-	case "FAILED":
+	case parser.StatusFailed:
 		return "❌"
-	case "SKIPPED":
+	case parser.StatusSkipped:
 		return "⏭️"
 	default:
 		return "❓"

@@ -74,7 +74,7 @@ func PrintSkipMessage(itemType, itemName, reason string, silent bool) {
 func CreateSkipResult(step parser.Step, reason string) parser.StepResult {
 	return parser.StepResult{
 		Step:      step,
-		Status:    "SKIPPED",
+		Status:    parser.StatusSkipped,
 		Duration:  0,
 		Output:    "",
 		Error:     reason,
@@ -86,7 +86,7 @@ func CreateSkipResult(step parser.Step, reason string) parser.StepResult {
 func CreateSkipTestCaseResult(testCase *parser.TestCase, reason string) parser.TestCaseResult {
 	return parser.TestCaseResult{
 		TestCase: testCase,
-		Status:   "skipped",
+		Status:   parser.StatusSkipped,
 		Error:    reason,
 	}
 }

@@ -30,19 +30,19 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		if err := executeIfStatement(tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
 			return nil, err
 		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
 	}
 	if step.For != nil {
 		if err := executeForLoop(tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
 			return nil, err
 		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
 	}
 	if step.While != nil {
 		if err := executeWhileLoop(tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
 			return nil, err
 		}
-		return &parser.StepResult{Step: step, Status: "PASSED"}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
 	}
 
 	stepStart := time.Now()
@@ -77,7 +77,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		}
 		stepResult := parser.StepResult{
 			Step:      step,
-			Status:    "SKIPPED",
+			Status:    parser.StatusSkipped,
 			Duration:  stepDuration,
 			Output:    outputStr,
 			Error:     err.Error(),
@@ -94,7 +94,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 
 	stepResult := parser.StepResult{
 		Step:      step,
-		Status:    "PASSED",
+		Status:    parser.StatusPending,
 		Duration:  stepDuration,
 		Output:    outputStr,
 		Timestamp: time.Now(),
@@ -104,7 +104,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	if step.ExpectError != nil {
 		expectErr := validateExpectedError(tr, step.ExpectError, err, fmt.Sprintf("%v", output), silent)
 		if expectErr != nil {
-			stepResult.Status = "FAILED"
+			stepResult.Status = parser.StatusFailed
 			stepResult.Error = expectErr.Error()
 			if !silent {
 				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
@@ -116,7 +116,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		}
 	} else if err != nil {
 		// Normal error handling (no expect_error)
-		stepResult.Status = "FAILED"
+		stepResult.Status = parser.StatusFailed
 		stepResult.Error = err.Error()
 		if !silent {
 			fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
