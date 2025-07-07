@@ -93,9 +93,9 @@ var postgresManager = &PostgreSQLManager{
 //   - Automatic connection pooling and management
 //   - Comprehensive error handling and timeout support
 //   - Results available for assertions and variable storage
-func PostgresAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func PostgresAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("postgres action requires at least 2 arguments: operation and connection_string")
+		return nil, fmt.Errorf("postgres action requires at least 2 arguments: operation and connection_string")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -113,14 +113,14 @@ func PostgresAction(args []interface{}, options map[string]interface{}, silent b
 	case "batch":
 		return executeBatchOperations(connectionString, args[2:], silent)
 	default:
-		return "", fmt.Errorf("unknown postgres operation: %s", operation)
+		return nil, fmt.Errorf("unknown postgres operation: %s", operation)
 	}
 }
 
 // executeQuery executes a SELECT query and returns results
-func executeQuery(connectionString string, args []interface{}, silent bool) (string, error) {
+func executeQuery(connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("query operation requires a SQL query")
+		return nil, fmt.Errorf("query operation requires a SQL query")
 	}
 
 	query := fmt.Sprintf("%v", args[0])
@@ -138,7 +138,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	// Get or create database connection
 	db, err := getConnection(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("failed to get database connection: %w", err)
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
 	startTime := time.Now()
@@ -146,7 +146,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	// Execute query
 	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
-		return "", fmt.Errorf("query execution failed: %w", err)
+		return nil, fmt.Errorf("query execution failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -155,7 +155,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return "", fmt.Errorf("failed to get column names: %w", err)
+		return nil, fmt.Errorf("failed to get column names: %w", err)
 	}
 
 	// Prepare result container
@@ -172,7 +172,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 
 		// Scan the row into the values slice
 		if err := rows.Scan(valuePtrs...); err != nil {
-			return "", fmt.Errorf("failed to scan row: %w", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
 		// Use the actual values without string conversion
@@ -180,7 +180,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	}
 
 	if err := rows.Err(); err != nil {
-		return "", fmt.Errorf("error iterating rows: %w", err)
+		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
 	// Transform to consistent format
@@ -209,7 +209,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 	// Convert to JSON
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
 	// Only print if not silent
@@ -217,7 +217,7 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 		fmt.Printf("🗄️  Query executed: %d rows returned in %v\n", len(resultRows), duration)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // executeBatchOperations executes multiple database operations in parallel
@@ -239,9 +239,9 @@ func executeQuery(connectionString string, args []interface{}, silent bool) (str
 //   - Batch data setup and teardown
 //   - Performance testing with multiple queries
 //   - Concurrent data operations
-func executeBatchOperations(connectionString string, args []interface{}, silent bool) (string, error) {
+func executeBatchOperations(connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("batch operation requires at least one operation to execute")
+		return nil, fmt.Errorf("batch operation requires at least one operation to execute")
 	}
 
 	// Parse operations
@@ -257,7 +257,7 @@ func executeBatchOperations(connectionString string, args []interface{}, silent 
 				if opMap, ok := op.(map[string]interface{}); ok {
 					operations = append(operations, opMap)
 				} else {
-					return "", fmt.Errorf("invalid operation format: expected map")
+					return nil, fmt.Errorf("invalid operation format: expected map")
 				}
 			}
 		case map[string]interface{}:
@@ -271,12 +271,12 @@ func executeBatchOperations(connectionString string, args []interface{}, silent 
 				operations = append(operations, v)
 			}
 		default:
-			return "", fmt.Errorf("invalid argument type: expected array or map")
+			return nil, fmt.Errorf("invalid argument type: expected array or map")
 		}
 	}
 
 	if len(operations) == 0 {
-		return "", fmt.Errorf("no operations provided for batch execution")
+		return nil, fmt.Errorf("no operations provided for batch execution")
 	}
 
 	// Execute operations in parallel
@@ -304,14 +304,14 @@ func executeBatchOperations(connectionString string, args []interface{}, silent 
 	// Convert results to JSON
 	jsonResult, err := json.Marshal(results)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal batch results: %w", err)
+		return nil, fmt.Errorf("failed to marshal batch results: %w", err)
 	}
 
 	if !silent {
 		fmt.Printf("🗄️  Batch database operations completed: %d operations, %d concurrent\n", len(operations), maxConcurrency)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // executeSingleBatchOperation executes a single operation within a batch
@@ -467,9 +467,9 @@ func executeStatementInternal(connectionString, query string, params []interface
 }
 
 // executeStatement executes INSERT, UPDATE, DELETE statements
-func executeStatement(connectionString string, args []interface{}, silent bool) (string, error) {
+func executeStatement(connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("execute operation requires a SQL statement")
+		return nil, fmt.Errorf("execute operation requires a SQL statement")
 	}
 
 	query := fmt.Sprintf("%v", args[0])
@@ -487,7 +487,7 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 	// Get or create database connection
 	db, err := getConnection(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("failed to get database connection: %w", err)
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
 	startTime := time.Now()
@@ -495,7 +495,7 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 	// Execute statement
 	result, err := db.Exec(query, queryArgs...)
 	if err != nil {
-		return "", fmt.Errorf("statement execution failed: %w", err)
+		return nil, fmt.Errorf("statement execution failed: %w", err)
 	}
 
 	duration := time.Since(startTime)
@@ -503,7 +503,7 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 	// Get affected rows
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return "", fmt.Errorf("failed to get rows affected: %w", err)
+		return nil, fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
 	// Get last insert ID (if applicable)
@@ -530,7 +530,7 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 	// Convert to JSON
 	jsonResult, err := json.Marshal(dbResult)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
 	// Only print if not silent
@@ -538,14 +538,14 @@ func executeStatement(connectionString string, args []interface{}, silent bool) 
 		fmt.Printf("🗄️  Statement executed: %d rows affected in %v\n", rowsAffected, duration)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // testConnection tests a database connection
-func testConnection(connectionString string) (string, error) {
+func testConnection(connectionString string) (interface{}, error) {
 	db, err := getConnection(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("connection test failed: %w", err)
+		return nil, fmt.Errorf("connection test failed: %w", err)
 	}
 
 	// Test the connection with a simple query
@@ -554,7 +554,7 @@ func testConnection(connectionString string) (string, error) {
 	duration := time.Since(startTime)
 
 	if err != nil {
-		return "", fmt.Errorf("connection ping failed: %w", err)
+		return nil, fmt.Errorf("connection ping failed: %w", err)
 	}
 
 	result := map[string]interface{}{
@@ -565,15 +565,15 @@ func testConnection(connectionString string) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
 	fmt.Printf("🗄️  Connection test successful in %v\n", duration)
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // closeConnection closes a PostgreSQL connection
-func closeConnection(connectionString string) (string, error) {
+func closeConnection(connectionString string) (interface{}, error) {
 	postgresManager.mutex.Lock()
 	defer postgresManager.mutex.Unlock()
 
@@ -581,7 +581,7 @@ func closeConnection(connectionString string) (string, error) {
 		err := db.Close()
 		delete(postgresManager.connections, connectionString)
 		if err != nil {
-			return "", fmt.Errorf("failed to close PostgreSQL connection: %w", err)
+			return nil, fmt.Errorf("failed to close PostgreSQL connection: %w", err)
 		}
 
 		result := map[string]interface{}{
@@ -591,14 +591,14 @@ func closeConnection(connectionString string) (string, error) {
 
 		jsonResult, err := json.Marshal(result)
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+			return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 		}
 
 		fmt.Printf("🗄️  PostgreSQL connection closed successfully\n")
-		return string(jsonResult), nil
+		return jsonResult, nil
 	}
 
-	return "", fmt.Errorf("no PostgreSQL connection found for the given connection string")
+	return nil, fmt.Errorf("no PostgreSQL connection found for the given connection string")
 }
 
 // encodeConnectionString properly encodes a PostgreSQL connection string

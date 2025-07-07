@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/segmentio/kafka-go"
 )
+
+const defaultKafkaConsumeTimeout = 20 * time.Second // Default timeout for Kafka consumer if not specified
 
 func KafkaAction(args []interface{}) (map[string]interface{}, error) {
 	if len(args) < 1 {
@@ -98,7 +101,6 @@ func kafkaPublish(args []interface{}) (map[string]interface{}, error) {
 	return map[string]interface{}{"status": "message published"}, nil
 }
 
-
 func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 	if len(args) < 3 {
 		return nil, fmt.Errorf("kafka consume requires a broker and topic")
@@ -148,7 +150,7 @@ func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 
 	// If GroupID is not set, we must specify a partition. Default to 0.
 	if readerConfig.GroupID == "" {
-		if _, ok := settings["partition"]; !ok {
+		if settings == nil || (settings != nil && settings["partition"] == nil) {
 			readerConfig.Partition = 0
 		}
 	}
@@ -156,13 +158,93 @@ func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 	r := kafka.NewReader(readerConfig)
 	defer r.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	m, err := r.ReadMessage(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read message: %w", err)
+	// Use default timeout unless overridden in settings
+	timeout := defaultKafkaConsumeTimeout
+	if settings != nil {
+		if t, ok := settings["timeout"]; ok {
+			switch v := t.(type) {
+			case int:
+				timeout = time.Duration(v) * time.Second
+			case int64:
+				timeout = time.Duration(v) * time.Second
+			case float64:
+				timeout = time.Duration(v) * time.Second
+			case string:
+				// Try to parse as Go duration string (e.g., "10s", "1m")
+				if d, err := time.ParseDuration(v); err == nil {
+					timeout = d
+				} else if n, err := strconv.Atoi(v); err == nil {
+					timeout = time.Duration(n) * time.Second
+				}
+			}
+		}
 	}
 
-	return map[string]interface{}{"message": string(m.Value), "topic": m.Topic, "partition": m.Partition, "offset": m.Offset}, nil
+	// Determine count (number of messages to consume)
+	count := 1
+	if settings != nil {
+		if c, ok := settings["count"]; ok {
+			switch v := c.(type) {
+			case int:
+				if v > 1 {
+					count = v
+				}
+			case int64:
+				if v > 1 {
+					count = int(v)
+				}
+			case float64:
+				if v > 1 {
+					count = int(v)
+				}
+			case string:
+				if n, err := strconv.Atoi(v); err == nil && n > 1 {
+					count = n
+				}
+			}
+		}
+	}
+
+	// Hybrid batch consumption: up to 'count' messages, but never longer than 'timeout' in total
+	messages := []map[string]interface{}{}
+	start := time.Now()
+	for i := 0; i < count; i++ {
+		remaining := timeout - time.Since(start)
+		if remaining <= 0 {
+			break
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), remaining)
+		m, err := r.ReadMessage(ctx)
+		cancel()
+		if err != nil {
+			// Improved error handling
+			if len(messages) == 0 {
+				if errors.Is(err, context.DeadlineExceeded) {
+					return map[string]interface{}{
+						"error":   "timeout",
+						"message": fmt.Sprintf("No message received within %v", timeout),
+						"waited":  timeout.String(),
+						"topic":   topic,
+					}, nil
+				}
+				return map[string]interface{}{
+					"error":   "kafka_error",
+					"message": err.Error(),
+					"topic":   topic,
+				}, nil
+			}
+			break
+		}
+		messages = append(messages, map[string]interface{}{
+			"message":   string(m.Value),
+			"topic":     m.Topic,
+			"partition": m.Partition,
+			"offset":    m.Offset,
+		})
+	}
+
+	if count == 1 {
+		return messages[0], nil
+	}
+	return map[string]interface{}{"messages": messages}, nil
 }

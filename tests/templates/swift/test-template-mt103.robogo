@@ -17,7 +17,7 @@ steps:
   - name: "Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
-    result: timestamp_ms
+    # result: timestamp_ms
 
   - name: "Create unique transaction ID"
     action: concat

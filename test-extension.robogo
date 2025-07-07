@@ -1,0 +1,20 @@
+testcase: "Extension Test"
+description: "Test the VSCode extension changes"
+
+variables:
+  vars:
+    test_var: "hello"
+
+steps:
+  - name: "Test step with name"
+    action: log
+    args: ["This step has a name"]
+
+  - name: "Test template action"
+    action: template
+    args: ["templates/mt103.tmpl", {"test": "data"}]
+    result: template_result
+
+  - name: "Log template result"
+    action: log
+    args: ["Template result:", "${template_result}"] 

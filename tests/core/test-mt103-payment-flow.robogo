@@ -1,0 +1,95 @@
+testcase: "MT103 Payment Flow Simulation"
+description: "Test SWIFT MT103 payment message generation and submission to mock payment system"
+
+variables:
+  vars:
+    # Mock sender details
+    sender_bic: "DEUTDEFF"
+    sender_account: "DE89370400440532013000"
+    sender_name: "Deutsche Bank AG"
+    
+    # Mock beneficiary details  
+    beneficiary_account: "GB29NWBK60161331926819"
+    beneficiary_name: "Barclays Bank PLC"
+    
+    # Payment details
+    currency: "EUR"
+    amount: "1000.00"
+    reference: "INV-2024-001"
+    
+    # Mock API endpoint
+    payment_api_url: "https://mock-payment-api.example.com/api/v1/payments"
+
+steps:
+  # --- Dynamic Initialization ---
+  - name: "Generate transaction timestamp"
+    action: get_time
+    args: ["unix_ms"]
+    result: timestamp_ms
+
+  - name: "Create unique transaction ID"
+    action: concat
+    args: ["TXN", "${timestamp_ms}"]
+    result: transaction_id
+
+  - name: "Get current date"
+    action: get_time
+    args: ["date"]
+    result: current_date
+
+  # --- Main Test Steps ---
+  - name: "Generate MT103 SWIFT Message"
+    action: template
+    args:
+      - "templates/mt103.tmpl"
+      -
+        Sender:
+          BIC: "${sender_bic}"
+          Account: "${sender_account}"
+          Name: "${sender_name}"
+        Beneficiary:
+          Account: "${beneficiary_account}"
+          Name: "${beneficiary_name}"
+        TransactionID: "${transaction_id}"
+        Timestamp: "${timestamp_ms}"
+        Date: "${current_date}"
+        Currency: "${currency}"
+        Amount: "${amount}"
+        Reference: "${reference}"
+    result: mt103_message
+
+  - name: "Log Generated MT103 Message"
+    action: log
+    args: ["Generated MT103 Message:", "${mt103_message}"]
+
+  - name: "Submit MT103 to Mock Payment API"
+    action: http
+    args:
+      - "POST"
+      - "${payment_api_url}"
+      -
+        Content-Type: "application/xml"
+        X-API-Key: "mock-api-key-12345"
+        X-Transaction-ID: "${transaction_id}"
+      - "${mt103_message}"
+    result: payment_response
+
+  - name: "Log Payment API Response"
+    action: log
+    args: ["Payment API Response:", "${payment_response}"]
+
+  - name: "Assert Payment API Response Status"
+    action: assert
+    args: ["${payment_response.status_code}", "==", "200", "Payment API should return 200 OK"]
+
+  - name: "Assert Payment API Response Contains Success"
+    action: assert
+    args: ["${payment_response.body}", "contains", "accepted", "Payment API response should indicate message was accepted"]
+
+  - name: "Assert Response Contains Transaction ID"
+    action: assert
+    args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should contain the transaction ID"]
+
+  - name: "Log Payment Flow Completion"
+    action: log
+    args: ["MT103 Payment Flow completed successfully"] 

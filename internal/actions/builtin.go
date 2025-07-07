@@ -1,12 +1,11 @@
 package actions
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 )
 
-type ActionFunc func(args []interface{}, options map[string]interface{}, silent bool) (string, error)
+type ActionFunc func(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error)
 
 type ActionExecutor struct {
 	registry *ActionRegistry
@@ -32,33 +31,20 @@ func NewActionExecutor() *ActionExecutor {
 	return &ActionExecutor{}
 }
 
-func RabbitMQActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func RabbitMQActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	strArgs := make([]string, len(args))
 	for i, v := range args {
 		strArgs[i] = fmt.Sprintf("%v", v)
 	}
 	result, err := RabbitMQAction(strArgs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return fmt.Sprintf("%v", result), nil
+	return result, nil
 }
 
-func KafkaActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
-	// The wrapper will now pass the args directly to the action.
-	// The action itself will be responsible for parsing the []interface{}.
-	result, err := KafkaAction(args)
-	if err != nil {
-		return "", err
-	}
-
-	// The result from KafkaAction is a map, which needs to be serialized to a string.
-	// Using JSON is a robust way to do this.
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize kafka action result: %w", err)
-	}
-	return string(jsonResult), nil
+func KafkaActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	return KafkaAction(args)
 }
 
 // GetAction retrieves an action function by name.
@@ -90,7 +76,7 @@ func GetAction(action string) (ActionFunc, bool) {
 }
 
 // Execute executes an action with the provided arguments and options.
-func (ae *ActionExecutor) Execute(action string, args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func (ae *ActionExecutor) Execute(action string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	return globalRegistry.Execute(action, args, options, silent)
 }
 

@@ -1,3 +1,6 @@
+# Example test suite demonstrating setup, teardown, variables, and multiple testcases.
+# This suite references all core feature testcases for RoboGo.
+
 testsuite: "Complex Suite"
 description: "A more advanced Robogo test suite with E2E test."
 parallel: false
@@ -5,7 +8,7 @@ options:
   max_concurrency: 3
 
 variables:
-  regular:
+  vars:
     api_url: "https://api.example.com"
     default_user: "suiteuser"
   secrets:
@@ -22,10 +25,8 @@ setup:
     args: ["set", "api_url", "https://api.example.com/v2"]
 
 testcases:
-  - file: e2e-simple.robogo
-  - file: test-secret.robogo
-  - file: test-postgres.robogo
-  - file: test-step-skip.robogo 
+
+  - file: ../tests/core/test-assert.robogo
 
 teardown:
   - name: "Suite Teardown"

@@ -1285,3 +1285,34 @@ MIT License - see LICENSE file for details.
 ---
 
 **Robogo** - Modern test automation for the Go ecosystem, with powerful SWIFT message generation, comprehensive API testing, advanced Test Data Management capabilities, parallel execution for high-performance testing, and a complete VS Code extension for enhanced development experience. Built for financial services, API testing, and enterprise automation needs. 
+
+## Reserved Variable: __robogo_steps
+
+robogo automatically populates a reserved variable named `__robogo_steps` after each step execution. This variable is a slice of maps, where each map contains the following fields for each step:
+- `name`: The step's name
+- `status`: The step's status (e.g., PASSED, FAILED)
+- `output`: The step's output
+- `error`: The step's error message (if any)
+- `timestamp`: The time the step was executed
+
+### Usage Example
+You can reference the result or error of any previous step using indexed access:
+
+```yaml
+- name: Assert Timeout Error
+  action: assert
+  args:
+    - "${__robogo_steps[0].error}"
+    - ==
+    - timeout
+    - "Expected a timeout error when no message is available"
+```
+
+### Warning
+`__robogo_steps` is reserved for internal use by robogo. If you manually set this variable in your test case, it will be overwritten and a warning will be printed.
+
+```
+gcloud config configurations create emulator
+gcloud config set project test-project
+
+```

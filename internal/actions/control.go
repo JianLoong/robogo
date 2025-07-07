@@ -43,9 +43,9 @@ import (
 //   - For loops support range, array, and count formats
 //   - While conditions return boolean for loop continuation
 //   - Use max_iterations to prevent infinite loops
-func ControlFlowAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func ControlFlowAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
+		return nil, fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
 	}
 
 	flowType := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -58,33 +58,33 @@ func ControlFlowAction(args []interface{}, options map[string]interface{}, silen
 	case "while":
 		return handleWhileLoop(args[1:])
 	default:
-		return "", fmt.Errorf("unknown control flow type: %s", flowType)
+		return nil, fmt.Errorf("unknown control flow type: %s", flowType)
 	}
 }
 
 // handleIfStatement evaluates a condition and returns "true" or "false"
-func handleIfStatement(args []interface{}, silent bool) (string, error) {
+func handleIfStatement(args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("if statement requires a condition")
+		return nil, fmt.Errorf("if statement requires a condition")
 	}
 
 	condition := fmt.Sprintf("%v", args[0])
 	result, err := evaluateCondition(condition)
 	if err != nil {
-		return "", fmt.Errorf("failed to evaluate condition '%s': %w", condition, err)
+		return nil, fmt.Errorf("failed to evaluate condition '%s': %w", condition, err)
 	}
 
 	// Only print if not silent
 	if !silent {
 		fmt.Printf("🔍 If condition '%s' evaluated to: %v\n", condition, result)
 	}
-	return fmt.Sprintf("%v", result), nil
+	return result, nil
 }
 
 // handleForLoop handles for loop iterations
-func handleForLoop(args []interface{}) (string, error) {
+func handleForLoop(args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("for loop requires a range or array")
+		return nil, fmt.Errorf("for loop requires a range or array")
 	}
 
 	rangeSpec := fmt.Sprintf("%v", args[0])
@@ -103,19 +103,19 @@ func handleForLoop(args []interface{}) (string, error) {
 }
 
 // handleWhileLoop handles while loop condition evaluation
-func handleWhileLoop(args []interface{}) (string, error) {
+func handleWhileLoop(args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("while loop requires a condition")
+		return nil, fmt.Errorf("while loop requires a condition")
 	}
 
 	condition := fmt.Sprintf("%v", args[0])
 	result, err := evaluateCondition(condition)
 	if err != nil {
-		return "", fmt.Errorf("failed to evaluate while condition '%s': %w", condition, err)
+		return nil, fmt.Errorf("failed to evaluate while condition '%s': %w", condition, err)
 	}
 
 	fmt.Printf("🔄 While condition '%s' evaluated to: %v\n", condition, result)
-	return fmt.Sprintf("%v", result), nil
+	return result, nil
 }
 
 // evaluateCondition evaluates a condition string and returns boolean result
@@ -203,32 +203,32 @@ func parseBoolean(value string) (bool, error) {
 }
 
 // handleRangeLoop handles range-based loops (e.g., "1..5")
-func handleRangeLoop(rangeSpec string) (string, error) {
+func handleRangeLoop(rangeSpec string) (interface{}, error) {
 	parts := strings.Split(rangeSpec, "..")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid range format: %s", rangeSpec)
+		return nil, fmt.Errorf("invalid range format: %s", rangeSpec)
 	}
 
 	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
 	if err != nil {
-		return "", fmt.Errorf("invalid start value in range: %s", parts[0])
+		return nil, fmt.Errorf("invalid start value in range: %s", parts[0])
 	}
 
 	end, err := strconv.Atoi(strings.TrimSpace(parts[1]))
 	if err != nil {
-		return "", fmt.Errorf("invalid end value in range: %s", parts[1])
+		return nil, fmt.Errorf("invalid end value in range: %s", parts[1])
 	}
 
 	if start > end {
-		return "", fmt.Errorf("start value cannot be greater than end value: %d > %d", start, end)
+		return nil, fmt.Errorf("start value cannot be greater than end value: %d > %d", start, end)
 	}
 
 	fmt.Printf("🔄 For loop range: %d to %d (iterations: %d)\n", start, end, end-start+1)
-	return fmt.Sprintf("%d", end-start+1), nil
+	return end - start + 1, nil
 }
 
 // handleArrayLoop handles array-based loops (e.g., "[1,2,3,4,5]")
-func handleArrayLoop(arraySpec string) (string, error) {
+func handleArrayLoop(arraySpec string) (interface{}, error) {
 	// Simple array parsing - remove brackets and split by comma
 	content := strings.TrimPrefix(strings.TrimSuffix(arraySpec, "]"), "[")
 	items := strings.Split(content, ",")
@@ -242,20 +242,20 @@ func handleArrayLoop(arraySpec string) (string, error) {
 	}
 
 	fmt.Printf("🔄 For loop array: %s (items: %d)\n", arraySpec, count)
-	return fmt.Sprintf("%d", count), nil
+	return count, nil
 }
 
 // handleCountLoop handles count-based loops (e.g., "5" for 5 iterations)
-func handleCountLoop(countSpec string) (string, error) {
+func handleCountLoop(countSpec string) (interface{}, error) {
 	count, err := strconv.Atoi(strings.TrimSpace(countSpec))
 	if err != nil {
-		return "", fmt.Errorf("invalid count value: %s", countSpec)
+		return nil, fmt.Errorf("invalid count value: %s", countSpec)
 	}
 
 	if count < 0 {
-		return "", fmt.Errorf("count cannot be negative: %d", count)
+		return nil, fmt.Errorf("count cannot be negative: %d", count)
 	}
 
 	fmt.Printf("🔄 For loop count: %d iterations\n", count)
-	return fmt.Sprintf("%d", count), nil
+	return count, nil
 }

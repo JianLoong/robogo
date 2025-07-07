@@ -1,0 +1,19 @@
+testcase: Kafka Timeout Error Handling
+steps:
+  - name: Kafka Consume Timeout Test
+    action: kafka
+    args:
+      - consume
+      - localhost:9092
+      - my-topic
+      - 
+          groupID: my-group
+          timeout: 1
+
+  - name: Assert Timeout Error
+    action: assert
+    args:
+      - "${__robogo_steps[0].error}"
+      - ==
+      - timeout
+      - "Expected a timeout error when no message is available" 

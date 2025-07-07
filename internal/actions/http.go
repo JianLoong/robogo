@@ -107,9 +107,9 @@ func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 //   - Automatic JSON handling for request/response bodies
 //   - Comprehensive error handling and timeout support
 //   - Response data available for assertions and variable storage
-func HTTPAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func HTTPAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("http action requires at least 2 arguments: method and url")
+		return nil, fmt.Errorf("http action requires at least 2 arguments: method and url")
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -126,7 +126,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 		"OPTIONS": true,
 	}
 	if !validMethods[method] {
-		return "", fmt.Errorf("invalid HTTP method: %s", method)
+		return nil, fmt.Errorf("invalid HTTP method: %s", method)
 	}
 
 	// Parse optional arguments
@@ -170,18 +170,18 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	if certFile != "" && keyFile != "" {
 		cert, err := loadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return "", fmt.Errorf("failed to load client certificate/key: %w", err)
+			return nil, fmt.Errorf("failed to load client certificate/key: %w", err)
 		}
 		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 	}
 	if caFile != "" {
 		caData, err := loadCertificateData(caFile)
 		if err != nil {
-			return "", fmt.Errorf("failed to load CA certificate: %w", err)
+			return nil, fmt.Errorf("failed to load CA certificate: %w", err)
 		}
 		caPool := x509.NewCertPool()
 		if !caPool.AppendCertsFromPEM(caData) {
-			return "", fmt.Errorf("failed to append CA certificate")
+			return nil, fmt.Errorf("failed to append CA certificate")
 		}
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{}
@@ -210,7 +210,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set headers
@@ -231,7 +231,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -240,7 +240,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// Build response headers map
@@ -260,7 +260,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	// Convert to JSON for return
 	jsonResp, err := json.Marshal(httpResp)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal response: %w", err)
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 
 	// Only print if not silent
@@ -271,7 +271,7 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 		}
 	}
 
-	return string(jsonResp), nil
+	return jsonResp, nil
 }
 
 // HTTPGetAction performs HTTP GET requests with simplified syntax.
@@ -299,9 +299,9 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 //   - Simplified syntax for GET requests
 //   - Same functionality as HTTPAction with GET method
 //   - Supports all HTTPAction options and features
-func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("http_get action requires at least 1 argument: url")
+		return nil, fmt.Errorf("http_get action requires at least 1 argument: url")
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -342,9 +342,9 @@ func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bo
 //   - Simplified syntax for POST requests
 //   - Same functionality as HTTPAction with POST method
 //   - Supports all HTTPAction options and features
-func HTTPPostAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func HTTPPostAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("http_post action requires at least 2 arguments: url and body")
+		return nil, fmt.Errorf("http_post action requires at least 2 arguments: url and body")
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -389,9 +389,9 @@ type HTTPBatchResult struct {
 //   - Batch API operations
 //   - Performance testing
 //   - Health checks across multiple services
-func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("http_batch action requires at least 2 arguments: method and urls")
+		return nil, fmt.Errorf("http_batch action requires at least 2 arguments: method and urls")
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -406,11 +406,11 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 	case []string:
 		urls = v
 	default:
-		return "", fmt.Errorf("urls must be an array")
+		return nil, fmt.Errorf("urls must be an array")
 	}
 
 	if len(urls) == 0 {
-		return "", fmt.Errorf("at least one URL is required")
+		return nil, fmt.Errorf("at least one URL is required")
 	}
 
 	// Parse optional arguments
@@ -545,12 +545,12 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 	// Convert results to JSON
 	resultsJSON, err := json.Marshal(results)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal batch results: %w", err)
+		return nil, fmt.Errorf("failed to marshal batch results: %w", err)
 	}
 
 	if !silent {
 		fmt.Printf("📊 Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
 	}
 
-	return string(resultsJSON), nil
+	return resultsJSON, nil
 }

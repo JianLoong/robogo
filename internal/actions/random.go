@@ -40,7 +40,7 @@ import (
 //   - Decimal precision defaults to 2 places if not specified
 //   - Inclusive ranges (min and max are possible values)
 //   - Backward compatible with single argument format
-func GetRandomAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func GetRandomAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("get_random action requires at least one argument (max value) or two arguments (min, max)")
 	}
@@ -55,7 +55,7 @@ func GetRandomAction(args []interface{}, options map[string]interface{}, silent 
 }
 
 // generateRandomRange generates a random number within a specified range
-func generateRandomRange(minArg, maxArg interface{}, silent bool) (string, error) {
+func generateRandomRange(minArg, maxArg interface{}, silent bool) (interface{}, error) {
 	minStr := fmt.Sprintf("%v", minArg)
 	maxStr := fmt.Sprintf("%v", maxArg)
 
@@ -75,14 +75,14 @@ func generateRandomRange(minArg, maxArg interface{}, silent bool) (string, error
 			if !silent {
 				fmt.Printf("🎲 Random decimal (%.2f-%.2f): %.2f (same values)\n", minFloat, maxFloat, result)
 			}
-			return fmt.Sprintf("%.2f", result), nil
+			return result, nil
 		}
 
 		result := minFloat + rand.Float64()*(maxFloat-minFloat)
 		if !silent {
 			fmt.Printf("🎲 Random decimal (%.2f-%.2f): %.2f\n", minFloat, maxFloat, result)
 		}
-		return fmt.Sprintf("%.2f", result), nil
+		return result, nil
 	}
 
 	// Try integer range
@@ -101,14 +101,14 @@ func generateRandomRange(minArg, maxArg interface{}, silent bool) (string, error
 			if !silent {
 				fmt.Printf("🎲 Random number (%d-%d): %d (same values)\n", minInt, maxInt, result)
 			}
-			return strconv.Itoa(result), nil
+			return result, nil
 		}
 
 		result := minInt + rand.Intn(maxInt-minInt+1)
 		if !silent {
 			fmt.Printf("🎲 Random number (%d-%d): %d\n", minInt, maxInt, result)
 		}
-		return strconv.Itoa(result), nil
+		return result, nil
 	}
 
 	// Mixed types or invalid input
@@ -116,7 +116,7 @@ func generateRandomRange(minArg, maxArg interface{}, silent bool) (string, error
 }
 
 // generateRandomMax generates a random number from 0 to max (backward compatibility)
-func generateRandomMax(maxArg interface{}, silent bool) (string, error) {
+func generateRandomMax(maxArg interface{}, silent bool) (interface{}, error) {
 	maxStr := fmt.Sprintf("%v", maxArg)
 
 	// Try to parse as float first (supports decimals)
@@ -128,7 +128,7 @@ func generateRandomMax(maxArg interface{}, silent bool) (string, error) {
 		if !silent {
 			fmt.Printf("�� Random decimal (0-%.2f): %.2f\n", maxFloat, result)
 		}
-		return fmt.Sprintf("%.2f", result), nil
+		return result, nil
 	}
 
 	// Fall back to integer parsing (backward compatibility)
@@ -143,5 +143,5 @@ func generateRandomMax(maxArg interface{}, silent bool) (string, error) {
 	if !silent {
 		fmt.Printf("🎲 Random number (0-%d): %d\n", max-1, result)
 	}
-	return strconv.Itoa(result), nil
+	return result, nil
 }

@@ -75,9 +75,9 @@ var spannerManager = &SpannerManager{
 //   - Comprehensive error handling and timeout support
 //   - Results available for assertions and variable storage
 //   - Supports both real Spanner and emulator connections
-func SpannerAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func SpannerAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("spanner action requires at least 2 arguments: operation and connection_string")
+		return nil, fmt.Errorf("spanner action requires at least 2 arguments: operation and connection_string")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -93,14 +93,14 @@ func SpannerAction(args []interface{}, options map[string]interface{}, silent bo
 	case "close":
 		return closeSpannerConnection(connectionString)
 	default:
-		return "", fmt.Errorf("unknown spanner operation: %s", operation)
+		return nil, fmt.Errorf("unknown spanner operation: %s", operation)
 	}
 }
 
 // executeSpannerQuery executes a SELECT query and returns results
-func executeSpannerQuery(connectionString string, args []interface{}, silent bool) (string, error) {
+func executeSpannerQuery(connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("query operation requires a SQL query")
+		return nil, fmt.Errorf("query operation requires a SQL query")
 	}
 
 	query := fmt.Sprintf("%v", args[0])
@@ -116,7 +116,7 @@ func executeSpannerQuery(connectionString string, args []interface{}, silent boo
 	// Get or create Spanner client
 	client, err := getSpannerClient(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("failed to get Spanner client: %w", err)
+		return nil, fmt.Errorf("failed to get Spanner client: %w", err)
 	}
 
 	startTime := time.Now()
@@ -141,7 +141,7 @@ func executeSpannerQuery(connectionString string, args []interface{}, silent boo
 			break
 		}
 		if err != nil {
-			return "", fmt.Errorf("failed to iterate query results: %w", err)
+			return nil, fmt.Errorf("failed to iterate query results: %w", err)
 		}
 
 		// Get column names from first row
@@ -191,7 +191,7 @@ func executeSpannerQuery(connectionString string, args []interface{}, silent boo
 			// Last resort: try interface{} for unknown types
 			var interfaceVal interface{}
 			if err := row.Column(i, &interfaceVal); err != nil {
-				return "", fmt.Errorf("failed to get column value for %s: %w", col, err)
+				return nil, fmt.Errorf("failed to get column value for %s: %w", col, err)
 			}
 			rowMap[col] = interfaceVal
 		}
@@ -224,16 +224,16 @@ func executeSpannerQuery(connectionString string, args []interface{}, silent boo
 	// Convert to JSON
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // executeSpannerStatement executes an INSERT/UPDATE/DELETE statement
-func executeSpannerStatement(connectionString string, args []interface{}, silent bool) (string, error) {
+func executeSpannerStatement(connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("execute operation requires a SQL statement")
+		return nil, fmt.Errorf("execute operation requires a SQL statement")
 	}
 
 	statement := fmt.Sprintf("%v", args[0])
@@ -249,7 +249,7 @@ func executeSpannerStatement(connectionString string, args []interface{}, silent
 	// Get or create Spanner client
 	client, err := getSpannerClient(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("failed to get Spanner client: %w", err)
+		return nil, fmt.Errorf("failed to get Spanner client: %w", err)
 	}
 
 	startTime := time.Now()
@@ -273,7 +273,7 @@ func executeSpannerStatement(connectionString string, args []interface{}, silent
 	duration := time.Since(startTime)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to execute Spanner statement: %w", err)
+		return nil, fmt.Errorf("failed to execute Spanner statement: %w", err)
 	}
 
 	// Create result
@@ -289,17 +289,17 @@ func executeSpannerStatement(connectionString string, args []interface{}, silent
 	// Convert to JSON
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // testSpannerConnection tests the Spanner connection
-func testSpannerConnection(connectionString string) (string, error) {
+func testSpannerConnection(connectionString string) (interface{}, error) {
 	client, err := getSpannerClient(connectionString)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to Spanner: %w", err)
+		return nil, fmt.Errorf("failed to connect to Spanner: %w", err)
 	}
 
 	// Test the connection with a simple query
@@ -312,7 +312,7 @@ func testSpannerConnection(connectionString string) (string, error) {
 
 	_, err = iter.Next()
 	if err != nil && err != iterator.Done {
-		return "", fmt.Errorf("failed to test Spanner connection: %w", err)
+		return nil, fmt.Errorf("failed to test Spanner connection: %w", err)
 	}
 
 	result := map[string]interface{}{
@@ -323,14 +323,14 @@ func testSpannerConnection(connectionString string) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // closeSpannerConnection closes the Spanner connection
-func closeSpannerConnection(connectionString string) (string, error) {
+func closeSpannerConnection(connectionString string) (interface{}, error) {
 	spannerManager.mutex.Lock()
 	defer spannerManager.mutex.Unlock()
 
@@ -347,10 +347,10 @@ func closeSpannerConnection(connectionString string) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // getSpannerClient gets or creates a Spanner client

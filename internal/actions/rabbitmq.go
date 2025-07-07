@@ -10,7 +10,7 @@ import (
 
 var rabbitmqConnections = make(map[string]*amqp.Connection)
 
-func RabbitMQAction(args []string) (map[string]interface{}, error) {
+func RabbitMQAction(args []string) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("rabbitmq action requires at least one argument")
 	}
@@ -30,7 +30,7 @@ func RabbitMQAction(args []string) (map[string]interface{}, error) {
 	}
 }
 
-func rabbitmqConnect(args []string) (map[string]interface{}, error) {
+func rabbitmqConnect(args []string) (interface{}, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("rabbitmq connect requires a connection string and a connection name")
 	}
@@ -46,7 +46,7 @@ func rabbitmqConnect(args []string) (map[string]interface{}, error) {
 	return map[string]interface{}{"status": "connected", "connection_name": connName}, nil
 }
 
-func rabbitmqPublish(args []string) (map[string]interface{}, error) {
+func rabbitmqPublish(args []string) (interface{}, error) {
 	if len(args) < 4 {
 		return nil, fmt.Errorf("rabbitmq publish requires a connection name, exchange, routing key, and message body")
 	}
@@ -85,7 +85,7 @@ func rabbitmqPublish(args []string) (map[string]interface{}, error) {
 	return map[string]interface{}{"status": "message published"}, nil
 }
 
-func rabbitmqConsume(args []string) (map[string]interface{}, error) {
+func rabbitmqConsume(args []string) (interface{}, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("rabbitmq consume requires a connection name and a queue name")
 	}
@@ -124,7 +124,7 @@ func rabbitmqConsume(args []string) (map[string]interface{}, error) {
 	}
 }
 
-func rabbitmqClose(args []string) (map[string]interface{}, error) {
+func rabbitmqClose(args []string) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("rabbitmq close requires a connection name")
 	}

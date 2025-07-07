@@ -31,7 +31,15 @@ func executeForLoop(tr *TestRunner, forBlock *parser.LoopBlock, executor *action
 	if err != nil {
 		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
 	}
-	iterations, err := strconv.Atoi(output)
+	var iterations int
+	switch v := output.(type) {
+	case string:
+		iterations, err = strconv.Atoi(v)
+	case int:
+		iterations = v
+	default:
+		return fmt.Errorf("unexpected output type for for loop iteration count: %T", output)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to parse iteration count: %w", err)
 	}

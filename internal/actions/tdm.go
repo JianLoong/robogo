@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -449,9 +448,9 @@ func (tdm *TDMManager) GetResults() *parser.DataResults {
 //   - Environment-specific data isolation
 //   - Comprehensive validation framework
 //   - Integration with test variable system
-func TDMAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func TDMAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("tdm action requires at least 1 argument: operation")
+		return nil, fmt.Errorf("tdm action requires at least 1 argument: operation")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -466,28 +465,28 @@ func TDMAction(args []interface{}, options map[string]interface{}, silent bool) 
 	case "set_environment":
 		return setEnvironment(args[1:])
 	default:
-		return "", fmt.Errorf("unknown tdm operation: %s", operation)
+		return nil, fmt.Errorf("unknown tdm operation: %s", operation)
 	}
 }
 
 // generateTestData generates test data based on pattern
-func generateTestData(args []interface{}) (string, error) {
+func generateTestData(args []interface{}) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("generate requires pattern and count")
+		return nil, fmt.Errorf("generate requires pattern and count")
 	}
 
 	pattern := fmt.Sprintf("%v", args[0])
 	countStr := fmt.Sprintf("%v", args[1])
 	count, err := strconv.Atoi(countStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid count: %s", countStr)
+		return nil, fmt.Errorf("invalid count: %s", countStr)
 	}
 
 	// Create a temporary TDM manager for this operation
 	tdm := NewTDMManager()
 	data, err := tdm.GenerateTestData(pattern, count)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	result := map[string]interface{}{
@@ -498,18 +497,13 @@ func generateTestData(args []interface{}) (string, error) {
 		"status":    "success",
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(jsonResult), nil
+	return result, nil
 }
 
 // validateTestData validates test data
-func validateTestData(args []interface{}) (string, error) {
+func validateTestData(args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("validate requires validation rules")
+		return nil, fmt.Errorf("validate requires validation rules")
 	}
 
 	// This is a placeholder - in a real implementation, you'd parse validation rules
@@ -519,18 +513,13 @@ func validateTestData(args []interface{}) (string, error) {
 		"message":   "Data validation requires TDM manager integration",
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(jsonResult), nil
+	return result, nil
 }
 
 // loadDataSet loads a data set
-func loadDataSet(args []interface{}) (string, error) {
+func loadDataSet(args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("load_dataset requires dataset name")
+		return nil, fmt.Errorf("load_dataset requires dataset name")
 	}
 
 	datasetName := fmt.Sprintf("%v", args[0])
@@ -542,18 +531,13 @@ func loadDataSet(args []interface{}) (string, error) {
 		"message":   "Dataset loading requires TDM manager integration",
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(jsonResult), nil
+	return result, nil
 }
 
 // setEnvironment sets the active environment
-func setEnvironment(args []interface{}) (string, error) {
+func setEnvironment(args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("set_environment requires environment name")
+		return nil, fmt.Errorf("set_environment requires environment name")
 	}
 
 	envName := fmt.Sprintf("%v", args[0])
@@ -565,10 +549,5 @@ func setEnvironment(args []interface{}) (string, error) {
 		"message":     "Environment setting requires TDM manager integration",
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(jsonResult), nil
+	return result, nil
 }

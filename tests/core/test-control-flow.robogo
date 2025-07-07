@@ -196,6 +196,14 @@ steps:
     action: assert
     args: ["true", "==", "true", "Control flow test should complete successfully"]
 
+  - name: Assert First Step Passed
+    action: assert
+    args:
+      - "${__robogo_steps[0].status}"
+      - ==
+      - PASSED
+      - "First step should have passed"
+
 # This file demonstrates:
 # - If statements with simple conditions
 # - If statements with comparisons

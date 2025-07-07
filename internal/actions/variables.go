@@ -37,9 +37,9 @@ import (
 //   - Supports complex data types (strings, numbers, objects, arrays)
 //   - Use ${variable_name} syntax to reference in other actions
 //   - Variables are shared across all steps in a test case
-func VariableAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func VariableAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("variable action requires at least 1 argument: operation")
+		return nil, fmt.Errorf("variable action requires at least 1 argument: operation")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -47,29 +47,29 @@ func VariableAction(args []interface{}, options map[string]interface{}, silent b
 	switch operation {
 	case "set":
 		if len(args) < 3 {
-			return "", fmt.Errorf("set requires variable_name and value")
+			return nil, fmt.Errorf("set requires variable_name and value")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
 		return setVariable(variableName, args[2:], silent)
 	case "set_variable":
-		return "", fmt.Errorf("'set_variable' is not supported. Use 'set' instead.")
+		return nil, fmt.Errorf("'set_variable' is not supported. Use 'set' instead.")
 	case "get":
 		if len(args) < 2 {
-			return "", fmt.Errorf("get requires variable_name")
+			return nil, fmt.Errorf("get requires variable_name")
 		}
 		variableName := fmt.Sprintf("%v", args[1])
 		return getVariable(variableName, silent)
 	case "list":
 		return listVariables(silent)
 	default:
-		return "", fmt.Errorf("unknown variable operation: %s", operation)
+		return nil, fmt.Errorf("unknown variable operation: %s", operation)
 	}
 }
 
 // setVariable sets a variable value
-func setVariable(name string, args []interface{}, silent bool) (string, error) {
+func setVariable(name string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) == 0 {
-		return "", fmt.Errorf("set requires a value")
+		return nil, fmt.Errorf("set requires a value")
 	}
 
 	// Convert the value to a string representation
@@ -95,14 +95,14 @@ func setVariable(name string, args []interface{}, silent bool) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // getVariable gets a variable value (placeholder - actual implementation would need access to runner variables)
-func getVariable(name string, silent bool) (string, error) {
+func getVariable(name string, silent bool) (interface{}, error) {
 	result := map[string]interface{}{
 		"operation": "get",
 		"name":      name,
@@ -112,14 +112,14 @@ func getVariable(name string, silent bool) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }
 
 // listVariables lists all variables (placeholder - actual implementation would need access to runner variables)
-func listVariables(silent bool) (string, error) {
+func listVariables(silent bool) (interface{}, error) {
 	result := map[string]interface{}{
 		"operation": "list",
 		"status":    "not_implemented",
@@ -128,8 +128,8 @@ func listVariables(silent bool) (string, error) {
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
 	}
 
-	return string(jsonResult), nil
+	return jsonResult, nil
 }

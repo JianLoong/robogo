@@ -37,7 +37,7 @@ import (
 //   - Uses Go's text/template package
 //   - Supports all Go template functions
 //   - Case-sensitive field names
-func TemplateAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func TemplateAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("template action requires at least 2 arguments: template file path and data")
 	}

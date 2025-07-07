@@ -122,11 +122,46 @@ func (vm *VariableManager) substituteValue(value interface{}) interface{} {
 
 // substituteString substitutes variables in a string using ${variable} syntax
 func (vm *VariableManager) substituteString(s string) string {
-	// Match ${variable} or ${variable.property} patterns
+	// Match ${variable}, ${variable.property}, or ${variable[index].property} patterns
 	re := regexp.MustCompile(`\$\{([^}]+)\}`)
 	return re.ReplaceAllStringFunc(s, func(match string) string {
 		// Extract variable name from ${...}
 		varName := match[2 : len(match)-1]
+
+		// Handle array/slice access: e.g., __robogo_steps[0].error
+		if strings.HasPrefix(varName, "__robogo_steps[") {
+			// Parse index and property
+			leftBracket := strings.Index(varName, "[")
+			rightBracket := strings.Index(varName, "]")
+			if leftBracket > 0 && rightBracket > leftBracket {
+				indexStr := varName[leftBracket+1 : rightBracket]
+				property := ""
+				if dotIdx := strings.Index(varName[rightBracket:], "."); dotIdx >= 0 {
+					property = varName[rightBracket+dotIdx+1:]
+				}
+				// Parse index
+				var idx int
+				_, err := fmt.Sscanf(indexStr, "%d", &idx)
+				if err == nil {
+					stepsVar, exists := vm.variables["__robogo_steps"]
+					if exists {
+						if stepsSlice, ok := stepsVar.([]interface{}); ok && idx >= 0 && idx < len(stepsSlice) {
+							stepMap, ok := stepsSlice[idx].(map[string]interface{})
+							if ok {
+								if property == "" {
+									return fmt.Sprintf("%v", stepMap)
+								}
+								if val, ok := stepMap[property]; ok {
+									return fmt.Sprintf("%v", val)
+								}
+							}
+						}
+					}
+				}
+			}
+			// If parsing fails, return original
+			return match
+		}
 
 		// Handle dot notation for nested properties
 		if strings.Contains(varName, ".") {

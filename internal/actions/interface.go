@@ -3,7 +3,7 @@ package actions
 // Action represents a single action that can be executed
 type Action interface {
 	// Execute runs the action with the given arguments and options
-	Execute(args []interface{}, options map[string]interface{}, silent bool) (string, error)
+	Execute(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error)
 
 	// GetMetadata returns metadata about the action
 	GetMetadata() ActionMetadata
@@ -40,7 +40,7 @@ type ActionWrapper struct {
 }
 
 // Execute implements the Action interface
-func (aw *ActionWrapper) Execute(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func (aw *ActionWrapper) Execute(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	return aw.fn(args, options, silent)
 }
 

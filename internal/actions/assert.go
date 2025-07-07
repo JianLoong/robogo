@@ -42,17 +42,17 @@ import (
 //   - String operations are case-sensitive
 //   - Boolean values can be strings ("true"/"false") or actual booleans
 //   - Use continue_on_failure to prevent test termination on assertion failure
-func AssertAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func AssertAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	parser := util.NewArgParser(args, options)
 
 	if err := parser.RequireMinArgs(3); err != nil {
-		return "", util.NewExecutionError("assert action requires at least 3 arguments: value, operator, expected", err, "assert")
+		return nil, util.NewExecutionError("assert action requires at least 3 arguments: value, operator, expected", err, "assert")
 	}
 
 	value := args[0]
 	operator, err := parser.GetString(1)
 	if err != nil {
-		return "", util.NewExecutionError("operator must be a string", err, "assert")
+		return nil, util.NewExecutionError("operator must be a string", err, "assert")
 	}
 	expected := args[2]
 
@@ -82,18 +82,18 @@ func AssertAction(args []interface{}, options map[string]interface{}, silent boo
 	return compareString(valueStr, expectedStr, operator, msg, silent)
 }
 
-func handleModuloOperation(value interface{}, divisor interface{}, operator string, expected interface{}, msg string) (string, error) {
+func handleModuloOperation(value interface{}, divisor interface{}, operator string, expected interface{}, msg string) (interface{}, error) {
 	// Convert value and divisor to float
 	valueFloat, valueOk := toFloat(value)
 	divisorFloat, divisorOk := toFloat(divisor)
 	expectedFloat, expectedOk := toFloat(expected)
 
 	if !valueOk || !divisorOk || !expectedOk {
-		return "", fmt.Errorf("modulo operation requires numeric values: value=%v, divisor=%v, expected=%v", value, divisor, expected)
+		return nil, fmt.Errorf("modulo operation requires numeric values: value=%v, divisor=%v, expected=%v", value, divisor, expected)
 	}
 
 	if divisorFloat == 0 {
-		return "", fmt.Errorf("modulo operation: division by zero")
+		return nil, fmt.Errorf("modulo operation: division by zero")
 	}
 
 	// Calculate modulo
@@ -109,7 +109,7 @@ func toFloat(v interface{}) (float64, bool) {
 	return f, err == nil
 }
 
-func compareNumeric(value, expected float64, operator, msg string, silent bool) (string, error) {
+func compareNumeric(value, expected float64, operator, msg string, silent bool) (interface{}, error) {
 	var result bool
 
 	switch operator {
@@ -126,7 +126,7 @@ func compareNumeric(value, expected float64, operator, msg string, silent bool) 
 	case "<=":
 		result = value <= expected
 	default:
-		return "", fmt.Errorf("unsupported numeric operator: %s", operator)
+		return nil, fmt.Errorf("unsupported numeric operator: %s", operator)
 	}
 
 	if !result {
@@ -139,7 +139,7 @@ func compareNumeric(value, expected float64, operator, msg string, silent bool) 
 		if !silent {
 			fmt.Printf("❌ %s\n", fullMsg)
 		}
-		return "", util.NewAssertionError(fullMsg, value, expected, operator)
+		return nil, util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
 	msg = fmt.Sprintf("✅ %s", msg)
@@ -149,7 +149,7 @@ func compareNumeric(value, expected float64, operator, msg string, silent bool) 
 	return msg, nil
 }
 
-func compareString(value, expected, operator, msg string, silent bool) (string, error) {
+func compareString(value, expected, operator, msg string, silent bool) (interface{}, error) {
 	var result bool
 
 	switch operator {
@@ -177,14 +177,14 @@ func compareString(value, expected, operator, msg string, silent bool) (string, 
 		// Regex pattern matching
 		matched, err := regexp.MatchString(expected, value)
 		if err != nil {
-			return "", fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
+			return nil, fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
 		}
 		result = matched
 	case "not_matches":
 		// Regex pattern not matching
 		matched, err := regexp.MatchString(expected, value)
 		if err != nil {
-			return "", fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
+			return nil, fmt.Errorf("invalid regex pattern '%s': %v", expected, err)
 		}
 		result = !matched
 	case "empty":
@@ -192,7 +192,7 @@ func compareString(value, expected, operator, msg string, silent bool) (string, 
 	case "not_empty":
 		result = strings.TrimSpace(value) != ""
 	default:
-		return "", fmt.Errorf("unsupported string operator: %s", operator)
+		return nil, fmt.Errorf("unsupported string operator: %s", operator)
 	}
 
 	if !result {
@@ -205,7 +205,7 @@ func compareString(value, expected, operator, msg string, silent bool) (string, 
 		if !silent {
 			fmt.Printf("❌ %s\n", fullMsg)
 		}
-		return "", util.NewAssertionError(fullMsg, value, expected, operator)
+		return nil, util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
 	msg = fmt.Sprintf("✅ %s", msg)

@@ -2,8 +2,27 @@ import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as yaml from 'js-yaml';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const execAsync = promisify(exec);
+
+// Add at the top of the file (after imports)
+const templateRequirements: { [template: string]: string[] } = {
+    "templates/mt103.tmpl": [
+        "TransactionID",
+        "Timestamp",
+        "Date",
+        "Currency",
+        "Amount",
+        "Reference",
+        "Sender.BIC",
+        "Sender.Account",
+        "Sender.Name",
+        "Beneficiary.Account",
+        "Beneficiary.Name"
+    ]
+};
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Robogo extension is now active!');
@@ -318,6 +337,17 @@ class RobogoDiagnosticProvider {
         const stepLine = this.findStepLine(stepIndex, document);
         const range = new vscode.Range(stepLine, 0, stepLine, 0);
 
+        // Check if step has name (required)
+        if (!step.name || typeof step.name !== 'string' || step.name.trim() === '') {
+            const nameLine = this.findStepFieldLine(stepIndex, 'name', document);
+            const nameRange = new vscode.Range(nameLine, 0, nameLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                nameRange,
+                'Step must have a non-empty name field',
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
         // Check if step has action or control flow
         const hasAction = step.action;
         const hasControlFlow = step.if || step.for || step.while;
@@ -389,6 +419,12 @@ class RobogoDiagnosticProvider {
             this.validateGetRandomAction(args, argsLine, document, diagnostics);
         } else if (action === 'sleep') {
             this.validateSleepAction(args, argsLine, document, diagnostics);
+        } else if (action === 'kafka') {
+            this.validateKafkaAction(args, argsLine, document, diagnostics);
+        } else if (action === 'spanner') {
+            this.validateSpannerAction(args, argsLine, document, diagnostics);
+        } else if (action === 'template') {
+            this.validateTemplateAction(args, argsLine, document, diagnostics);
         }
 
         // Check for unknown actions
@@ -577,6 +613,76 @@ class RobogoDiagnosticProvider {
         }
     }
 
+    private validateKafkaAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 2) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Kafka action requires at least 2 arguments: subcommand, broker',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const subcommand = args[0];
+        const validSubcommands = ['publish', 'consume'];
+
+        if (typeof subcommand !== 'string' || !validSubcommands.includes(subcommand)) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `Invalid kafka subcommand: ${subcommand}. Valid subcommands: ${validSubcommands.join(', ')}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        // Validate broker format
+        const broker = args[1];
+        if (typeof broker !== 'string' || !broker.includes(':')) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Kafka broker must be in format host:port',
+                vscode.DiagnosticSeverity.Warning
+            ));
+        }
+    }
+
+    private validateSpannerAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 2) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Spanner action requires at least 2 arguments: operation, connection_string',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const operation = args[0];
+        const validOperations = ['connect', 'query', 'execute', 'close'];
+
+        if (typeof operation !== 'string' || !validOperations.includes(operation)) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                `Invalid spanner operation: ${operation}. Valid operations: ${validOperations.join(', ')}`,
+                vscode.DiagnosticSeverity.Error
+            ));
+        }
+
+        // Validate connection string format
+        const connectionString = args[1];
+        if (typeof connectionString !== 'string' || !connectionString.includes('projects/')) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Spanner connection string should be in format: projects/project-id/instances/instance-id/databases/database-id',
+                vscode.DiagnosticSeverity.Warning
+            ));
+        }
+    }
+
     private validateControlFlow(step: any, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
         // Validate if statement
         if (step.if) {
@@ -659,6 +765,55 @@ class RobogoDiagnosticProvider {
                     'While loop max_iterations must be a number',
                     vscode.DiagnosticSeverity.Error
                 ));
+            }
+        }
+    }
+
+    private validateTemplateAction(args: any[], argsLine: number, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) {
+        if (!Array.isArray(args) || args.length < 2) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Template action requires at least 2 arguments: template_path, data',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        const templatePath = args[0];
+        const data = args[1];
+
+        if (typeof templatePath !== 'string' || !templatePath.endsWith('.tmpl')) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Template path must be a valid .tmpl file',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        if (typeof data !== 'object' || data === null) {
+            const range = new vscode.Range(argsLine, 0, argsLine, 0);
+            diagnostics.push(this.createDiagnostic(
+                range,
+                'Template data must be a valid JSON object',
+                vscode.DiagnosticSeverity.Error
+            ));
+            return;
+        }
+
+        // Template action required fields validation (restore old logic)
+        if (templateRequirements[templatePath]) {
+            for (const field of templateRequirements[templatePath]) {
+                if (!hasNestedField(data, field)) {
+                    const range = new vscode.Range(argsLine, 0, argsLine, 0);
+                    diagnostics.push(this.createDiagnostic(
+                        range,
+                        `Missing required field '${field}' in template data for ${templatePath}`,
+                        vscode.DiagnosticSeverity.Error
+                    ));
+                }
             }
         }
     }
@@ -763,7 +918,7 @@ class RobogoDiagnosticProvider {
     private validateActionExistsSync(action: string, range: vscode.Range, diagnostics: vscode.Diagnostic[]) {
         const validActions = [
             'log', 'sleep', 'assert', 'get_time', 'get_random', 'concat', 'length',
-            'http', 'http_get', 'http_post', 'postgres', 'variable', 'control'
+            'http', 'http_get', 'http_post', 'postgres', 'variable', 'control', 'kafka', 'spanner', 'template'
         ];
 
         if (!validActions.includes(action)) {
@@ -1364,6 +1519,23 @@ class RobogoCompletionProvider implements vscode.CompletionItemProvider {
                 ],
                 UseCases: ['Date/time calculations', 'Time formatting', 'Schedule testing', 'Time-based validation'],
                 Notes: 'Supports adding/subtracting durations, formatting timestamps, and parsing time strings. Uses Go time package for operations.'
+            },
+            {
+                Name: 'template',
+                Description: 'Render templates using Go template engine with inline template definitions.',
+                Example: '- action: template\n  args: ["templates/mt103.tmpl", {"transaction_id": "123", "amount": "100.00"}]\n  result: rendered_message',
+                Parameters: [
+                    { name: 'template_path', type: 'string', description: 'Path to the template file', required: true },
+                    { name: 'data', type: 'object', description: 'Data object to pass to the template', required: true }
+                ],
+                Returns: 'Rendered template as string',
+                Examples: [
+                    '- action: template\n  args: ["templates/mt103.tmpl", {"transaction_id": "123", "amount": "100.00"}]',
+                    '- action: template\n  args: ["templates/sepa.xml.tmpl", {"sender": "Bank A", "receiver": "Bank B"}]',
+                    '- action: template\n  args: ["templates/email.tmpl", {"user": "John", "subject": "Welcome"}]'
+                ],
+                UseCases: ['SWIFT message generation', 'XML document creation', 'Email template rendering', 'Report generation', 'Configuration file creation'],
+                Notes: 'Templates must be defined in the test case\'s templates section or exist as files. Uses Go\'s text/template package. Supports all Go template functions. Template data can include nested objects and arrays. Use result field to store rendered template for later use.'
             }
         ];
     }
@@ -1854,6 +2026,149 @@ class RobogoHoverProvider implements vscode.HoverProvider {
                 Operators: ['==', '!=', '>', '<', '>=', '<=', 'contains', 'starts_with', 'ends_with', '&&', '||', '!'],
                 UseCases: ['Conditional execution', 'Loop control', 'Flow management', 'Dynamic testing'],
                 Notes: 'If conditions return boolean for use in if/else blocks. For loops support range, array, and count formats. While conditions return boolean for loop continuation. Use max_iterations to prevent infinite loops.'
+            },
+            {
+                Name: 'kafka',
+                Description: 'Apache Kafka operations for message publishing and consuming.',
+                Example: '- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", \'{"key": "value"}\']\n  result: publish_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Kafka operation (publish, consume)', required: true },
+                    { name: 'brokers', type: 'string', description: 'Comma-separated list of Kafka brokers', required: true },
+                    { name: 'topic', type: 'string', description: 'Kafka topic name', required: true },
+                    { name: 'message', type: 'string', description: 'Message to publish (for publish operation)', required: false },
+                    { name: 'options', type: 'object', description: 'Kafka configuration options', required: false }
+                ],
+                Returns: 'Operation result with status and data',
+                Examples: [
+                    '- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", \'{"key": "value"}\']',
+                    '- action: kafka\n  args: ["consume", "localhost:9092", "test-topic", "", {"timeout": "30s"}]'
+                ],
+                UseCases: ['Message queue testing', 'Event-driven testing', 'Integration testing', 'Performance testing'],
+                Notes: 'Supports both publishing and consuming messages. Configure timeout for consume operations. Messages are JSON-encoded strings.'
+            },
+            {
+                Name: 'rabbitmq',
+                Description: 'RabbitMQ operations for message publishing and consuming.',
+                Example: '- action: rabbitmq\n  args: ["publish", "amqp://localhost", "test-exchange", "test-routing-key", \'{"key": "value"}\']\n  result: publish_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'RabbitMQ operation (publish, consume)', required: true },
+                    { name: 'url', type: 'string', description: 'RabbitMQ connection URL', required: true },
+                    { name: 'exchange', type: 'string', description: 'Exchange name', required: true },
+                    { name: 'routing_key', type: 'string', description: 'Routing key', required: true },
+                    { name: 'message', type: 'string', description: 'Message to publish (for publish operation)', required: false },
+                    { name: 'options', type: 'object', description: 'RabbitMQ configuration options', required: false }
+                ],
+                Returns: 'Operation result with status and data',
+                Examples: [
+                    '- action: rabbitmq\n  args: ["publish", "amqp://localhost", "test-exchange", "test-routing-key", \'{"key": "value"}\']',
+                    '- action: rabbitmq\n  args: ["consume", "amqp://localhost", "test-exchange", "test-routing-key", "", {"timeout": "30s"}]'
+                ],
+                UseCases: ['Message queue testing', 'Event-driven testing', 'Integration testing', 'Performance testing'],
+                Notes: 'Supports both publishing and consuming messages. Configure timeout for consume operations. Messages are JSON-encoded strings.'
+            },
+            {
+                Name: 'spanner',
+                Description: 'Google Cloud Spanner database operations.',
+                Example: '- action: spanner\n  args: ["query", "projects/my-project/instances/my-instance/databases/my-db", "SELECT * FROM users"]\n  result: query_result',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Spanner operation (query, execute, read)', required: true },
+                    { name: 'database', type: 'string', description: 'Spanner database path', required: true },
+                    { name: 'sql', type: 'string', description: 'SQL query or statement', required: false },
+                    { name: 'params', type: 'array', description: 'Query parameters', required: false },
+                    { name: 'options', type: 'object', description: 'Spanner configuration options', required: false }
+                ],
+                Returns: 'Query results or operation status',
+                Examples: [
+                    '- action: spanner\n  args: ["query", "projects/my-project/instances/my-instance/databases/my-db", "SELECT * FROM users"]',
+                    '- action: spanner\n  args: ["execute", "projects/my-project/instances/my-instance/databases/my-db", "INSERT INTO users (id, name) VALUES (@id, @name)", [{"id": 1, "name": "John"}]]'
+                ],
+                UseCases: ['Cloud database testing', 'Data validation', 'Setup/teardown operations', 'Data verification'],
+                Notes: 'Requires Google Cloud authentication. Supports parameterized queries with named parameters. Use read operation for large result sets.'
+            },
+            {
+                Name: 'template',
+                Description: 'Generate content from templates with variable substitution.',
+                Example: '- action: template\n  args: ["templates/mt103.tmpl", {"amount": "1000.00", "currency": "EUR"}]\n  result: swift_message',
+                Parameters: [
+                    { name: 'template_path', type: 'string', description: 'Path to template file', required: true },
+                    { name: 'variables', type: 'object', description: 'Variables to substitute in template', required: true }
+                ],
+                Returns: 'Generated content as string',
+                Examples: [
+                    '- action: template\n  args: ["templates/mt103.tmpl", {"amount": "1000.00", "currency": "EUR"}]',
+                    '- action: template\n  args: ["templates/sepa-credit-transfer.xml.tmpl", {"debtor": "John Doe", "creditor": "Jane Smith", "amount": "500.00"}]'
+                ],
+                UseCases: ['SWIFT message generation', 'XML document creation', 'Email template generation', 'Report generation'],
+                Notes: 'Uses Go template syntax. Variables are substituted using {{.variable_name}} syntax. Supports nested objects and arrays.'
+            },
+            {
+                Name: 'skip',
+                Description: 'Skip the current step or test case based on conditions.',
+                Example: '- name: "Skip step"\n  action: skip\n  args: ["This step is not needed in current environment"]',
+                Parameters: [
+                    { name: 'reason', type: 'string', description: 'Reason for skipping', required: true }
+                ],
+                Returns: 'Skip confirmation message',
+                Examples: [
+                    '- action: skip\n  args: ["This step is not needed in current environment"]',
+                    '- action: skip\n  args: ["Feature not implemented yet"]'
+                ],
+                UseCases: ['Conditional test execution', 'Feature toggles', 'Environment-specific tests', 'Temporary test disabling'],
+                Notes: 'Immediately stops execution of current step or test case. Use skip field in step definition for conditional skipping.'
+            },
+            {
+                Name: 'string',
+                Description: 'String manipulation operations.',
+                Example: '- action: string\n  args: ["upper", "hello world"]\n  result: uppercase_string',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'String operation (upper, lower, trim, replace, split, join)', required: true },
+                    { name: 'input', type: 'string', description: 'Input string', required: true },
+                    { name: '...args', type: 'any', description: 'Additional operation-specific arguments', required: false }
+                ],
+                Returns: 'Manipulated string',
+                Examples: [
+                    '- action: string\n  args: ["upper", "hello world"]',
+                    '- action: string\n  args: ["replace", "hello world", "world", "robogo"]',
+                    '- action: string\n  args: ["split", "a,b,c", ","]'
+                ],
+                UseCases: ['Text processing', 'Data cleaning', 'Format conversion', 'String validation'],
+                Notes: 'Supports common string operations like case conversion, trimming, replacement, splitting, and joining.'
+            },
+            {
+                Name: 'time',
+                Description: 'Time manipulation and formatting operations.',
+                Example: '- action: time\n  args: ["add", "2024-01-01", "24h"]\n  result: future_date',
+                Parameters: [
+                    { name: 'operation', type: 'string', description: 'Time operation (add, sub, format, parse)', required: true },
+                    { name: 'time', type: 'string', description: 'Time value or timestamp', required: true },
+                    { name: 'duration', type: 'string', description: 'Duration to add/subtract (for add/sub operations)', required: false },
+                    { name: 'format', type: 'string', description: 'Output format (for format operation)', required: false }
+                ],
+                Returns: 'Manipulated or formatted time',
+                Examples: [
+                    '- action: time\n  args: ["add", "2024-01-01", "24h"]',
+                    '- action: time\n  args: ["format", "2024-01-01T12:00:00Z", "2006-01-02"]',
+                    '- action: time\n  args: ["parse", "01/02/2024", "01/02/2006"]'
+                ],
+                UseCases: ['Date/time calculations', 'Time formatting', 'Schedule testing', 'Time-based validation'],
+                Notes: 'Supports adding/subtracting durations, formatting timestamps, and parsing time strings. Uses Go time package for operations.'
+            },
+            {
+                Name: 'template',
+                Description: 'Render templates using Go template engine with inline template definitions.',
+                Example: '- action: template\n  args: ["templates/mt103.tmpl", {"transaction_id": "123", "amount": "100.00"}]\n  result: rendered_message',
+                Parameters: [
+                    { name: 'template_path', type: 'string', description: 'Path to the template file', required: true },
+                    { name: 'data', type: 'object', description: 'Data object to pass to the template', required: true }
+                ],
+                Returns: 'Rendered template as string',
+                Examples: [
+                    '- action: template\n  args: ["templates/mt103.tmpl", {"transaction_id": "123", "amount": "100.00"}]',
+                    '- action: template\n  args: ["templates/sepa.xml.tmpl", {"sender": "Bank A", "receiver": "Bank B"}]',
+                    '- action: template\n  args: ["templates/email.tmpl", {"user": "John", "subject": "Welcome"}]'
+                ],
+                UseCases: ['SWIFT message generation', 'XML document creation', 'Email template rendering', 'Report generation', 'Configuration file creation'],
+                Notes: 'Templates must be defined in the test case\'s templates section or exist as files. Uses Go\'s text/template package. Supports all Go template functions. Template data can include nested objects and arrays. Use result field to store rendered template for later use.'
             }
         ];
     }
@@ -2190,4 +2505,18 @@ function getActionCategory(actionName: string): string {
     return categoryMap[actionName] || 'Other';
 }
 
-export function deactivate() { } 
+export function deactivate() { }
+
+// Add this helper function at the bottom of the file (outside the class):
+function hasNestedField(obj: any, path: string): boolean {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+        if (current && typeof current === 'object' && part in current) {
+            current = current[part];
+        } else {
+            return false;
+        }
+    }
+    return true;
+} 

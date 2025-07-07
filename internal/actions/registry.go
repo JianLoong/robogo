@@ -45,10 +45,10 @@ func (ar *ActionRegistry) Get(name string) (Action, bool) {
 }
 
 // Execute executes an action by name
-func (ar *ActionRegistry) Execute(name string, args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func (ar *ActionRegistry) Execute(name string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	action, exists := ar.actions[name]
 	if !exists {
-		return "", fmt.Errorf("unknown action: %s", name)
+		return nil, fmt.Errorf("unknown action: %s", name)
 	}
 
 	return action.Execute(args, options, silent)

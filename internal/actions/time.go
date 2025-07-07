@@ -68,7 +68,7 @@ var timeFormats = map[string]string{
 //   - Default timezone is UTC if not specified
 //   - Custom formats use Go's time formatting syntax
 //   - Timezone names must be valid IANA timezone identifiers
-func GetTimeAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func GetTimeAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	now := time.Now()
 	var format string
 	var timezone string
@@ -91,14 +91,14 @@ func GetTimeAction(args []interface{}, options map[string]interface{}, silent bo
 				numStr := delta[:len(delta)-1]
 				num, err := strconv.Atoi(numStr)
 				if err != nil {
-					return "", fmt.Errorf("invalid day offset: %v", err)
+					return nil, fmt.Errorf("invalid day offset: %v", err)
 				}
 				dur = time.Duration(num) * 24 * time.Hour
 			} else {
 				// Use time.ParseDuration for h, m, s
 				dur, err = time.ParseDuration(delta)
 				if err != nil {
-					return "", fmt.Errorf("invalid duration offset: %v", err)
+					return nil, fmt.Errorf("invalid duration offset: %v", err)
 				}
 			}
 			if sign == '+' {
@@ -106,7 +106,7 @@ func GetTimeAction(args []interface{}, options map[string]interface{}, silent bo
 			} else if sign == '-' {
 				now = now.Add(-dur)
 			} else {
-				return "", fmt.Errorf("invalid relative time sign: %c", sign)
+				return nil, fmt.Errorf("invalid relative time sign: %c", sign)
 			}
 		}
 		// For 'now' and 'now+/-offset', second arg is format, third is timezone
@@ -129,7 +129,7 @@ func GetTimeAction(args []interface{}, options map[string]interface{}, silent bo
 	if timezone != "" {
 		loc, err := time.LoadLocation(timezone)
 		if err != nil {
-			return "", fmt.Errorf("invalid timezone '%s': %w", timezone, err)
+			return nil, fmt.Errorf("invalid timezone '%s': %w", timezone, err)
 		}
 		now = now.In(loc)
 	}

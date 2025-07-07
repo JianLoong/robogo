@@ -1,0 +1,38 @@
+# NOTE: Before running this test, run setup-spanner-emulator.ps1 to create the default project, instance, database, and table in the emulator.
+
+testcase: "Spanner Integration Test"
+description: "Integration test for Google Cloud Spanner emulator using RoboGo. Inserts data, queries, and verifies connectivity."
+
+variables:
+  secrets:
+    spanner_project:
+      value: "test-project"
+    spanner_instance:
+      value: "test-instance"
+    spanner_database:
+      value: "test-database"
+  vars:
+    spanner_host: "localhost:9010"
+    spanner_project_id: "${spanner_project}"
+    spanner_instance_id: "${spanner_instance}"
+    spanner_database_id: "${spanner_database}"
+    test_table: "integration_test"
+    spanner_connection: "projects/${spanner_project_id}/instances/${spanner_instance_id}/databases/${spanner_database_id}"
+
+steps:
+  - name: "Connect to Spanner"
+    action: spanner
+    args: ["connect", "${spanner_connection}"]
+    result: conn
+    description: "Connect to Spanner emulator"
+
+  - name: "Insert a row"
+    action: spanner
+    args: ["execute", "${spanner_connection}", "INSERT INTO ${test_table} (id, name) VALUES ('1', 'robogo')"]
+    description: "Insert a row"
+
+  - name: "Query the inserted row"
+    action: spanner
+    args: ["query", "${spanner_connection}", "SELECT name FROM ${test_table} WHERE id = '1'"]
+    result: query_result
+    description: "Query the inserted row" 

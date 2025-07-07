@@ -26,7 +26,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 	args []interface{},
 	executor *actions.ActionExecutor,
 	silent bool,
-) (string, error) {
+) (interface{}, error) {
 	if step.Retry == nil {
 		// No retry configuration, execute normally
 		return executor.Execute(step.Action, args, step.Options, silent)
@@ -39,7 +39,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 	}
 
 	var lastErr error
-	var lastOutput string
+	var lastOutput interface{}
 
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if !silent && attempt > 1 {

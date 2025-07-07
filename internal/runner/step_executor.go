@@ -58,13 +58,28 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	output, err := executeStepWithRetry(tr, step, substitutedArgs, executor, silent)
 	stepDuration := time.Since(stepStart)
 
+	// Prepare outputStr and maskedOutput after error extraction
+	var outputStr string
+	if s, ok := output.(string); ok {
+		outputStr = s
+	} else {
+		outputStr = fmt.Sprintf("%v", output)
+	}
+	maskedOutput := tr.secretManager.MaskSecretsInString(outputStr)
+
 	// Handle skip action error
 	if actions.IsSkipError(err) {
+		var outputStr string
+		if s, ok := output.(string); ok {
+			outputStr = s
+		} else {
+			outputStr = fmt.Sprintf("%v", output)
+		}
 		stepResult := parser.StepResult{
 			Step:      step,
 			Status:    "SKIPPED",
 			Duration:  stepDuration,
-			Output:    output,
+			Output:    outputStr,
 			Error:     err.Error(),
 			Timestamp: time.Now(),
 		}
@@ -74,9 +89,6 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	// Get verbosity level for this step
 	verbosityLevel := parser.GetVerbosityLevel(&step, testCase)
 
-	// Mask secrets in output for display
-	maskedOutput := tr.secretManager.MaskSecretsInString(output)
-
 	// Format verbose output if enabled
 	verboseOutput := parser.FormatVerboseOutput(verbosityLevel, step.Action, substitutedArgs, maskedOutput, stepDuration.String())
 
@@ -84,13 +96,13 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		Step:      step,
 		Status:    "PASSED",
 		Duration:  stepDuration,
-		Output:    maskedOutput,
+		Output:    outputStr,
 		Timestamp: time.Now(),
 	}
 
 	// Handle expect_error property
 	if step.ExpectError != nil {
-		expectErr := validateExpectedError(tr, step.ExpectError, err, output, silent)
+		expectErr := validateExpectedError(tr, step.ExpectError, err, fmt.Sprintf("%v", output), silent)
 		if expectErr != nil {
 			stepResult.Status = "FAILED"
 			stepResult.Error = expectErr.Error()
@@ -126,6 +138,15 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		}
 	}
 
+	// Robust: Always check for 'error' key in output map after all error handling
+	if m, ok := output.(map[string]interface{}); ok {
+		if errVal, exists := m["error"]; exists {
+			if errStr, ok := errVal.(string); ok && errStr != "" {
+				stepResult.Error = errStr
+			}
+		}
+	}
+
 	// Add context to step name for reporting
 	if step.Name != "" {
 		stepResult.Step.Name = stepContext + step.Name
@@ -139,15 +160,40 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		if !silent {
 			// Display masked version
 			maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
-			fmt.Printf("💾 Stored result in variable: %s = %s\n", step.Result, maskedValue)
+			fmt.Printf("\U0001F4BE Stored result in variable: %s = %s\n", step.Result, maskedValue)
 		}
 	}
+
+	// --- BEGIN: Auto-populate __robogo_steps with step results ---
+	// Convert StepResult to map[string]interface{}
+	stepMap := map[string]interface{}{
+		"name":      stepResult.Step.Name,
+		"status":    stepResult.Status,
+		"output":    stepResult.Output,
+		"error":     stepResult.Error,
+		"timestamp": stepResult.Timestamp,
+	}
+	stepsVar, exists := tr.variableManager.GetVariable("__robogo_steps")
+	if !exists {
+		// Warn if user has set __robogo_steps manually in test variables
+		if _, userSet := tr.variableManager.GetVariable("__robogo_steps"); userSet {
+			fmt.Println("[robogo warning] The variable '__robogo_steps' is reserved for internal use and will be overwritten.")
+		}
+		stepsVar = []interface{}{}
+	}
+	stepsSlice, ok := stepsVar.([]interface{})
+	if !ok {
+		stepsSlice = []interface{}{}
+	}
+	stepsSlice = append(stepsSlice, stepMap)
+	tr.variableManager.SetVariable("__robogo_steps", stepsSlice)
+	// --- END: Auto-populate __robogo_steps ---
 
 	return &stepResult, nil
 }
 
 // executeStepWithRetry executes a step with retry logic if configured
-func executeStepWithRetry(tr *TestRunner, step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (string, error) {
+func executeStepWithRetry(tr *TestRunner, step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (interface{}, error) {
 	return tr.retryManager.ExecuteWithRetry(step, args, executor, silent)
 }
 

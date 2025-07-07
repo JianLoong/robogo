@@ -35,7 +35,7 @@ import (
 //   - Supports precise timing with float values
 //   - String format follows Go's time.ParseDuration
 //   - Use for realistic test scenarios
-func SleepAction(args []interface{}, options map[string]interface{}, silent bool) (string, error) {
+func SleepAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("sleep action requires duration argument")
 	}
