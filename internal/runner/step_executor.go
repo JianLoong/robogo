@@ -92,12 +92,23 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	// Format verbose output if enabled
 	verboseOutput := parser.FormatVerboseOutput(verbosityLevel, step.Action, substitutedArgs, maskedOutput, stepDuration.String())
 
+	// Determine step category based on context
+	category := determineStepCategory(stepContext, step)
+
+	// Create display name
+	displayName := createDisplayName(step, stepContext, groupIdx)
+
 	stepResult := parser.StepResult{
-		Step:      step,
-		Status:    parser.StatusPending,
-		Duration:  stepDuration,
-		Output:    outputStr,
-		Timestamp: time.Now(),
+		Step:          step,
+		Status:        parser.StatusPending,
+		Duration:      stepDuration,
+		Output:        outputStr,
+		Timestamp:     time.Now(),
+		DisplayName:   displayName,
+		Category:      category,
+		VerboseOutput: verboseOutput,
+		Warnings:      []string{},
+		Metadata:      make(map[string]interface{}),
 	}
 
 	// Handle expect_error property
@@ -110,6 +121,8 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
 			}
 		} else {
+			// Error expectation met - step passed
+			stepResult.Status = parser.StatusPassed
 			if !silent {
 				fmt.Printf("✅ Error expectation passed\n")
 			}
@@ -122,6 +135,8 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 			fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
 		}
 	} else {
+		// Step succeeded - set status to PASSED
+		stepResult.Status = parser.StatusPassed
 		if !silent {
 			// Display verbose output if enabled
 			if verboseOutput != "" {
@@ -162,6 +177,11 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 			maskedValue := tr.secretManager.MaskSecretsInString(fmt.Sprintf("%v", output))
 			fmt.Printf("\U0001F4BE Stored result in variable: %s = %s\n", step.Result, maskedValue)
 		}
+	}
+
+	// Add separator line after step completion
+	if !silent {
+		fmt.Println(strings.Repeat("-", 80))
 	}
 
 	// --- BEGIN: Auto-populate __robogo_steps with step results ---
@@ -286,4 +306,51 @@ func validateExpectedError(tr *TestRunner, expectError interface{}, actualErr er
 	}
 
 	return nil
+}
+
+// determineStepCategory determines the category of a step based on context
+func determineStepCategory(context string, step parser.Step) string {
+	// Check context first
+	if strings.Contains(context, "TDM Setup") {
+		return "setup"
+	}
+	if strings.Contains(context, "TDM Teardown") {
+		return "teardown"
+	}
+	if strings.Contains(context, "Validation") {
+		return "validation"
+	}
+
+	// Check step action for common patterns
+	switch step.Action {
+	case "setup", "prepare", "initialize":
+		return "setup"
+	case "cleanup", "teardown", "close":
+		return "teardown"
+	case "assert", "validate", "verify":
+		return "validation"
+	default:
+		return "main"
+	}
+}
+
+// createDisplayName creates a human-readable display name for a step
+func createDisplayName(step parser.Step, context string, groupIdx int) string {
+	// Use step name if available
+	if step.Name != "" {
+		return step.Name
+	}
+
+	// Create descriptive name based on action and args
+	if len(step.Args) > 0 {
+		firstArg := fmt.Sprintf("%v", step.Args[0])
+		// Truncate long arguments
+		if len(firstArg) > 30 {
+			firstArg = firstArg[:27] + "..."
+		}
+		return fmt.Sprintf("%s: %s", step.Action, firstArg)
+	}
+
+	// Fallback to action name
+	return step.Action
 }

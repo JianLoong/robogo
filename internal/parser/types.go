@@ -199,6 +199,13 @@ type StepResult struct {
 	Output    string
 	Error     string
 	Timestamp time.Time
+
+	// Enhanced display fields
+	DisplayName   string                 `json:"display_name,omitempty"`   // Human-readable step name
+	Category      string                 `json:"category,omitempty"`       // setup, main, teardown, validation
+	VerboseOutput string                 `json:"verbose_output,omitempty"` // Detailed output for verbose mode
+	Warnings      []string               `json:"warnings,omitempty"`       // Non-fatal warnings
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`       // Additional context
 }
 
 // ParallelConfig represents parallelism configuration
