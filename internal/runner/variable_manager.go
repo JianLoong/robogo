@@ -28,7 +28,7 @@ func NewVariableManager() *VariableManager {
 func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 	vm.mutex.Lock()
 	defer vm.mutex.Unlock()
-	
+
 	// Initialize secret variables FIRST
 	if testCase.Variables.Secrets != nil {
 		for key, secret := range testCase.Variables.Secrets {
@@ -312,7 +312,7 @@ func (vm *VariableManager) ClearVariables() {
 	vm.variables = make(map[string]interface{})
 }
 
-// GetVariableNames returns all variable names for debugging
+// GetVariableNames returns all variable names
 func (vm *VariableManager) GetVariableNames() []string {
 	var names []string
 	for name := range vm.variables {

@@ -14,7 +14,7 @@ import (
 
 // ExecutionEngine handles the core test execution logic
 type ExecutionEngine struct {
-	runner      *TestRunner
+	runner       *TestRunner
 	resultsMutex sync.Mutex
 }
 
@@ -27,14 +27,13 @@ func NewExecutionEngine(runner *TestRunner) *ExecutionEngine {
 
 // ExecuteTestCase executes a test case and returns the result
 func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-	fmt.Printf("[DEBUG] ExecuteTestCase: start for test case: %s\n", testCase.Name)
 	// Initialize test runner
 	engine.runner.initializeVariables(testCase)
 	engine.runner.initializeTDM(testCase)
 
 	// Initialize template context if templates are defined
 	if testCase.Templates != nil && len(testCase.Templates) > 0 {
-		fmt.Printf("[DEBUG] ExecuteTestCase: setting template context for test case: %s\n", testCase.Name)
+		// Initialize template context if templates are defined
 		actions.SetTemplateContext(testCase.Templates)
 		if !silent {
 			PrintTemplatesLoaded(len(testCase.Templates), getTemplateNames(testCase.Templates))
@@ -60,7 +59,7 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	// This is a known issue with stdout capture in parallel goroutines
 	var oldStdout *os.File
 	var outC chan string
-	
+
 	if !silent {
 		// Only capture stdout for non-silent execution
 		oldStdout = os.Stdout
@@ -91,7 +90,7 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 
 	// Execute TDM setup if configured
 	if testCase.DataManagement != nil && len(testCase.DataManagement.Setup) > 0 {
-		fmt.Printf("[DEBUG] ExecuteTestCase: running TDM setup for test case: %s\n", testCase.Name)
+		// Execute TDM setup if configured
 		if !silent {
 			PrintTDMSetup()
 		}
@@ -100,12 +99,9 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	}
 
 	// Execute main test steps
-	fmt.Printf("[DEBUG] ExecuteTestCase: running main steps for test case: %s\n", testCase.Name)
 	var err error
 	err = executeStepsWithConfig(engine.runner, testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
-	fmt.Printf("[DEBUG] ExecuteTestCase: finished main steps for test case: %s\n", testCase.Name)
 	if err != nil {
-		fmt.Printf("[DEBUG] ExecuteTestCase: error after main steps for test case: %s: %v\n", testCase.Name, err)
 		if actions.IsSkipError(err) {
 			result.Status = parser.StatusSkipped
 			// Set skip reason from the first skipped step
@@ -117,7 +113,6 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 			}
 			// Skip TDM teardown for skipped tests
 			engine.calculateTestResults(result, startTime)
-			fmt.Printf("[DEBUG] ExecuteTestCase: returning after skip for test case: %s\n", testCase.Name)
 			return result, nil
 		}
 		// Error occurred during step execution (not skip)
@@ -125,7 +120,7 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 
 	// Execute TDM teardown if configured
 	if testCase.DataManagement != nil && len(testCase.DataManagement.Teardown) > 0 {
-		fmt.Printf("[DEBUG] ExecuteTestCase: running TDM teardown for test case: %s\n", testCase.Name)
+		// Execute TDM teardown if configured
 		if !silent {
 			PrintTDMTeardown()
 		}
@@ -133,13 +128,10 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 		result.DataResults.TeardownStatus = "COMPLETED"
 	}
 
-	fmt.Printf("[DEBUG] ExecuteTestCase: calculating test results for test case: %s\n", testCase.Name)
 	engine.calculateTestResults(result, startTime)
 
-	fmt.Printf("[DEBUG] ExecuteTestCase: determining return value for test case: %s\n", testCase.Name)
 	// Return appropriate error based on test status
 	retResult, retErr := engine.determineReturnValue(result)
-	fmt.Printf("[DEBUG] ExecuteTestCase: returning for test case: %s (err: %v)\n", testCase.Name, retErr)
 	return retResult, retErr
 }
 
