@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // RetryResult represents the result of a retry operation
@@ -24,7 +26,7 @@ func ShouldRetry(err error, output string, conditions []string) bool {
 		conditions = []string{"5xx", "timeout", "connection_error"}
 	}
 
-	errStr := strings.ToLower(err.Error())
+	errStr := strings.ToLower(util.FormatRobogoError(err))
 	outputStr := strings.ToLower(output)
 
 	for _, condition := range conditions {

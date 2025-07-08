@@ -3,7 +3,7 @@
 
 testsuite: "Complex Suite"
 description: "A more advanced Robogo test suite with E2E test."
-parallel: false
+parallel: true
 options:
   max_concurrency: 3
 
@@ -26,10 +26,11 @@ setup:
 
 testcases:
 
-  - file: ../tests/core/test-assert.robogo
-  - file: ../tests/core/test-assert.robogo
-  - file: ../tests/core/test-assert.robogo 
+  # - file: ../tests/core/test-assert.robogo
+  # - file: ../tests/core/test-control-flow.robogo
+  - file: ../tests/core/test-get-time.robogo
   - file: ./test-kafka-timeout.robogo
+  
 
 teardown:
   - name: "Suite Teardown"

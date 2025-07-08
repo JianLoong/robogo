@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -68,7 +69,7 @@ var timeFormats = map[string]string{
 //   - Default timezone is UTC if not specified
 //   - Custom formats use Go's time formatting syntax
 //   - Timezone names must be valid IANA timezone identifiers
-func GetTimeAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func GetTimeAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	now := time.Now()
 	var format string
 	var timezone string

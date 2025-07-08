@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // TDMManager handles test data management operations including data sets, environments, validation, and data generation.
@@ -176,27 +178,27 @@ func (tdm *TDMManager) validateField(validation parser.Validation) parser.Valida
 	case "format":
 		if err := tdm.validateFormat(value, validation.Rule); err != nil {
 			result.Status = "failed"
-			result.Message = err.Error()
+			result.Message = util.FormatRobogoError(err)
 		}
 	case "range":
 		if err := tdm.validateRange(value, validation.Rule); err != nil {
 			result.Status = "failed"
-			result.Message = err.Error()
+			result.Message = util.FormatRobogoError(err)
 		}
 	case "length":
 		if err := tdm.validateLength(value, validation.Rule); err != nil {
 			result.Status = "failed"
-			result.Message = err.Error()
+			result.Message = util.FormatRobogoError(err)
 		}
 	case "required":
 		if err := tdm.validateRequired(value); err != nil {
 			result.Status = "failed"
-			result.Message = err.Error()
+			result.Message = util.FormatRobogoError(err)
 		}
 	case "unique":
 		if err := tdm.validateUnique(validation.Field, value); err != nil {
 			result.Status = "failed"
-			result.Message = err.Error()
+			result.Message = util.FormatRobogoError(err)
 		}
 	default:
 		result.Status = "WARNING"
@@ -448,7 +450,7 @@ func (tdm *TDMManager) GetResults() *parser.DataResults {
 //   - Environment-specific data isolation
 //   - Comprehensive validation framework
 //   - Integration with test variable system
-func TDMAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func TDMAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("tdm action requires at least 1 argument: operation")
 	}

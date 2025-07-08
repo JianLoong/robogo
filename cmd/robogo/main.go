@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
@@ -54,7 +56,54 @@ func isTestSuiteFile(filePath string) (bool, error) {
 	return false, nil
 }
 
+// cleanup performs graceful shutdown of all resources
+func cleanup() {
+	// Close all database connections
+	if err := actions.CloseAllConnections(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Error closing PostgreSQL connections: %v\n", err)
+	}
+	// Close all Spanner connections
+	if err := actions.CloseAllSpannerConnections(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Error closing Spanner connections: %v\n", err)
+	}
+	// Close all RabbitMQ connections
+	if err := actions.CloseAllRabbitMQConnections(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Error closing RabbitMQ connections: %v\n", err)
+	}
+}
+
+// setupGracefulShutdown sets up signal handlers for graceful shutdown
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		fmt.Fprintf(os.Stderr, "\nReceived shutdown signal, cleaning up resources...\n")
+		cleanup()
+		fmt.Fprintf(os.Stderr, "Resource cleanup completed\n")
+		os.Exit(0)
+	}()
+}
+
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "panic: %v\n", r)
+		}
+	}()
+	if err := realMain(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func realMain() error {
+	// Setup graceful shutdown before any other operations
+	setupGracefulShutdown()
+
+	// Ensure cleanup happens even if we exit normally
+	defer cleanup()
 	var rootCmd = &cobra.Command{
 		Use:   "robogo",
 		Short: "Robogo - A modern, git-driven test automation framework",
@@ -279,10 +328,14 @@ Key Features:
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(completionsCmd)
 
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	return nil
 }
 
 // outputConsole outputs results in console format
@@ -322,7 +375,7 @@ func outputConsole(results []*parser.TestResult) error {
 	// Exit with non-zero code if any test failed
 	for _, result := range results {
 		if result.FailedSteps > 0 {
-			os.Exit(1)
+			return fmt.Errorf("test suite failed")
 		}
 	}
 	return nil
@@ -370,7 +423,7 @@ func outputJSON(results []*parser.TestResult) error {
 	// Exit with non-zero code if any test failed
 	for _, result := range results {
 		if result.FailedSteps > 0 {
-			os.Exit(1)
+			return fmt.Errorf("test suite failed")
 		}
 	}
 	return nil
@@ -482,7 +535,7 @@ func outputMarkdown(results []*parser.TestResult) error {
 	// Exit with non-zero code if any test failed
 	for _, result := range results {
 		if result.FailedSteps > 0 {
-			os.Exit(1)
+			return fmt.Errorf("test suite failed")
 		}
 	}
 	return nil
@@ -546,7 +599,7 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 
 	// Exit with non-zero code if any test failed
 	if result.FailedCases > 0 {
-		os.Exit(1)
+		return fmt.Errorf("test suite failed")
 	}
 	return nil
 }
@@ -652,7 +705,7 @@ func outputSuiteJSON(result *parser.TestSuiteResult) error {
 
 	// Exit with non-zero code if any test failed
 	if result.FailedCases > 0 {
-		os.Exit(1)
+		return fmt.Errorf("test suite failed")
 	}
 	return nil
 }
@@ -773,7 +826,7 @@ func outputSuiteMarkdown(result *parser.TestSuiteResult) error {
 
 	// Exit with non-zero code if any test failed
 	if result.FailedCases > 0 {
-		os.Exit(1)
+		return fmt.Errorf("test suite failed")
 	}
 	return nil
 }
@@ -798,7 +851,7 @@ func outputMultipleSuitesConsole(results []*parser.TestSuiteResult, grandTotal s
 
 	// Exit with non-zero code if any test failed
 	if grandTotal.FailedCases > 0 {
-		os.Exit(1)
+		return fmt.Errorf("test suite failed")
 	}
 	return nil
 }
@@ -820,7 +873,7 @@ func outputMultipleSuitesJSON(results []*parser.TestSuiteResult, grandTotal stru
 	// Exit with non-zero code if any test failed
 	for _, result := range results {
 		if result.FailedCases > 0 {
-			os.Exit(1)
+			return fmt.Errorf("test suite failed")
 		}
 	}
 	return nil
@@ -873,7 +926,7 @@ func outputMultipleSuitesMarkdown(results []*parser.TestSuiteResult, grandTotal 
 
 	// Exit with non-zero code if any test failed
 	if grandTotal.FailedCases > 0 {
-		os.Exit(1)
+		return fmt.Errorf("test suite failed")
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -43,7 +44,7 @@ import (
 //   - For loops support range, array, and count formats
 //   - While conditions return boolean for loop continuation
 //   - Use max_iterations to prevent infinite loops
-func ControlFlowAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func ControlFlowAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("control flow action requires at least 2 arguments: type and condition")
 	}
@@ -52,18 +53,18 @@ func ControlFlowAction(args []interface{}, options map[string]interface{}, silen
 
 	switch flowType {
 	case "if":
-		return handleIfStatement(args[1:], silent)
+		return handleIfStatement(ctx, args[1:], silent)
 	case "for":
-		return handleForLoop(args[1:])
+		return handleForLoop(ctx, args[1:])
 	case "while":
-		return handleWhileLoop(args[1:])
+		return handleWhileLoop(ctx, args[1:])
 	default:
 		return nil, fmt.Errorf("unknown control flow type: %s", flowType)
 	}
 }
 
 // handleIfStatement evaluates a condition and returns "true" or "false"
-func handleIfStatement(args []interface{}, silent bool) (interface{}, error) {
+func handleIfStatement(ctx context.Context, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("if statement requires a condition")
 	}
@@ -82,7 +83,7 @@ func handleIfStatement(args []interface{}, silent bool) (interface{}, error) {
 }
 
 // handleForLoop handles for loop iterations
-func handleForLoop(args []interface{}) (interface{}, error) {
+func handleForLoop(ctx context.Context, args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("for loop requires a range or array")
 	}
@@ -103,7 +104,7 @@ func handleForLoop(args []interface{}) (interface{}, error) {
 }
 
 // handleWhileLoop handles while loop condition evaluation
-func handleWhileLoop(args []interface{}) (interface{}, error) {
+func handleWhileLoop(ctx context.Context, args []interface{}) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("while loop requires a condition")
 	}

@@ -1,0 +1,7 @@
+testsuite: "Parallel Suite Example"
+description: "Test suite with parallel test case execution"
+parallel: true
+
+testcases:
+  - file: parallel-step-example.robogo
+  - file: test-mt103-payment-flow.robogo 

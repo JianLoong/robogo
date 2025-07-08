@@ -8,6 +8,7 @@ import (
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // executeSingleStep executes a single test step and returns the result
@@ -80,7 +81,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 			Status:    parser.StatusSkipped,
 			Duration:  stepDuration,
 			Output:    outputStr,
-			Error:     err.Error(),
+			Error:     util.FormatRobogoError(err),
 			Timestamp: time.Now(),
 		}
 		return &stepResult, err // propagate skip error up
@@ -116,9 +117,9 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		expectErr := validateExpectedError(tr, step.ExpectError, err, fmt.Sprintf("%v", output), silent)
 		if expectErr != nil {
 			stepResult.Status = parser.StatusFailed
-			stepResult.Error = expectErr.Error()
+			stepResult.Error = util.FormatRobogoError(expectErr)
 			if !silent {
-				fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
+				fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, util.FormatRobogoError(expectErr))
 			}
 		} else {
 			// Error expectation met - step passed
@@ -130,9 +131,9 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	} else if err != nil {
 		// Normal error handling (no expect_error)
 		stepResult.Status = parser.StatusFailed
-		stepResult.Error = err.Error()
+		stepResult.Error = util.FormatRobogoError(err)
 		if !silent {
-			fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, err.Error())
+			fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, util.FormatRobogoError(err))
 		}
 	} else {
 		// Step succeeded - set status to PASSED
@@ -160,6 +161,10 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 				stepResult.Error = errStr
 			}
 		}
+	}
+	// If error was set from output map, mark step as failed if not already
+	if stepResult.Error != "" && stepResult.Status == parser.StatusPassed {
+		stepResult.Status = parser.StatusFailed
 	}
 
 	// Add context to step name for reporting
@@ -255,7 +260,7 @@ func validateExpectedError(tr *TestRunner, expectError interface{}, actualErr er
 		return fmt.Errorf("expected error but action succeeded with result: '%s'", output)
 	}
 
-	actualErrorMsg := actualErr.Error()
+	actualErrorMsg := util.FormatRobogoError(actualErr)
 
 	// Validate the error based on error_type
 	var result bool

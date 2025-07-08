@@ -8,40 +8,82 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JianLoong/robogo/internal/util"
 	"github.com/segmentio/kafka-go"
 )
 
 const defaultKafkaConsumeTimeout = 20 * time.Second // Default timeout for Kafka consumer if not specified
 
-func KafkaAction(args []interface{}) (map[string]interface{}, error) {
+func KafkaActionWithContext(ctx context.Context, args []interface{}) (map[string]interface{}, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("kafka action requires at least one argument")
+		return nil, util.NewValidationError("kafka action requires at least one argument", map[string]interface{}{
+			"args_count": len(args),
+			"required":   1,
+		}).WithAction("kafka")
 	}
 
 	subcommand, ok := args[0].(string)
 	if !ok {
-		return nil, fmt.Errorf("kafka subcommand must be a string")
+		return nil, util.NewValidationError("kafka subcommand must be a string", map[string]interface{}{
+			"subcommand_type":  fmt.Sprintf("%T", args[0]),
+			"subcommand_value": args[0],
+		}).WithAction("kafka")
 	}
+
+	// Set timeout from settings or default (30s)
+	timeout := 30 * time.Second
+	if len(args) > 4 {
+		if settings, ok := args[4].(map[string]interface{}); ok {
+			if t, ok := settings["timeout"]; ok {
+				switch v := t.(type) {
+				case int:
+					timeout = time.Duration(v) * time.Second
+				case int64:
+					timeout = time.Duration(v) * time.Second
+				case float64:
+					timeout = time.Duration(v) * time.Second
+				case string:
+					if d, err := time.ParseDuration(v); err == nil {
+						timeout = d
+					} else if n, err := strconv.Atoi(v); err == nil {
+						timeout = time.Duration(n) * time.Second
+					}
+				}
+			}
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
 	switch subcommand {
 	case "publish":
-		return kafkaPublish(args)
+		return kafkaPublish(ctx, args)
 	case "consume":
-		return kafkaConsume(args)
+		return kafkaConsume(ctx, args)
 	default:
-		return nil, fmt.Errorf("unknown kafka subcommand: %s", subcommand)
+		return nil, util.NewValidationError("unknown kafka subcommand", map[string]interface{}{
+			"subcommand":        subcommand,
+			"valid_subcommands": []string{"publish", "consume"},
+		}).WithAction("kafka")
 	}
 }
 
-func kafkaPublish(args []interface{}) (map[string]interface{}, error) {
+func kafkaPublish(ctx context.Context, args []interface{}) (map[string]interface{}, error) {
 	if len(args) < 4 {
-		return nil, fmt.Errorf("kafka publish requires a broker, topic, and message")
+		return nil, util.NewValidationError("kafka publish requires a broker, topic, and message", map[string]interface{}{
+			"args_count": len(args),
+			"required":   4,
+		}).WithAction("kafka").WithStep("publish")
 	}
 	brokersStr, ok1 := args[1].(string)
 	topic, ok2 := args[2].(string)
 	message, ok3 := args[3].(string)
 	if !ok1 || !ok2 || !ok3 {
-		return nil, fmt.Errorf("kafka publish broker, topic, and message must be strings")
+		return nil, util.NewValidationError("kafka publish broker, topic, and message must be strings", map[string]interface{}{
+			"broker_type":  fmt.Sprintf("%T", args[1]),
+			"topic_type":   fmt.Sprintf("%T", args[2]),
+			"message_type": fmt.Sprintf("%T", args[3]),
+		}).WithAction("kafka").WithStep("publish")
 	}
 	brokers := strings.Split(brokersStr, ",")
 
@@ -50,7 +92,10 @@ func kafkaPublish(args []interface{}) (map[string]interface{}, error) {
 		var ok bool
 		settings, ok = args[4].(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("kafka publish settings must be a map")
+			return nil, util.NewValidationError("kafka publish settings must be a map", map[string]interface{}{
+				"settings_type":  fmt.Sprintf("%T", args[4]),
+				"settings_value": args[4],
+			}).WithAction("kafka").WithStep("publish")
 		}
 	}
 
@@ -88,27 +133,37 @@ func kafkaPublish(args []interface{}) (map[string]interface{}, error) {
 
 	defer w.Close()
 
-	err := w.WriteMessages(context.Background(),
+	err := w.WriteMessages(ctx,
 		kafka.Message{
 			Value: []byte(message),
 		},
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to write messages: %w", err)
+		return nil, util.NewMessagingError("failed to write messages", err, "kafka").WithStep("publish").WithDetails(map[string]interface{}{
+			"brokers":      brokers,
+			"topic":        topic,
+			"message_size": len(message),
+		})
 	}
 
 	return map[string]interface{}{"status": "message published"}, nil
 }
 
-func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
+func kafkaConsume(ctx context.Context, args []interface{}) (map[string]interface{}, error) {
 	if len(args) < 3 {
-		return nil, fmt.Errorf("kafka consume requires a broker and topic")
+		return nil, util.NewValidationError("kafka consume requires a broker and topic", map[string]interface{}{
+			"args_count": len(args),
+			"required":   3,
+		}).WithAction("kafka").WithStep("consume")
 	}
 	brokersStr, ok1 := args[1].(string)
 	topic, ok2 := args[2].(string)
 	if !ok1 || !ok2 {
-		return nil, fmt.Errorf("kafka consume broker and topic must be strings")
+		return nil, util.NewValidationError("kafka consume broker and topic must be strings", map[string]interface{}{
+			"broker_type": fmt.Sprintf("%T", args[1]),
+			"topic_type":  fmt.Sprintf("%T", args[2]),
+		}).WithAction("kafka").WithStep("consume")
 	}
 	brokers := strings.Split(brokersStr, ",")
 
@@ -117,7 +172,10 @@ func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 		var ok bool
 		settings, ok = args[3].(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("kafka consume settings must be a map")
+			return nil, util.NewValidationError("kafka consume settings must be a map", map[string]interface{}{
+				"settings_type":  fmt.Sprintf("%T", args[3]),
+				"settings_value": args[3],
+			}).WithAction("kafka").WithStep("consume")
 		}
 	}
 
@@ -213,8 +271,8 @@ func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 		if remaining <= 0 {
 			break
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), remaining)
-		m, err := r.ReadMessage(ctx)
+		readCtx, cancel := context.WithTimeout(ctx, remaining)
+		m, err := r.ReadMessage(readCtx)
 		cancel()
 		if err != nil {
 			// Improved error handling
@@ -229,7 +287,7 @@ func kafkaConsume(args []interface{}) (map[string]interface{}, error) {
 				}
 				return map[string]interface{}{
 					"error":   "kafka_error",
-					"message": err.Error(),
+					"message": util.FormatRobogoError(err),
 					"topic":   topic,
 				}, nil
 			}

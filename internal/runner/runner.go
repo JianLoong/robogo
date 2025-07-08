@@ -9,6 +9,7 @@ import (
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // TestRunner runs test cases
@@ -75,7 +76,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
 					Status:       parser.StatusFailed,
-					ErrorMessage: err.Error(),
+					ErrorMessage: util.FormatRobogoError(err),
 				}
 			}
 			results = append(results, result)
@@ -108,7 +109,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
 					Status:       parser.StatusFailed,
-					ErrorMessage: err.Error(),
+					ErrorMessage: util.FormatRobogoError(err),
 				}
 			}
 			resultsChan <- result
@@ -157,11 +158,14 @@ func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, er
 
 	// Execute the test case using the engine
 	result, err := engine.ExecuteTestCase(testCase, silent)
+	fmt.Printf("[DEBUG] RunTestCase: after ExecuteTestCase for test case: %s\n", testCase.Name)
 	if err != nil {
+		fmt.Printf("[DEBUG] RunTestCase: returning early with error for test case: %s\n", testCase.Name)
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
 		return result, nil // Return the result, not the error
 	}
+	fmt.Printf("[DEBUG] RunTestCase: returning normally for test case: %s\n", testCase.Name)
 	return result, nil
 }
 
@@ -175,6 +179,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 	// Check if parallel step execution is enabled
 	config := parser.MergeParallelConfig(parallelConfig)
 	if config.Enabled && config.Steps && len(steps) > 1 {
+		fmt.Printf("[DEBUG] executeStepsWithConfig: running steps in parallel for test case: %s\n", testCase.Name)
 		return executeStepsParallel(tr, steps, executor, parentLoop, silent, stepResults, context, testCase, config)
 	}
 
@@ -184,6 +189,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 		if err != nil {
 			if actions.IsSkipError(err) {
 				*stepResults = append(*stepResults, *stepResult)
+				fmt.Printf("[DEBUG] executeStepsWithConfig: skip error, returning for test case: %s\n", testCase.Name)
 				return err // propagate skip error up
 			}
 			if step.ContinueOnFailure {
@@ -193,11 +199,13 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 				}
 				continue
 			} else {
+				fmt.Printf("[DEBUG] executeStepsWithConfig: step failed, returning for test case: %s\n", testCase.Name)
 				return fmt.Errorf("step '%s' failed: %w", stepResult.Step.Name, err)
 			}
 		}
 		*stepResults = append(*stepResults, *stepResult)
 	}
+	fmt.Printf("[DEBUG] executeStepsWithConfig: all steps executed for test case: %s\n", testCase.Name)
 	return nil
 }
 

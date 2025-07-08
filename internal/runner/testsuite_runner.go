@@ -9,6 +9,7 @@ import (
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // TestSuiteRunner runs test suites
@@ -32,6 +33,12 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 		TestSuite: testSuite,
 		Status:    "running",
 	}
+
+	defer func() {
+		if printSummary {
+			tsr.printSuiteSummary(result)
+		}
+	}()
 
 	fmt.Printf("Starting test suite: %s\n", testSuite.Name)
 	if testSuite.Description != "" {
@@ -71,7 +78,7 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 			}
 
 			// Skip teardown since no tests ran
-			tsr.printSuiteSummary(result)
+			// tsr.printSuiteSummary(result) // This line is now handled by the defer block
 			return result, nil // Return nil error since this is expected behavior
 		}
 		result.SetupStatus = setupResult.Status
@@ -151,9 +158,9 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	result.Duration = time.Since(startTime)
 
 	// Print summary only if requested
-	if printSummary {
-		tsr.printSuiteSummary(result)
-	}
+	// if printSummary { // This line is now handled by the defer block
+	// 	tsr.printSuiteSummary(result)
+	// }
 
 	return result, nil
 }
@@ -236,9 +243,8 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			fmt.Printf("      %s: %v\n", k, v)
 		}
 
-		startTime := time.Now()
 		testResult, err := RunTestCase(mergedTestCase, false)
-		duration := time.Since(startTime)
+		duration := time.Since(time.Now())
 
 		caseResult := parser.TestCaseResult{
 			TestCase: mergedTestCase,
@@ -254,7 +260,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 				fmt.Printf("Test case skipped: %s\n", testCase.Name)
 			} else {
 				caseResult.Status = "failed"
-				caseResult.Error = err.Error()
+				caseResult.Error = util.FormatRobogoError(err)
 				fmt.Printf("Test case failed: %v\n", err)
 			}
 			// After running the test case, print all step statuses and errors
@@ -310,74 +316,48 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 	for i, testCase := range testCases {
 		wg.Add(1)
 		go func(index int, tc *parser.TestCase) {
+			fmt.Printf("[DEBUG] Goroutine started for test case: %s\n", tc.Name)
 			defer wg.Done()
+			var sent bool
+			caseResult := parser.TestCaseResult{
+				TestCase: tc,
+				Status:   "failed",
+				Error:    "unknown error",
+			}
+			defer func() {
+				if r := recover(); r != nil && !sent {
+					caseResult.Error = fmt.Sprintf("panic: %v", r)
+					fmt.Printf("[DEBUG] Sending panic result for test case: %s\n", tc.Name)
+					resultChan <- caseResult
+					fmt.Printf("[DEBUG] Sent panic result for test case: %s\n", tc.Name)
+				}
+			}()
 
-			fmt.Printf("Starting test case %d/%d: %s\n", index+1, len(testCases), tc.Name)
-
-			// Check for skip at the test case level using unified logic
-			skipInfo := tsr.runner.ShouldSkipTestCase(tc, fmt.Sprintf("test case %d/%d", index+1, len(testCases)))
-			if skipInfo.ShouldSkip {
-				PrintSkipMessage(fmt.Sprintf("Test case %d/%d", index+1, len(testCases)), tc.Name, skipInfo.Reason, false)
-				caseResult := CreateSkipTestCaseResult(tc, skipInfo.Reason)
+			result, err := RunTestCase(tc, false)
+			if err != nil {
+				fmt.Printf("[DEBUG] Goroutine: RunTestCase returned error for test case: %s: %v\n", tc.Name, err)
+				caseResult.Status = "failed"
+				caseResult.Error = err.Error()
+				if result != nil {
+					caseResult.Result = result
+					caseResult.Duration = result.Duration
+				}
+				fmt.Printf("[DEBUG] Sending error result for test case: %s\n", tc.Name)
 				resultChan <- caseResult
+				sent = true
+				fmt.Printf("[DEBUG] Sent error result for test case: %s\n", tc.Name)
 				return
 			}
-
-			// Merge suite variables with test case variables
-			mergedTestCase := tsr.mergeSuiteVariables(tc, suiteVariables)
-
-			// Debug: Log what variables are being passed
-			fmt.Printf("   Variables: %d regular, %d secrets\n", len(mergedTestCase.Variables.Regular), len(mergedTestCase.Variables.Secrets))
-			fmt.Println("   Final merged variables for this test case:")
-			for k, v := range mergedTestCase.Variables.Regular {
-				fmt.Printf("      %s: %v\n", k, v)
+			if result != nil {
+				caseResult.Status = result.Status
+				caseResult.Result = result
+				caseResult.Duration = result.Duration
+				caseResult.Error = result.ErrorMessage
 			}
-
-			startTime := time.Now()
-			testResult, err := RunTestCase(mergedTestCase, false)
-			duration := time.Since(startTime)
-
-			caseResult := parser.TestCaseResult{
-				TestCase: mergedTestCase,
-				Result:   testResult,
-				Duration: duration,
-			}
-
-			if err != nil {
-				// Check if this is a skip error - this should be treated as a skipped test case
-				if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
-					caseResult.Status = "skipped"
-					caseResult.Error = testResult.ErrorMessage
-					fmt.Printf("Test case skipped: %s\n", tc.Name)
-				} else {
-					caseResult.Status = "failed"
-					caseResult.Error = err.Error()
-					fmt.Printf("Test case failed: %v\n", err)
-				}
-				// After running the test case, print all step statuses and errors
-			} else {
-				// Convert status to lowercase for consistency
-				caseResult.Status = strings.ToLower(testResult.Status)
-				if caseResult.Status == "passed" {
-					fmt.Printf("Test case %d passed in %v\n", index+1, duration)
-				} else if caseResult.Status == "skipped" {
-					fmt.Printf("Test case %d skipped in %v\n", index+1, duration)
-					if testResult.ErrorMessage != "" {
-						fmt.Printf("   Reason: %s\n", testResult.ErrorMessage)
-					}
-				} else {
-					fmt.Printf("Test case %d failed in %v\n", index+1, duration)
-					// After running the test case, print all step statuses and errors
-				}
-			}
-
-			// Check for failures (both error and failed status) for fail-fast
-			// if caseResult.Status == "failed" {
-			// 	failed = true
-			// 	failReason = caseResult.Error
-			// }
-
+			fmt.Printf("[DEBUG] Sending normal result for test case: %s\n", tc.Name)
 			resultChan <- caseResult
+			sent = true
+			fmt.Printf("[DEBUG] Sent normal result for test case: %s\n", tc.Name)
 		}(i, testCase)
 	}
 
@@ -389,8 +369,11 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 
 	// Collect results
 	for result := range resultChan {
+		fmt.Printf("[DEBUG] Received result for test case: %s\n", result.TestCase.Name)
 		results = append(results, result)
 	}
+
+	fmt.Printf("[DEBUG] All results collected, returning from runTestCasesParallel\n")
 
 	return results
 }

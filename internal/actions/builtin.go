@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -31,20 +32,20 @@ func NewActionExecutor() *ActionExecutor {
 	return &ActionExecutor{}
 }
 
-func RabbitMQActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func RabbitMQActionWrapper(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	strArgs := make([]string, len(args))
 	for i, v := range args {
 		strArgs[i] = fmt.Sprintf("%v", v)
 	}
-	result, err := RabbitMQAction(strArgs)
+	result, err := RabbitMQActionWithContext(ctx, strArgs)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func KafkaActionWrapper(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	return KafkaAction(args)
+func KafkaActionWrapper(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	return KafkaActionWithContext(ctx, args)
 }
 
 // GetAction retrieves an action function by name.

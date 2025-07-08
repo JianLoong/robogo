@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ import (
 //   - Objects are JSON-formatted for readability
 //   - Supports variable substitution with ${variable} syntax
 //   - No separator is added between values (add explicitly if needed)
-func ConcatAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func ConcatAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("concat action requires at least one argument")
 	}
@@ -89,7 +90,7 @@ func ConcatAction(args []interface{}, options map[string]interface{}, silent boo
 //   - For objects, counts the number of key-value pairs
 //   - Supports variable substitution with ${variable} syntax
 //   - Returns "0" for nil or empty values
-func LengthAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func LengthAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) != 1 {
 		return "", fmt.Errorf("length action requires exactly one argument")
 	}

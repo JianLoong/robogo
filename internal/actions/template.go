@@ -2,6 +2,7 @@ package actions
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"text/template"
@@ -37,7 +38,7 @@ import (
 //   - Uses Go's text/template package
 //   - Supports all Go template functions
 //   - Case-sensitive field names
-func TemplateAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func TemplateAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("template action requires at least 2 arguments: template file path and data")
 	}

@@ -1,16 +1,19 @@
 package actions
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // HTTPResponse represents the response from an HTTP request
@@ -36,7 +39,7 @@ func loadCertificateData(input string) ([]byte, error) {
 	if strings.Contains(input, "/") || strings.Contains(input, "\\") ||
 		strings.Contains(input, ".") || !strings.Contains(input, "-----BEGIN") {
 		// Treat as file path
-		return ioutil.ReadFile(input)
+		return os.ReadFile(input)
 	}
 
 	// Treat as PEM content
@@ -57,12 +60,18 @@ func loadCertificateData(input string) ([]byte, error) {
 func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 	certData, err := loadCertificateData(certInput)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("failed to load certificate: %w", err)
+		return tls.Certificate{}, util.NewSecurityError("failed to load certificate", err, "http").
+			WithDetails(map[string]interface{}{
+				"cert_input": certInput,
+			})
 	}
 
 	keyData, err := loadCertificateData(keyInput)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("failed to load private key: %w", err)
+		return tls.Certificate{}, util.NewSecurityError("failed to load private key", err, "http").
+			WithDetails(map[string]interface{}{
+				"key_input": keyInput,
+			})
 	}
 
 	return tls.X509KeyPair(certData, keyData)
@@ -107,9 +116,19 @@ func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 //   - Automatic JSON handling for request/response bodies
 //   - Comprehensive error handling and timeout support
 //   - Response data available for assertions and variable storage
-func HTTPAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+//
+// HTTPActionWithContext performs HTTP requests with context support for cancellation and timeouts
+func HTTPAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	return httpActionInternal(ctx, args, options, silent)
+}
+
+func httpActionInternal(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("http action requires at least 2 arguments: method and url")
+		return nil, util.NewValidationError("http action requires at least 2 arguments: method and url",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 2,
+			}).WithAction("http")
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -126,7 +145,11 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 		"OPTIONS": true,
 	}
 	if !validMethods[method] {
-		return nil, fmt.Errorf("invalid HTTP method: %s", method)
+		return nil, util.NewValidationError("invalid HTTP method",
+			map[string]interface{}{
+				"method":        method,
+				"valid_methods": []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"},
+			}).WithAction("http")
 	}
 
 	// Parse optional arguments
@@ -170,18 +193,28 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	if certFile != "" && keyFile != "" {
 		cert, err := loadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load client certificate/key: %w", err)
+			return nil, util.NewSecurityError("failed to load client certificate/key", err, "http").
+				WithDetails(map[string]interface{}{
+					"cert_file": certFile,
+					"key_file":  keyFile,
+				})
 		}
 		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 	}
 	if caFile != "" {
 		caData, err := loadCertificateData(caFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load CA certificate: %w", err)
+			return nil, util.NewSecurityError("failed to load CA certificate", err, "http").
+				WithDetails(map[string]interface{}{
+					"ca_file": caFile,
+				})
 		}
 		caPool := x509.NewCertPool()
 		if !caPool.AppendCertsFromPEM(caData) {
-			return nil, fmt.Errorf("failed to append CA certificate")
+			return nil, util.NewSecurityError("failed to append CA certificate", nil, "http").
+				WithDetails(map[string]interface{}{
+					"ca_file": caFile,
+				})
 		}
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{}
@@ -199,18 +232,22 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 		Transport: transport,
 	}
 
-	// Create request
+	// Create request with context
 	var req *http.Request
 	var err error
 
 	if body != "" {
-		req, err = http.NewRequest(method, url, strings.NewReader(body))
+		req, err = http.NewRequestWithContext(ctx, method, url, strings.NewReader(body))
 	} else {
-		req, err = http.NewRequest(method, url, nil)
+		req, err = http.NewRequestWithContext(ctx, method, url, nil)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, util.NewNetworkError("failed to create request", err, "http").
+			WithDetails(map[string]interface{}{
+				"method": method,
+				"url":    url,
+			})
 	}
 
 	// Set headers
@@ -231,7 +268,12 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, util.NewNetworkError("request failed", err, "http").
+			WithDetails(map[string]interface{}{
+				"method":  method,
+				"url":     url,
+				"timeout": timeout.String(),
+			})
 	}
 	defer resp.Body.Close()
 
@@ -240,7 +282,12 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, util.NewNetworkError("failed to read response body", err, "http").
+			WithDetails(map[string]interface{}{
+				"method":      method,
+				"url":         url,
+				"status_code": resp.StatusCode,
+			})
 	}
 
 	// Build response headers map
@@ -260,7 +307,10 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 	// Convert to JSON for return
 	jsonResp, err := json.Marshal(httpResp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response: %w", err)
+		return nil, util.NewExecutionError("failed to marshal response", err, "http").
+			WithDetails(map[string]interface{}{
+				"response": httpResp,
+			})
 	}
 
 	// Only print if not silent
@@ -299,9 +349,13 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 //   - Simplified syntax for GET requests
 //   - Same functionality as HTTPAction with GET method
 //   - Supports all HTTPAction options and features
-func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func HTTPGetAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("http_get action requires at least 1 argument: url")
+		return nil, util.NewValidationError("http_get action requires at least 1 argument: url",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 1,
+			}).WithAction("http_get")
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -309,11 +363,11 @@ func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bo
 	// Check if headers are provided
 	if len(args) > 1 {
 		if headers, ok := args[1].(map[string]interface{}); ok {
-			return HTTPAction([]interface{}{"GET", url, headers}, options, silent)
+			return HTTPAction(ctx, []interface{}{"GET", url, headers}, options, silent)
 		}
 	}
 
-	return HTTPAction([]interface{}{"GET", url}, options, silent)
+	return HTTPAction(ctx, []interface{}{"GET", url}, options, silent)
 }
 
 // HTTPPostAction performs HTTP POST requests with simplified syntax.
@@ -342,9 +396,13 @@ func HTTPGetAction(args []interface{}, options map[string]interface{}, silent bo
 //   - Simplified syntax for POST requests
 //   - Same functionality as HTTPAction with POST method
 //   - Supports all HTTPAction options and features
-func HTTPPostAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func HTTPPostAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("http_post action requires at least 2 arguments: url and body")
+		return nil, util.NewValidationError("http_post action requires at least 2 arguments: url and body",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 2,
+			}).WithAction("http_post")
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -353,11 +411,11 @@ func HTTPPostAction(args []interface{}, options map[string]interface{}, silent b
 	// Check if headers are provided
 	if len(args) > 2 {
 		if headers, ok := args[2].(map[string]interface{}); ok {
-			return HTTPAction([]interface{}{"POST", url, body, headers}, options, silent)
+			return HTTPAction(ctx, []interface{}{"POST", url, body, headers}, options, silent)
 		}
 	}
 
-	return HTTPAction([]interface{}{"POST", url, body}, options, silent)
+	return HTTPAction(ctx, []interface{}{"POST", url, body}, options, silent)
 }
 
 // HTTPBatchResult represents the result of a batch HTTP operation
@@ -389,9 +447,13 @@ type HTTPBatchResult struct {
 //   - Batch API operations
 //   - Performance testing
 //   - Health checks across multiple services
-func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func HTTPBatchAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("http_batch action requires at least 2 arguments: method and urls")
+		return nil, util.NewValidationError("http_batch action requires at least 2 arguments: method and urls",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 2,
+			}).WithAction("http_batch")
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -406,11 +468,17 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 	case []string:
 		urls = v
 	default:
-		return nil, fmt.Errorf("urls must be an array")
+		return nil, util.NewValidationError("urls must be an array",
+			map[string]interface{}{
+				"urls_type": fmt.Sprintf("%T", args[1]),
+			}).WithAction("http_batch")
 	}
 
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("at least one URL is required")
+		return nil, util.NewValidationError("at least one URL is required",
+			map[string]interface{}{
+				"urls_count": len(urls),
+			}).WithAction("http_batch")
 	}
 
 	// Parse optional arguments
@@ -477,9 +545,9 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 			var err error
 
 			if body != "" && (method == "POST" || method == "PUT" || method == "PATCH") {
-				req, err = http.NewRequest(method, targetURL, strings.NewReader(body))
+				req, err = http.NewRequestWithContext(ctx, method, targetURL, strings.NewReader(body))
 			} else {
-				req, err = http.NewRequest(method, targetURL, nil)
+				req, err = http.NewRequestWithContext(ctx, method, targetURL, nil)
 			}
 
 			if err != nil {
@@ -545,7 +613,250 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 	// Convert results to JSON
 	resultsJSON, err := json.Marshal(results)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal batch results: %w", err)
+		return nil, util.NewExecutionError("failed to marshal batch results", err, "http_batch").
+			WithDetails(map[string]interface{}{
+				"results_count": len(results),
+			})
+	}
+
+	if !silent {
+		fmt.Printf("Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
+	}
+
+	return resultsJSON, nil
+}
+
+// HTTPGetActionWithContext performs HTTP GET requests with context support.
+func HTTPGetActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	if len(args) < 1 {
+		return nil, util.NewValidationError("http_get action requires at least 1 argument: url",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 1,
+			}).WithAction("http_get")
+	}
+
+	url := fmt.Sprintf("%v", args[0])
+
+	// Check if headers are provided
+	if len(args) > 1 {
+		if headers, ok := args[1].(map[string]interface{}); ok {
+			return HTTPAction(ctx, []interface{}{"GET", url, headers}, options, silent)
+		}
+	}
+
+	return HTTPAction(ctx, []interface{}{"GET", url}, options, silent)
+}
+
+// HTTPPostActionWithContext performs HTTP POST requests with context support.
+func HTTPPostActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	if len(args) < 2 {
+		return nil, util.NewValidationError("http_post action requires at least 2 arguments: url and body",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 2,
+			}).WithAction("http_post")
+	}
+
+	url := fmt.Sprintf("%v", args[0])
+	body := fmt.Sprintf("%v", args[1])
+
+	// Check if headers are provided
+	if len(args) > 2 {
+		if headers, ok := args[2].(map[string]interface{}); ok {
+			return HTTPAction(ctx, []interface{}{"POST", url, body, headers}, options, silent)
+		}
+	}
+
+	return HTTPAction(ctx, []interface{}{"POST", url, body}, options, silent)
+}
+
+// HTTPBatchActionWithContext performs multiple HTTP requests in parallel with context support.
+func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	if len(args) < 2 {
+		return nil, util.NewValidationError("http_batch action requires at least 2 arguments: method and urls",
+			map[string]interface{}{
+				"provided_args": len(args),
+				"required_args": 2,
+			}).WithAction("http_batch")
+	}
+
+	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
+
+	// Parse URLs
+	var urls []string
+	switch v := args[1].(type) {
+	case []interface{}:
+		for _, url := range v {
+			urls = append(urls, fmt.Sprintf("%v", url))
+		}
+	case []string:
+		urls = v
+	default:
+		return nil, util.NewValidationError("urls must be an array",
+			map[string]interface{}{
+				"urls_type": fmt.Sprintf("%T", args[1]),
+			}).WithAction("http_batch")
+	}
+
+	if len(urls) == 0 {
+		return nil, util.NewValidationError("at least one URL is required",
+			map[string]interface{}{
+				"urls_count": len(urls),
+			}).WithAction("http_batch")
+	}
+
+	// Parse optional arguments
+	var headers map[string]string
+	var body string
+	var timeout time.Duration = 30 * time.Second
+	var maxConcurrency int = 10 // Default concurrency limit
+
+	for i := 2; i < len(args); i++ {
+		switch v := args[i].(type) {
+		case map[string]interface{}:
+			// Check for concurrency limit
+			if c, ok := v["concurrency"]; ok {
+				if concurrency, ok := c.(int); ok {
+					maxConcurrency = concurrency
+				}
+			}
+			// Check for timeout
+			if t, ok := v["timeout"]; ok {
+				if timeoutStr, ok := t.(string); ok {
+					if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
+						timeout = parsedTimeout
+					}
+				}
+			}
+			// Treat other fields as headers
+			if headers == nil {
+				headers = make(map[string]string)
+			}
+			for k, val := range v {
+				if k != "concurrency" && k != "timeout" {
+					headers[k] = fmt.Sprintf("%v", val)
+				}
+			}
+		case string:
+			// This could be body
+			if body == "" && (method == "POST" || method == "PUT" || method == "PATCH") {
+				body = v
+			}
+		}
+	}
+
+	// Set timeout on context
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Create HTTP client
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
+	// Execute requests in parallel
+	results := make([]HTTPBatchResult, len(urls))
+	semaphore := make(chan struct{}, maxConcurrency)
+
+	var wg sync.WaitGroup
+	for i, url := range urls {
+		wg.Add(1)
+		go func(index int, targetURL string) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: "operation cancelled by context",
+				}
+				return
+			default:
+			}
+
+			// Create request with context
+			var req *http.Request
+			var err error
+
+			if body != "" && (method == "POST" || method == "PUT" || method == "PATCH") {
+				req, err = http.NewRequestWithContext(ctx, method, targetURL, strings.NewReader(body))
+			} else {
+				req, err = http.NewRequestWithContext(ctx, method, targetURL, nil)
+			}
+
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("failed to create request: %v", err),
+				}
+				return
+			}
+
+			// Add headers
+			for k, v := range headers {
+				req.Header.Set(k, v)
+			}
+
+			// Execute request
+			startTime := time.Now()
+			resp, err := client.Do(req)
+			duration := time.Since(startTime)
+
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("request failed: %v", err),
+				}
+				return
+			}
+			defer resp.Body.Close()
+
+			// Read response body
+			respBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				results[index] = HTTPBatchResult{
+					URL:   targetURL,
+					Error: fmt.Sprintf("failed to read response body: %v", err),
+				}
+				return
+			}
+
+			// Build response headers map
+			respHeaders := make(map[string]string)
+			for k, v := range resp.Header {
+				respHeaders[k] = strings.Join(v, ", ")
+			}
+
+			// Create response object
+			response := HTTPResponse{
+				StatusCode: resp.StatusCode,
+				Headers:    respHeaders,
+				Body:       string(respBody),
+				Duration:   duration,
+			}
+
+			results[index] = HTTPBatchResult{
+				URL:      targetURL,
+				Response: response,
+			}
+		}(i, url)
+	}
+
+	wg.Wait()
+
+	// Convert results to JSON
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return nil, util.NewExecutionError("failed to marshal batch results", err, "http_batch").
+			WithDetails(map[string]interface{}{
+				"results_count": len(results),
+			})
 	}
 
 	if !silent {

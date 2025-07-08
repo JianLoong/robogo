@@ -8,6 +8,7 @@ import (
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // RetryManager handles retry logic for steps
@@ -94,7 +95,7 @@ func (rm *RetryManager) shouldRetry(err error, conditions []string) bool {
 		return true
 	}
 
-	errMsg := err.Error()
+	errMsg := util.FormatRobogoError(err)
 	errMsgLower := strings.ToLower(errMsg)
 
 	for _, condition := range conditions {

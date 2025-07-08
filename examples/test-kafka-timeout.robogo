@@ -1,5 +1,10 @@
 testcase: Kafka Timeout Error Handling
 description: Kafa Timeout Test
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    kafka_topic: "robogo_test_topic"
+    test_message: "hello from robogo"
 steps:
   - name: Kafka Consume Timeout Test
     action: kafka
@@ -8,8 +13,10 @@ steps:
       - localhost:9092
       - my-topic
       - 
-          groupID: my-group
-          timeout: 1
+        fromOffset: "first"
+        count: 1
+        timeout: 1
+
 
   - name: Assert Timeout Error
     action: assert

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -42,7 +43,7 @@ import (
 //   - String operations are case-sensitive
 //   - Boolean values can be strings ("true"/"false") or actual booleans
 //   - Use continue_on_failure to prevent test termination on assertion failure
-func AssertAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func AssertAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	parser := util.NewArgParser(args, options)
 
 	if err := parser.RequireMinArgs(3); err != nil {

@@ -2,8 +2,10 @@ package actions
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
+
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // SecretManager handles secret variable resolution (inline or file)
@@ -33,13 +35,22 @@ func (sm *SecretManager) ResolveSecrets(variables map[string]interface{}) error 
 				secretValue = fmt.Sprintf("%v", value)
 			} else if file, hasFile := secretMap["file"]; hasFile && fmt.Sprintf("%v", file) != "" {
 				filePath := fmt.Sprintf("%v", file)
-				data, err := ioutil.ReadFile(filePath)
+				data, err := os.ReadFile(filePath)
 				if err != nil {
-					return fmt.Errorf("failed to read secret file '%s': %w", filePath, err)
+					return util.NewFileSystemError("failed to read secret file", err, "secrets").
+						WithDetails(map[string]interface{}{
+							"file_path":   filePath,
+							"secret_name": name,
+						})
 				}
 				secretValue = strings.TrimSpace(string(data))
 			} else {
-				return fmt.Errorf("secret '%s' must have either a 'value' or 'file' field", name)
+				return util.NewValidationError("secret must have either a 'value' or 'file' field",
+					map[string]interface{}{
+						"secret_name": name,
+						"has_value":   secretMap["value"] != nil,
+						"has_file":    secretMap["file"] != nil,
+					})
 			}
 			sm.secrets[name] = secretValue
 			sm.masked[name] = maskOutput

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -28,7 +29,7 @@ import (
 //   - The test case execution stops after this action
 //   - The reason is included in test reports
 //   - Use with conditional logic for dynamic skipping
-func SkipAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func SkipAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	reason := "Test case skipped"
 	if len(args) > 0 {
 		reason = fmt.Sprintf("%v", args[0])
