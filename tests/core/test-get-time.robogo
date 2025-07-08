@@ -5,6 +5,9 @@ testcase: "Get Time Action Test"
 description: "Covers all built-in, custom, and relative formats for get_time action"
 
 steps:
+  - name: "Sleep for 2 seconds (debug)"
+    action: sleep
+    args: [2]
   # ISO 8601 format
   - name: "Get ISO time"
     action: get_time

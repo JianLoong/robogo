@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
@@ -13,7 +14,8 @@ import (
 
 // ExecutionEngine handles the core test execution logic
 type ExecutionEngine struct {
-	runner *TestRunner
+	runner      *TestRunner
+	resultsMutex sync.Mutex
 }
 
 // NewExecutionEngine creates a new execution engine
@@ -54,23 +56,30 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 
 	startTime := time.Now()
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Capture stdout - disable for parallel execution to avoid deadlocks
+	// This is a known issue with stdout capture in parallel goroutines
+	var oldStdout *os.File
+	var outC chan string
+	
+	if !silent {
+		// Only capture stdout for non-silent execution
+		oldStdout = os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
 
-	outC := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		io.Copy(&buf, r)
-		outC <- buf.String()
-	}()
+		outC = make(chan string)
+		go func() {
+			var buf bytes.Buffer
+			io.Copy(&buf, r)
+			outC <- buf.String()
+		}()
 
-	defer func() {
-		w.Close()
-		os.Stdout = oldStdout // Restore stdout
-		result.CapturedOutput = <-outC
-	}()
+		defer func() {
+			w.Close()
+			os.Stdout = oldStdout // Restore stdout
+			result.CapturedOutput = <-outC
+		}()
+	}
 
 	if !silent {
 		PrintTestCaseStart(testCase.Name)

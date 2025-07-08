@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"text/template"
 )
 
@@ -85,20 +86,30 @@ func TemplateAction(ctx context.Context, args []interface{}, options map[string]
 
 // SetTemplateContext sets the template context for the current test case
 // This will be called by the test runner to provide access to templates
-var templateContext map[string]string
+var (
+	templateContext map[string]string
+	templateMutex   sync.RWMutex
+)
 
 // SetTemplateContext sets the available templates for the current test case
 func SetTemplateContext(templates map[string]string) {
+	templateMutex.Lock()
+	defer templateMutex.Unlock()
 	templateContext = templates
 }
 
 // GetTemplateContext returns the current template context
 func GetTemplateContext() map[string]string {
+	templateMutex.RLock()
+	defer templateMutex.RUnlock()
 	return templateContext
 }
 
 // getTemplateFromContext retrieves a template from the current test context
 func getTemplateFromContext(templateName string) (string, error) {
+	templateMutex.RLock()
+	defer templateMutex.RUnlock()
+	
 	if templateContext == nil {
 		return "", fmt.Errorf("no template context available")
 	}

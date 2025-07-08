@@ -218,6 +218,9 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 		PrintParallelStepGroups(len(stepGroups))
 	}
 
+	// Mutex to protect stepResults slice modification
+	var resultsMutex sync.Mutex
+
 	for groupIdx, group := range stepGroups {
 		if len(group) == 1 {
 			// Single step - execute sequentially
@@ -226,14 +229,16 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 			if err != nil {
 				return err
 			}
+			resultsMutex.Lock()
 			*stepResults = append(*stepResults, *stepResult)
+			resultsMutex.Unlock()
 		} else {
 			// Multiple independent steps - execute in parallel
 			if !silent {
 				PrintParallelSteps(len(group), groupIdx)
 			}
 
-			if err := executeStepGroupParallel(tr, group, executor, parentLoop, silent, stepResults, context, testCase, config, groupIdx); err != nil {
+			if err := executeStepGroupParallel(tr, group, executor, parentLoop, silent, stepResults, context, testCase, config, groupIdx, &resultsMutex); err != nil {
 				return err
 			}
 		}
@@ -243,7 +248,7 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 }
 
 // executeStepGroupParallel executes a group of independent steps in parallel
-func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int) error {
+func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int, resultsMutex *sync.Mutex) error {
 	var wg sync.WaitGroup
 	resultsChan := make(chan *parser.StepResult, len(steps))
 	errorsChan := make(chan error, len(steps))
@@ -278,9 +283,11 @@ func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *act
 	case err := <-errorsChan:
 		return err
 	default:
-		// No errors, collect results
+		// No errors, collect results with mutex protection
 		for result := range resultsChan {
+			resultsMutex.Lock()
 			*stepResults = append(*stepResults, *result)
+			resultsMutex.Unlock()
 		}
 	}
 

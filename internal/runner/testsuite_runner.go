@@ -1,8 +1,10 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +39,8 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	defer func() {
 		if printSummary {
 			tsr.printSuiteSummary(result)
+			// Ensure all output is flushed
+			os.Stdout.Sync()
 		}
 	}()
 
@@ -302,8 +306,8 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 // runTestCasesParallel runs test cases in parallel
 func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, suiteVariables *parser.Variables, failFast bool) []parser.TestCaseResult {
 	var results []parser.TestCaseResult
-	// var mutex sync.Mutex // Not used in parallel execution
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	// Create channels for results
 	resultChan := make(chan parser.TestCaseResult, len(testCases))
@@ -316,66 +320,129 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 	for i, testCase := range testCases {
 		wg.Add(1)
 		go func(index int, tc *parser.TestCase) {
-			fmt.Printf("[DEBUG] Goroutine started for test case: %s\n", tc.Name)
-			defer wg.Done()
-			var sent bool
-			caseResult := parser.TestCaseResult{
-				TestCase: tc,
-				Status:   "failed",
-				Error:    "unknown error",
-			}
 			defer func() {
-				if r := recover(); r != nil && !sent {
-					caseResult.Error = fmt.Sprintf("panic: %v", r)
-					fmt.Printf("[DEBUG] Sending panic result for test case: %s\n", tc.Name)
-					resultChan <- caseResult
-					fmt.Printf("[DEBUG] Sent panic result for test case: %s\n", tc.Name)
+				if r := recover(); r != nil {
+					fmt.Printf("Panic in test case %s: %v\n", tc.Name, r)
 				}
 			}()
-
-			result, err := RunTestCase(tc, false)
-			if err != nil {
-				fmt.Printf("[DEBUG] Goroutine: RunTestCase returned error for test case: %s: %v\n", tc.Name, err)
-				caseResult.Status = "failed"
-				caseResult.Error = err.Error()
-				if result != nil {
-					caseResult.Result = result
-					caseResult.Duration = result.Duration
+			defer wg.Done()
+			
+			var caseResult parser.TestCaseResult
+			
+			// Check for skip at the test case level using unified logic
+			skipInfo := tsr.runner.ShouldSkipTestCase(tc, fmt.Sprintf("test case %d/%d", index+1, len(testCases)))
+			if skipInfo.ShouldSkip {
+				PrintSkipMessage(fmt.Sprintf("Test case %d/%d", index+1, len(testCases)), tc.Name, skipInfo.Reason, false)
+				caseResult = CreateSkipTestCaseResult(tc, skipInfo.Reason)
+				select {
+				case resultChan <- caseResult:
+				case <-time.After(5 * time.Second):
+					fmt.Printf("Timeout sending skip result for test case: %s\n", tc.Name)
 				}
-				fmt.Printf("[DEBUG] Sending error result for test case: %s\n", tc.Name)
-				resultChan <- caseResult
-				sent = true
-				fmt.Printf("[DEBUG] Sent error result for test case: %s\n", tc.Name)
 				return
 			}
-			if result != nil {
-				caseResult.Status = result.Status
-				caseResult.Result = result
-				caseResult.Duration = result.Duration
-				caseResult.Error = result.ErrorMessage
+
+			fmt.Printf("\nRunning test case %d/%d: %s\n", index+1, len(testCases), tc.Name)
+
+			// Merge suite variables with test case variables
+			mergedTestCase := tsr.mergeSuiteVariables(tc, suiteVariables)
+
+			// Debug: Log what variables are being passed
+			fmt.Printf("   Variables: %d regular, %d secrets\n", len(mergedTestCase.Variables.Regular), len(mergedTestCase.Variables.Secrets))
+			fmt.Println("   Final merged variables for this test case:")
+			for k, v := range mergedTestCase.Variables.Regular {
+				fmt.Printf("      %s: %v\n", k, v)
 			}
-			fmt.Printf("[DEBUG] Sending normal result for test case: %s\n", tc.Name)
-			resultChan <- caseResult
-			sent = true
-			fmt.Printf("[DEBUG] Sent normal result for test case: %s\n", tc.Name)
+
+			fmt.Printf("[DEBUG] runTestCasesParallel: calling RunTestCase for: %s\n", tc.Name)
+			// Use silent=true for parallel execution to avoid stdout capture deadlocks
+			testResult, err := RunTestCase(mergedTestCase, true)
+			fmt.Printf("[DEBUG] runTestCasesParallel: RunTestCase returned for: %s\n", tc.Name)
+			duration := time.Since(time.Now())
+
+			caseResult = parser.TestCaseResult{
+				TestCase: mergedTestCase,
+				Result:   testResult,
+				Duration: duration,
+			}
+
+			if err != nil {
+				// Check if this is a skip error - this should be treated as a skipped test case
+				if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
+					caseResult.Status = "skipped"
+					caseResult.Error = testResult.ErrorMessage
+					fmt.Printf("Test case skipped: %s\n", tc.Name)
+				} else {
+					caseResult.Status = "failed"
+					caseResult.Error = util.FormatRobogoError(err)
+					fmt.Printf("Test case failed: %v\n", err)
+				}
+			} else {
+				// Convert status to lowercase for consistency
+				caseResult.Status = strings.ToLower(testResult.Status)
+				if caseResult.Status == "passed" {
+					fmt.Printf("Test case passed in %v\n", duration)
+				} else if caseResult.Status == "skipped" {
+					fmt.Printf("Test case skipped in %v\n", duration)
+					if testResult.ErrorMessage != "" {
+						fmt.Printf("   Reason: %s\n", testResult.ErrorMessage)
+					}
+				} else {
+					fmt.Printf("Test case failed in %v\n", duration)
+					if testResult.ErrorMessage != "" {
+						fmt.Printf("   Error: %s\n", testResult.ErrorMessage)
+					}
+				}
+			}
+
+			// Send result with timeout protection
+			fmt.Printf("[DEBUG] runTestCasesParallel: sending result for: %s\n", tc.Name)
+			select {
+			case resultChan <- caseResult:
+				fmt.Printf("[DEBUG] runTestCasesParallel: result sent successfully for: %s\n", tc.Name)
+			case <-time.After(5 * time.Second):
+				fmt.Printf("Timeout sending result for test case: %s\n", tc.Name)
+			}
 		}(i, testCase)
 	}
 
-	// Wait for all goroutines to complete
+	// Collect results with timeout protection
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	go func() {
 		wg.Wait()
 		close(resultChan)
 	}()
 
-	// Collect results
-	for result := range resultChan {
-		fmt.Printf("[DEBUG] Received result for test case: %s\n", result.TestCase.Name)
-		results = append(results, result)
+	// Collect results - this will block until all goroutines are done or timeout
+	expectedResults := len(testCases)
+	fmt.Printf("[DEBUG] runTestCasesParallel: collecting results, expecting %d results\n", expectedResults)
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				// Channel closed, all results collected
+				fmt.Printf("[DEBUG] runTestCasesParallel: channel closed, returning %d results\n", len(results))
+				return results
+			}
+			mu.Lock()
+			results = append(results, result)
+			currentCount := len(results)
+			mu.Unlock()
+			fmt.Printf("[DEBUG] runTestCasesParallel: received result from %s, total: %d/%d\n", result.TestCase.Name, currentCount, expectedResults)
+			
+			// If we have all expected results, return immediately
+			if currentCount >= expectedResults {
+				fmt.Printf("[DEBUG] runTestCasesParallel: all results collected, returning\n")
+				return results
+			}
+		case <-ctx.Done():
+			fmt.Printf("Timeout waiting for parallel test execution to complete (got %d/%d results)\n", len(results), expectedResults)
+			// Return partial results and let the test suite continue
+			return results
+		}
 	}
-
-	fmt.Printf("[DEBUG] All results collected, returning from runTestCasesParallel\n")
-
-	return results
 }
 
 // mergeSuiteVariables merges suite variables and setup results with test case variables

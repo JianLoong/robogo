@@ -279,7 +279,7 @@ func kafkaConsume(ctx context.Context, args []interface{}) (map[string]interface
 			if len(messages) == 0 {
 				if errors.Is(err, context.DeadlineExceeded) {
 					return map[string]interface{}{
-						"error":   "timeout",
+						"status":  "timeout",
 						"message": fmt.Sprintf("No message received within %v", timeout),
 						"waited":  timeout.String(),
 						"topic":   topic,

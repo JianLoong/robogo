@@ -597,8 +597,11 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 	// }
 	fmt.Printf(strings.Repeat("=", 60) + "\n")
 
-	// Exit with non-zero code if any test failed
-	if result.FailedCases > 0 {
+	// Ensure all output is flushed before exit
+	os.Stdout.Sync()
+	
+	// Exit with non-zero code if test suite failed
+	if result.Status == "failed" {
 		return fmt.Errorf("test suite failed")
 	}
 	return nil
@@ -703,8 +706,8 @@ func outputSuiteJSON(result *parser.TestSuiteResult) error {
 	}
 	fmt.Println(string(jsonBytes))
 
-	// Exit with non-zero code if any test failed
-	if result.FailedCases > 0 {
+	// Exit with non-zero code if test suite failed
+	if result.Status == "failed" {
 		return fmt.Errorf("test suite failed")
 	}
 	return nil
@@ -824,8 +827,8 @@ func outputSuiteMarkdown(result *parser.TestSuiteResult) error {
 
 	fmt.Print(markdown)
 
-	// Exit with non-zero code if any test failed
-	if result.FailedCases > 0 {
+	// Exit with non-zero code if test suite failed
+	if result.Status == "failed" {
 		return fmt.Errorf("test suite failed")
 	}
 	return nil

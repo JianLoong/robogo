@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/JianLoong/robogo/internal/parser"
 )
@@ -13,6 +14,7 @@ import (
 // VariableManager handles variable storage, substitution, and scoping
 type VariableManager struct {
 	variables map[string]interface{}
+	mutex     sync.RWMutex
 }
 
 // NewVariableManager creates a new variable manager
@@ -24,6 +26,9 @@ func NewVariableManager() *VariableManager {
 
 // InitializeVariables initializes variables from test case configuration
 func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
+	vm.mutex.Lock()
+	defer vm.mutex.Unlock()
+	
 	// Initialize secret variables FIRST
 	if testCase.Variables.Secrets != nil {
 		for key, secret := range testCase.Variables.Secrets {
@@ -75,17 +80,23 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 
 // SetVariable sets a variable value
 func (vm *VariableManager) SetVariable(name string, value interface{}) {
+	vm.mutex.Lock()
+	defer vm.mutex.Unlock()
 	vm.variables[name] = value
 }
 
 // GetVariable retrieves a variable value
 func (vm *VariableManager) GetVariable(name string) (interface{}, bool) {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
 	value, exists := vm.variables[name]
 	return value, exists
 }
 
 // ListVariables returns all variable names
 func (vm *VariableManager) ListVariables() []string {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
 	var names []string
 	for name := range vm.variables {
 		names = append(names, name)

@@ -26,7 +26,7 @@ steps:
       - 
         fromOffset: "first"
         count: 100
-        timeout: 10
+        timeout: 5
     result: consumed
     description: "Consume a message from Kafka"
 

@@ -21,7 +21,7 @@ steps:
   - name: Assert Timeout Error
     action: assert
     args:
-      - "${__robogo_steps[0].error}"
-      - ==
-      - timeout
+      - "${__robogo_steps[0].output}"
+      - contains
+      - "status:timeout"
       - "Expected a timeout error when no message is available" 
