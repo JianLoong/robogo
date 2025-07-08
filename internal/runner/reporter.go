@@ -171,46 +171,6 @@ func PrintWarning(format string, args ...interface{}) {
 	fmt.Printf("⚠️  Warning: "+format+"\n", args...)
 }
 
-// PrintStepStart prints the start of a step
-func PrintStepStart(stepNum int, stepLabel string) {
-	fmt.Printf("Step %d: %s\n", stepNum, stepLabel)
-}
-
-// PrintStepSkipped prints a skipped step
-func PrintStepSkipped(stepNum int, errMsg string) {
-	fmt.Printf("⏭️  Step %d skipped: %s\n", stepNum, errMsg)
-}
-
-// PrintStepFailed prints a failed step
-func PrintStepFailed(stepNum int, errMsg string) {
-	fmt.Printf("❌ Step %d failed: %s\n", stepNum, errMsg)
-}
-
-// PrintStepErrorExpectationPassed prints when error expectation passes
-func PrintStepErrorExpectationPassed(stepNum int) {
-	fmt.Printf("✅ Error expectation passed\n")
-}
-
-// PrintStepVerboseOutput prints verbose output
-func PrintStepVerboseOutput(output string) {
-	fmt.Print(output)
-}
-
-// PrintStepLog prints a log message for a step
-func PrintStepLog(message string) {
-	fmt.Printf("📝 %s\n", message)
-}
-
-// PrintStepContinueOnFailure prints continue on failure warning
-func PrintStepContinueOnFailure(stepName string) {
-	fmt.Printf("⚠️  Step '%s' failed but continuing due to continue_on_failure\n", stepName)
-}
-
-// PrintStepResultStored prints when a step result is stored in a variable
-func PrintStepResultStored(varName, value string) {
-	fmt.Printf("💾 Stored result in variable: %s = %s\n", varName, value)
-}
-
 // PrintParallelStepGroups prints parallel step groups execution
 func PrintParallelStepGroups(groupCount int) {
 	fmt.Printf("📊 Executing %d step groups (parallel execution enabled)\n", groupCount)

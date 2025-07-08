@@ -189,7 +189,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 			if step.ContinueOnFailure {
 				// Log and continue to next step
 				if !silent {
-					PrintStepContinueOnFailure(stepResult.Step.Name)
+					fmt.Printf("⚠️  Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
 				}
 				continue
 			} else {

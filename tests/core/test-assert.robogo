@@ -155,3 +155,12 @@ steps:
       - "one"
       - "Numeric 1 should not equal string 'one'"
     continue_on_failure: true 
+
+
+  - name: "Assert not empty string"
+    action: assert
+    args:
+      - "not empty"
+      - "not_empty"
+      - ""
+      - "Non-empty string should not be empty"

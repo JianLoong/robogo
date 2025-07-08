@@ -490,87 +490,71 @@ func outputMarkdown(results []*parser.TestResult) error {
 
 // outputSuiteConsole outputs test suite results in console format
 func outputSuiteConsole(result *parser.TestSuiteResult) error {
-	// Step summary calculation
-	totalSteps, passedSteps, failedSteps, skippedSteps := 0, 0, 0, 0
-	for _, caseResult := range result.CaseResults {
-		if caseResult.Result != nil {
-			for _, step := range caseResult.Result.StepResults {
-				totalSteps++
-				switch step.Status {
-				case "PASSED", "passed":
-					passedSteps++
-				case "FAILED", "failed":
-					failedSteps++
-				case "SKIPPED", "skipped":
-					skippedSteps++
-				}
-			}
-		}
-	}
-
+	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
 	fmt.Printf("📊 Test Suite Results: %s\n", result.TestSuite.Name)
 	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-	fmt.Printf("📋 Total Cases: %d\n", result.TotalCases)
-	fmt.Printf("✅ Passed: %d\n", result.PassedCases)
-	fmt.Printf("❌ Failed: %d\n", result.FailedCases)
-	fmt.Printf("⏭️  Skipped: %d\n", result.SkippedCases)
-	fmt.Printf("📝 Steps: %d total, %d passed, %d failed, %d skipped\n", totalSteps, passedSteps, failedSteps, skippedSteps)
-
-	if result.SetupStatus != "" {
-		fmt.Printf("🔧 Setup: %s\n", result.SetupStatus)
-	}
-	if result.TeardownStatus != "" {
-		fmt.Printf("🧹 Teardown: %s\n", result.TeardownStatus)
-	}
-
-	fmt.Println("\nTest Case Results:")
+	fmt.Printf("\n## Test Case Summary\n")
+	fmt.Printf("| %-4s | %-24s | %-8s | %-10s | %-24s |\n", "#", "Name", "Status", "Duration", "Error")
+	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\n")
 	for i, caseResult := range result.CaseResults {
-		caseIcon := ""
+		icon := ""
+		status := ""
 		switch caseResult.Status {
 		case "passed":
-			caseIcon = "✅"
+			icon = "✅"
+			status = "PASSED"
 		case "failed":
-			caseIcon = "❌"
+			icon = "❌"
+			status = "FAILED"
 		case "skipped":
-			caseIcon = "⏭️"
-		default:
-			caseIcon = "❌" // fallback for unknown status
+			icon = "⏭️"
+			status = "SKIPPED"
 		}
-		dur := caseResult.Duration
-		if dur == 0 && caseResult.Result != nil {
-			dur = caseResult.Result.Duration
+		duration := ""
+		if caseResult.Duration > 0 {
+			duration = fmt.Sprintf("%.4gs", caseResult.Duration.Seconds())
 		}
-		err := caseResult.Error
-		if len(err) > 60 {
-			err = err[:57] + "..."
+		error := caseResult.Error
+		if len(error) > 24 {
+			error = error[:21] + "..."
 		}
-		fmt.Printf("%d. %s | %s | %v | %s\n", i+1, caseResult.TestCase.Name, caseIcon, dur, err)
+		name := caseResult.TestCase.Name
+		if len(name) > 24 {
+			name = name[:21] + "..."
+		}
+		fmt.Printf("| %-4d | %-24s | %-8s | %-10s | %-24s |\n", i+1, name, icon+" "+status, duration, error)
+	}
 
-		// Step-level details
+	// Print step results for each test case
+	for _, caseResult := range result.CaseResults {
 		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
-			fmt.Println("   Steps:")
-			fmt.Println("   # | Name | Status | Duration | Output | Error")
-			for j, step := range caseResult.Result.StepResults {
-				stepStatus := step.Status
-				if stepStatus == "" && step.Error != "" {
-					stepStatus = "FAILED"
-				}
-				errStr := step.Error
-				if len(errStr) > 60 {
-					errStr = errStr[:57] + "..."
-				}
-				outputStr := step.Output
-				if len(outputStr) > 40 {
-					outputStr = outputStr[:37] + "..."
-				}
-				nameStr := step.Step.Name
-				if len(nameStr) > 24 {
-					nameStr = nameStr[:21] + "..."
-				}
-				fmt.Printf("   %d | %s | %s | %v | %s | %s\n", j+1, nameStr, stepStatus, step.Duration, outputStr, errStr)
-			}
+			title := "### Step Results for " + caseResult.TestCase.Name
+			runner.PrintStepResultsMarkdown(caseResult.Result.StepResults, title)
 		}
 	}
+
+	// Print step summary table
+	fmt.Printf("\n## Step Summary\n")
+	fmt.Printf("| %-8s | %-8s | %-8s | %-8s |\n", "Total", "Passed", "Failed", "Skipped")
+	fmt.Printf("|----------|----------|----------|----------|\n")
+	fmt.Printf("| %-8d | %-8d | %-8d | %-8d |\n", result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
+
+	if result.SetupStatus != "" {
+		fmt.Printf("\n🔧 Setup: %s\n", result.SetupStatus)
+	}
+	if result.TeardownStatus != "" {
+		fmt.Printf("\n🧹 Teardown: %s\n", result.TeardownStatus)
+	}
+
+	// switch result.Status {
+	// case "passed":
+	// 	fmt.Printf("\n🎉 Test suite completed successfully!\n")
+	// case "failed":
+	// 	fmt.Printf("\n💥 Test suite failed!\n")
+	// case "skipped":
+	// 	fmt.Printf("\n⏭️  Test suite skipped due to setup failure!\n")
+	// }
+	fmt.Printf(strings.Repeat("=", 60) + "\n")
 
 	// Exit with non-zero code if any test failed
 	if result.FailedCases > 0 {

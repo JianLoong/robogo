@@ -27,6 +27,9 @@ setup:
 testcases:
 
   - file: ../tests/core/test-assert.robogo
+  - file: ../tests/core/test-assert.robogo
+  - file: ../tests/core/test-assert.robogo 
+  - file: ./test-kafka-timeout.robogo
 
 teardown:
   - name: "Suite Teardown"

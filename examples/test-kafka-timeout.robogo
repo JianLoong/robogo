@@ -1,4 +1,5 @@
 testcase: Kafka Timeout Error Handling
+description: Kafa Timeout Test
 steps:
   - name: Kafka Consume Timeout Test
     action: kafka
