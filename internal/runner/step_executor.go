@@ -118,13 +118,13 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 			stepResult.Status = parser.StatusFailed
 			stepResult.Error = expectErr.Error()
 			if !silent {
-				fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
+				fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, expectErr.Error())
 			}
 		} else {
 			// Error expectation met - step passed
 			stepResult.Status = parser.StatusPassed
 			if !silent {
-				fmt.Printf("✅ Error expectation passed\n")
+				fmt.Printf("Error expectation passed\n")
 			}
 		}
 	} else if err != nil {
@@ -132,7 +132,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 		stepResult.Status = parser.StatusFailed
 		stepResult.Error = err.Error()
 		if !silent {
-			fmt.Printf("❌ Step %d failed: %s\n", len(*stepResults)+1, err.Error())
+			fmt.Printf("Step %d failed: %s\n", len(*stepResults)+1, err.Error())
 		}
 	} else {
 		// Step succeeded - set status to PASSED
@@ -146,7 +146,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 				if step.Action == "log" && len(step.Args) > 0 {
 					message := fmt.Sprintf("%v", substitutedArgs[0])
 					maskedMessage := tr.secretManager.MaskSecretsInString(message)
-					fmt.Printf("📝 %s\n", maskedMessage)
+					fmt.Printf("%s\n", maskedMessage)
 				}
 				// Removed completion message - no need to report "completed in X seconds"
 			}

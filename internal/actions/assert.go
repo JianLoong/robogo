@@ -137,12 +137,12 @@ func compareNumeric(value, expected float64, operator, msg string, silent bool) 
 			fullMsg += fmt.Sprintf(" (%s)", msg)
 		}
 		if !silent {
-			fmt.Printf("❌ %s\n", fullMsg)
+			fmt.Printf("Failed: %s\n", fullMsg)
 		}
 		return nil, util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
-	msg = fmt.Sprintf("✅ %s", msg)
+	msg = fmt.Sprintf("Success: %s", msg)
 	if !silent {
 		fmt.Printf("%s\n", msg)
 	}
@@ -203,12 +203,12 @@ func compareString(value, expected, operator, msg string, silent bool) (interfac
 			fullMsg += fmt.Sprintf(" (%s)", msg)
 		}
 		if !silent {
-			fmt.Printf("❌ %s\n", fullMsg)
+			fmt.Printf("Failed: %s\n", fullMsg)
 		}
 		return nil, util.NewAssertionError(fullMsg, value, expected, operator)
 	}
 
-	msg = fmt.Sprintf("✅ %s", msg)
+	msg = fmt.Sprintf("Success: %s", msg)
 	if !silent {
 		fmt.Printf("%s\n", msg)
 	}

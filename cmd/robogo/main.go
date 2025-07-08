@@ -294,7 +294,7 @@ func outputConsole(results []*parser.TestResult) error {
 		}
 
 		// Print test summary in markdown format
-		fmt.Printf("\n## 📊 Test Results for: %s\n\n", result.TestCase.Name)
+		fmt.Printf("\n## Test Results for: %s\n\n", result.TestCase.Name)
 
 		// Choose appropriate status icon
 		statusIcon := "✅"
@@ -305,8 +305,8 @@ func outputConsole(results []*parser.TestResult) error {
 		}
 
 		fmt.Printf("**%s Status:** %s\n\n", statusIcon, result.Status)
-		fmt.Printf("**⏱️ Duration:** %v\n\n", result.Duration)
-		fmt.Printf("**📝 Steps Summary:**\n\n")
+		fmt.Printf("**Duration:** %v\n\n", result.Duration)
+		fmt.Printf("**Steps Summary:**\n\n")
 		fmt.Printf("| %-6s | %-7s | %-6s | %-7s |\n", "Total", "Passed", "Failed", "Skipped")
 		fmt.Printf("|--------|---------|--------|---------|\n")
 		fmt.Printf("| %-6d | %-7d | %-6d | %-7d |\n\n",
@@ -491,25 +491,13 @@ func outputMarkdown(results []*parser.TestResult) error {
 // outputSuiteConsole outputs test suite results in console format
 func outputSuiteConsole(result *parser.TestSuiteResult) error {
 	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
-	fmt.Printf("📊 Test Suite Results: %s\n", result.TestSuite.Name)
-	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
+	fmt.Printf("Test Suite Results: %s\n", result.TestSuite.Name)
+	fmt.Printf("Duration: %v\n", result.Duration)
 	fmt.Printf("\n## Test Case Summary\n")
 	fmt.Printf("| %-4s | %-24s | %-8s | %-10s | %-24s |\n", "#", "Name", "Status", "Duration", "Error")
 	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\n")
 	for i, caseResult := range result.CaseResults {
-		icon := ""
-		status := ""
-		switch caseResult.Status {
-		case "passed":
-			icon = "✅"
-			status = "PASSED"
-		case "failed":
-			icon = "❌"
-			status = "FAILED"
-		case "skipped":
-			icon = "⏭️"
-			status = "SKIPPED"
-		}
+		status := strings.ToUpper(caseResult.Status)
 		duration := ""
 		if caseResult.Duration > 0 {
 			duration = fmt.Sprintf("%.4gs", caseResult.Duration.Seconds())
@@ -522,7 +510,7 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 		if len(name) > 24 {
 			name = name[:21] + "..."
 		}
-		fmt.Printf("| %-4d | %-24s | %-8s | %-10s | %-24s |\n", i+1, name, icon+" "+status, duration, error)
+		fmt.Printf("| %-4d | %-24s | %-8s | %-10s | %-24s |\n", i+1, name, status, duration, error)
 	}
 
 	// Print step results for each test case
@@ -540,10 +528,10 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 	fmt.Printf("| %-8d | %-8d | %-8d | %-8d |\n", result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
 
 	if result.SetupStatus != "" {
-		fmt.Printf("\n🔧 Setup: %s\n", result.SetupStatus)
+		fmt.Printf("\nSetup: %s\n", result.SetupStatus)
 	}
 	if result.TeardownStatus != "" {
-		fmt.Printf("\n🧹 Teardown: %s\n", result.TeardownStatus)
+		fmt.Printf("\nTeardown: %s\n", result.TeardownStatus)
 	}
 
 	// switch result.Status {

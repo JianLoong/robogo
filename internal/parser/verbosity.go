@@ -75,13 +75,13 @@ func FormatVerboseOutput(level VerbosityLevel, action string, args []interface{}
 
 	switch level {
 	case VerbosityBasic:
-		result.WriteString(fmt.Sprintf("🔍 %s: %s\n", action, duration))
+		result.WriteString(fmt.Sprintf("%s: %s\n", action, duration))
 		if output != "" {
-			result.WriteString(fmt.Sprintf("📝 Output: %s\n", output))
+			result.WriteString(fmt.Sprintf("Output: %s\n", output))
 		}
 
 	case VerbosityDetailed:
-		result.WriteString(fmt.Sprintf("🔍 Verbose %s Operation:\n", action))
+		result.WriteString(fmt.Sprintf("Verbose %s Operation:\n", action))
 		result.WriteString(fmt.Sprintf("   Args: %v\n", args))
 		result.WriteString(fmt.Sprintf("   Duration: %s\n", duration))
 		if output != "" {
@@ -89,7 +89,7 @@ func FormatVerboseOutput(level VerbosityLevel, action string, args []interface{}
 		}
 
 	case VerbosityDebug:
-		result.WriteString(fmt.Sprintf("🐛 Debug %s Operation:\n", action))
+		result.WriteString(fmt.Sprintf("Debug %s Operation:\n", action))
 		result.WriteString(fmt.Sprintf("   Args: %v\n", args))
 		result.WriteString(fmt.Sprintf("   Duration: %s\n", duration))
 		result.WriteString(fmt.Sprintf("   Verbosity Level: %s\n", level))

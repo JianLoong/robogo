@@ -47,7 +47,7 @@ func SleepAction(args []interface{}, options map[string]interface{}, silent bool
 
 	// Only print if not silent
 	if !silent {
-		fmt.Printf("😴 Sleeping for %v\n", duration)
+		fmt.Printf("Sleeping for %v\n", duration)
 	}
 
 	time.Sleep(duration)

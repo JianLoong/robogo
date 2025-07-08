@@ -64,9 +64,9 @@ func PrintSkipMessage(itemType, itemName, reason string, silent bool) {
 	}
 
 	if reason == "" || reason == "(no reason provided)" {
-		fmt.Printf("⏭️  %s skipped: %s\n", itemType, itemName)
+		fmt.Printf("%s skipped: %s\n", itemType, itemName)
 	} else {
-		fmt.Printf("⏭️  %s skipped: %s | Reason: %s\n", itemType, itemName, reason)
+		fmt.Printf("%s skipped: %s | Reason: %s\n", itemType, itemName, reason)
 	}
 }
 

@@ -90,25 +90,25 @@ func CalculateDelay(baseDelay time.Duration, attempt int, backoff string, maxDel
 // FormatRetryLog formats retry attempt information for display
 func FormatRetryLog(attempt int, totalAttempts int, delay time.Duration, err error, verbose bool) string {
 	if !verbose {
-		return fmt.Sprintf("🔄 Attempt %d/%d", attempt, totalAttempts)
+		return fmt.Sprintf("Attempt %d/%d", attempt, totalAttempts)
 	}
 
-	return fmt.Sprintf("🔄 Attempt %d/%d (delay: %v): %v", attempt, totalAttempts, delay, err)
+	return fmt.Sprintf("Attempt %d/%d (delay: %v): %v", attempt, totalAttempts, delay, err)
 }
 
 // FormatRetrySummary formats a summary of retry attempts
 func FormatRetrySummary(result RetryResult, verbose bool) string {
 	if result.Success {
 		if verbose {
-			return fmt.Sprintf("✅ Success after %d attempts (total time: %v)", result.Attempts, result.TotalTime)
+			return fmt.Sprintf("Success after %d attempts (total time: %v)", result.Attempts, result.TotalTime)
 		}
-		return fmt.Sprintf("✅ Success after %d attempts", result.Attempts)
+		return fmt.Sprintf("Success after %d attempts", result.Attempts)
 	}
 
 	if verbose {
-		return fmt.Sprintf("❌ Failed after %d attempts (total time: %v): %v", result.Attempts, result.TotalTime, result.LastError)
+		return fmt.Sprintf("Failed after %d attempts (total time: %v): %v", result.Attempts, result.TotalTime, result.LastError)
 	}
-	return fmt.Sprintf("❌ Failed after %d attempts: %v", result.Attempts, result.LastError)
+	return fmt.Sprintf("Failed after %d attempts: %v", result.Attempts, result.LastError)
 }
 
 // ValidateRetryConfig validates retry configuration

@@ -20,13 +20,13 @@ func getTemplateNames(templates map[string]string) string {
 func getStepStatusIcon(status string) string {
 	switch strings.ToLower(status) {
 	case "passed":
-		return "✅"
+		return "PASSED"
 	case "failed":
-		return "❌"
+		return "FAILED"
 	case "skipped":
-		return "⏭️"
+		return "SKIPPED"
 	default:
-		return "❓"
+		return "UNKNOWN"
 	}
 }
 
@@ -34,13 +34,13 @@ func getStepStatusIcon(status string) string {
 func getTestStatusIcon(status string) string {
 	switch strings.ToLower(status) {
 	case "passed":
-		return "✅"
+		return "PASSED"
 	case "failed":
-		return "❌"
+		return "FAILED"
 	case "skipped":
-		return "⏭️"
+		return "SKIPPED"
 	default:
-		return "❓"
+		return "UNKNOWN"
 	}
 }
 
@@ -105,7 +105,6 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 	fmt.Println(separator)
 
 	for i, stepResult := range stepResults {
-		icon := getStepStatusIcon(stepResult.Status)
 		name := stepResult.DisplayName
 		if name == "" {
 			name = stepResult.Step.Name
@@ -121,7 +120,7 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 		if len(shortStatus) > 10 {
 			shortStatus = shortStatus[:10]
 		}
-		statusWithIcon := padOrTruncate(icon+" "+shortStatus, 12)
+		statusWithIcon := padOrTruncate(shortStatus, 12)
 		duration := padOrTruncate(stepResult.Duration.Truncate(1e6).String(), 6)
 		output := stepResult.Output
 		if len(output) > 24 {
@@ -148,32 +147,32 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 
 // PrintTDMSetup prints the TDM setup message
 func PrintTDMSetup() {
-	fmt.Printf("🔧 Executing TDM setup...\n")
+	fmt.Printf("Executing TDM setup...\n")
 }
 
 // PrintTDMTeardown prints the TDM teardown message
 func PrintTDMTeardown() {
-	fmt.Printf("🧹 Executing TDM teardown...\n")
+	fmt.Printf("Executing TDM teardown...\n")
 }
 
 // PrintDataValidationFailure prints a data validation failure message
 func PrintDataValidationFailure(name, message string) {
-	fmt.Printf("❌ Data validation failed: %s - %s\n", name, message)
+	fmt.Printf("Data validation failed: %s - %s\n", name, message)
 }
 
 // PrintDataValidationWarning prints a data validation warning message
 func PrintDataValidationWarning(name, message string) {
-	fmt.Printf("⚠️  Data validation warning: %s - %s\n", name, message)
+	fmt.Printf("Data validation warning: %s - %s\n", name, message)
 }
 
 // PrintWarning prints a general warning message
 func PrintWarning(format string, args ...interface{}) {
-	fmt.Printf("⚠️  Warning: "+format+"\n", args...)
+	fmt.Printf("Warning: "+format+"\n", args...)
 }
 
 // PrintParallelStepGroups prints parallel step groups execution
 func PrintParallelStepGroups(groupCount int) {
-	fmt.Printf("📊 Executing %d step groups (parallel execution enabled)\n", groupCount)
+	fmt.Printf("Executing %d step groups (parallel execution enabled)\n", groupCount)
 }
 
 // PrintParallelSteps prints parallel steps execution
@@ -183,25 +182,25 @@ func PrintParallelSteps(stepCount, groupIdx int) {
 
 // PrintTestCaseStart prints test case start
 func PrintTestCaseStart(testCaseName string) {
-	fmt.Printf("🚀 Running test case: %s\n", testCaseName)
+	fmt.Printf("Running test case: %s\n", testCaseName)
 }
 
 // PrintTestCaseDescription prints test case description
 func PrintTestCaseDescription(description string) {
-	fmt.Printf("📋 Description: %s\n", description)
+	fmt.Printf("Description: %s\n", description)
 }
 
 // PrintTestCaseSteps prints test case steps count
 func PrintTestCaseSteps(stepCount int) {
-	fmt.Printf("📝 Steps: %d\n\n", stepCount)
+	fmt.Printf("Steps: %d\n\n", stepCount)
 }
 
 // PrintTemplatesLoaded prints templates loaded
 func PrintTemplatesLoaded(templateCount int, templateNames string) {
-	fmt.Printf("📄 Loaded %d templates: %s\n", templateCount, templateNames)
+	fmt.Printf("Loaded %d templates: %s\n", templateCount, templateNames)
 }
 
 // PrintParallelFiles prints parallel file execution
 func PrintParallelFiles(fileCount, maxConcurrency int) {
-	fmt.Printf("🚀 Running %d test files in parallel (max concurrency: %d)\n", fileCount, maxConcurrency)
+	fmt.Printf("Running %d test files in parallel (max concurrency: %d)\n", fileCount, maxConcurrency)
 }

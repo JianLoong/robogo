@@ -36,7 +36,7 @@ func SkipAction(args []interface{}, options map[string]interface{}, silent bool)
 
 	// Only print if not silent
 	if !silent {
-		fmt.Printf("⏭️  %s\n", reason)
+		fmt.Printf("%s\n", reason)
 	}
 
 	// Return a special error that indicates this is a skip

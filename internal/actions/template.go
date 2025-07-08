@@ -76,7 +76,7 @@ func TemplateAction(args []interface{}, options map[string]interface{}, silent b
 	result := buf.String()
 
 	if !silent {
-		fmt.Printf("📄 Rendered template from file '%s' (%d characters)\n", templatePath, len(result))
+		fmt.Printf("Rendered template from file '%s' (%d characters)\n", templatePath, len(result))
 	}
 
 	return result, nil

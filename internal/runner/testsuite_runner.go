@@ -33,9 +33,9 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 		Status:    "running",
 	}
 
-	fmt.Printf("🚀 Starting test suite: %s\n", testSuite.Name)
+	fmt.Printf("Starting test suite: %s\n", testSuite.Name)
 	if testSuite.Description != "" {
-		fmt.Printf("📝 Description: %s\n", testSuite.Description)
+		fmt.Printf("Description: %s\n", testSuite.Description)
 	}
 
 	// Load test cases first
@@ -51,7 +51,7 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 
 	// Run setup if present
 	if len(testSuite.Setup) > 0 {
-		fmt.Printf("🔧 Running suite setup (%d steps)...\n", len(testSuite.Setup))
+		fmt.Printf("Running suite setup (%d steps)...\n", len(testSuite.Setup))
 		setupResult, err := tsr.runSetup(testSuite.Setup, testSuite.Variables)
 		if err != nil {
 			result.Status = "skipped"
@@ -79,14 +79,14 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 
 	// Run test cases (only if setup succeeded)
 	if result.Status != "skipped" {
-		fmt.Printf("🧪 Running %d test cases...\n", len(testCases))
+		fmt.Printf("Running %d test cases...\n", len(testCases))
 		if testSuite.Parallel {
 			result.CaseResults = tsr.runTestCasesParallel(testCases, testSuite.Variables, testSuite.FailFast)
 		} else {
 			result.CaseResults = tsr.runTestCasesSequential(testCases, testSuite.Variables, testSuite.FailFast)
 		}
 	} else {
-		fmt.Printf("⏭️  Skipping %d test cases due to setup failure\n", len(testCases))
+		fmt.Printf("Skipping %d test cases due to setup failure\n", len(testCases))
 	}
 
 	// Calculate summary
@@ -128,14 +128,14 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 
 	// Run teardown if present (only if tests were actually run)
 	if len(testSuite.Teardown) > 0 && result.Status != "skipped" {
-		fmt.Printf("🧹 Running suite teardown (%d steps)...\n", len(testSuite.Teardown))
+		fmt.Printf("Running suite teardown (%d steps)...\n", len(testSuite.Teardown))
 		teardownResult, err := tsr.runTeardown(testSuite.Teardown, testSuite.Variables)
 		if err != nil {
-			fmt.Printf("⚠️  Teardown failed: %v\n", err)
+			fmt.Printf("Teardown failed: %v\n", err)
 		}
 		result.TeardownStatus = teardownResult.Status
 	} else if result.Status == "skipped" {
-		fmt.Printf("⏭️  Skipping teardown due to setup failure\n")
+		fmt.Printf("Skipping teardown due to setup failure\n")
 		result.TeardownStatus = "SKIPPED"
 	}
 
@@ -206,7 +206,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 		// If fail-fast and a previous test failed, skip the rest
 		if failFast && failed {
 			skipReason := "Skipped due to fail-fast after failure: " + failReason
-			fmt.Printf("\n⏭️  Test case %d/%d: %s skipped: %s\n", i+1, len(testCases), testCase.Name, skipReason)
+			fmt.Printf("\nTest case %d/%d: %s skipped: %s\n", i+1, len(testCases), testCase.Name, skipReason)
 			caseResult := parser.TestCaseResult{
 				TestCase: testCase,
 				Status:   "skipped",
@@ -224,7 +224,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			continue
 		}
 
-		fmt.Printf("\n📋 Running test case %d/%d: %s\n", i+1, len(testCases), testCase.Name)
+		fmt.Printf("\nRunning test case %d/%d: %s\n", i+1, len(testCases), testCase.Name)
 
 		// Merge suite variables with test case variables
 		mergedTestCase := tsr.mergeSuiteVariables(testCase, suiteVariables)
@@ -251,11 +251,11 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
 				caseResult.Status = "skipped"
 				caseResult.Error = testResult.ErrorMessage
-				fmt.Printf("⏭️ Test case skipped: %s\n", testCase.Name)
+				fmt.Printf("Test case skipped: %s\n", testCase.Name)
 			} else {
 				caseResult.Status = "failed"
 				caseResult.Error = err.Error()
-				fmt.Printf("❌ Test case failed: %v\n", err)
+				fmt.Printf("Test case failed: %v\n", err)
 			}
 			// After running the test case, print all step statuses and errors
 			if caseResult.Status == "failed" {
@@ -266,14 +266,14 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			// Convert status to lowercase for consistency
 			caseResult.Status = strings.ToLower(testResult.Status)
 			if caseResult.Status == "passed" {
-				fmt.Printf("✅ Test case passed in %v\n", duration)
+				fmt.Printf("Test case passed in %v\n", duration)
 			} else if caseResult.Status == "skipped" {
-				fmt.Printf("⏭️  Test case skipped in %v\n", duration)
+				fmt.Printf("Test case skipped in %v\n", duration)
 				if testResult.ErrorMessage != "" {
 					fmt.Printf("   Reason: %s\n", testResult.ErrorMessage)
 				}
 			} else {
-				fmt.Printf("❌ Test case failed in %v\n", duration)
+				fmt.Printf("Test case failed in %v\n", duration)
 				if testResult.ErrorMessage != "" {
 					fmt.Printf("   Error: %s\n", testResult.ErrorMessage)
 				}
@@ -312,7 +312,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 		go func(index int, tc *parser.TestCase) {
 			defer wg.Done()
 
-			fmt.Printf("📋 Starting test case %d/%d: %s\n", index+1, len(testCases), tc.Name)
+			fmt.Printf("Starting test case %d/%d: %s\n", index+1, len(testCases), tc.Name)
 
 			// Check for skip at the test case level using unified logic
 			skipInfo := tsr.runner.ShouldSkipTestCase(tc, fmt.Sprintf("test case %d/%d", index+1, len(testCases)))
@@ -348,25 +348,25 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 				if actions.IsSkipError(err) || (testResult != nil && strings.ToLower(testResult.Status) == "skipped") {
 					caseResult.Status = "skipped"
 					caseResult.Error = testResult.ErrorMessage
-					fmt.Printf("⏭️ Test case skipped: %s\n", tc.Name)
+					fmt.Printf("Test case skipped: %s\n", tc.Name)
 				} else {
 					caseResult.Status = "failed"
 					caseResult.Error = err.Error()
-					fmt.Printf("❌ Test case failed: %v\n", err)
+					fmt.Printf("Test case failed: %v\n", err)
 				}
 				// After running the test case, print all step statuses and errors
 			} else {
 				// Convert status to lowercase for consistency
 				caseResult.Status = strings.ToLower(testResult.Status)
 				if caseResult.Status == "passed" {
-					fmt.Printf("✅ Test case %d passed in %v\n", index+1, duration)
+					fmt.Printf("Test case %d passed in %v\n", index+1, duration)
 				} else if caseResult.Status == "skipped" {
-					fmt.Printf("⏭️  Test case %d skipped in %v\n", index+1, duration)
+					fmt.Printf("Test case %d skipped in %v\n", index+1, duration)
 					if testResult.ErrorMessage != "" {
 						fmt.Printf("   Reason: %s\n", testResult.ErrorMessage)
 					}
 				} else {
-					fmt.Printf("❌ Test case %d failed in %v\n", index+1, duration)
+					fmt.Printf("Test case %d failed in %v\n", index+1, duration)
 					// After running the test case, print all step statuses and errors
 				}
 			}
@@ -446,8 +446,8 @@ func (tsr *TestSuiteRunner) mergeSuiteVariables(testCase *parser.TestCase, suite
 // printSuiteSummary prints a summary of the test suite execution
 func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
-	fmt.Printf("📊 Test Suite Summary: %s\n", result.TestSuite.Name)
-	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
+	fmt.Printf("Test Suite Summary: %s\n", result.TestSuite.Name)
+	fmt.Printf("Duration: %v\n", result.Duration)
 	fmt.Printf("\n## Test Case Summary\n")
 	fmt.Printf("| %-4s | %-24s | %-8s | %-10s | %-24s |\n", "#", "Name", "Status", "Duration", "Error")
 	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\n")
@@ -456,13 +456,13 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 		status := ""
 		switch caseResult.Status {
 		case "passed":
-			icon = "✅"
+			icon = "PASSED"
 			status = "PASSED"
 		case "failed":
-			icon = "❌"
+			icon = "FAILED"
 			status = "FAILED"
 		case "skipped":
-			icon = "⏭️"
+			icon = "SKIPPED"
 			status = "SKIPPED"
 		}
 		duration := ""
@@ -495,10 +495,10 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 	fmt.Printf("| %-8d | %-8d | %-8d | %-8d |\n", result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
 
 	if result.SetupStatus != "" {
-		fmt.Printf("\n🔧 Setup: %s\n", result.SetupStatus)
+		fmt.Printf("\nSetup: %s\n", result.SetupStatus)
 	}
 	if result.TeardownStatus != "" {
-		fmt.Printf("\n🧹 Teardown: %s\n", result.TeardownStatus)
+		fmt.Printf("\nTeardown: %s\n", result.TeardownStatus)
 	}
 
 	if result.FailedCases > 0 {
@@ -521,11 +521,11 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 
 	switch result.Status {
 	case "passed":
-		fmt.Printf("\n🎉 Test suite completed successfully!\n")
+		fmt.Printf("\nTest suite completed successfully!\n")
 	case "failed":
-		fmt.Printf("\n💥 Test suite failed!\n")
+		fmt.Printf("\nTest suite failed!\n")
 	case "skipped":
-		fmt.Printf("\n⏭️  Test suite skipped due to setup failure!\n")
+		fmt.Printf("\nTest suite skipped due to setup failure!\n")
 	}
 	fmt.Printf(strings.Repeat("=", 60) + "\n")
 }

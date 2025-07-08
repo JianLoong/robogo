@@ -612,7 +612,7 @@ func encodeConnectionString(connectionString string) (string, error) {
 	parts := strings.SplitN(connectionString[11:], "@", 2)
 	if len(parts) != 2 {
 		// Try to handle cases where there might be no @ symbol or malformed string
-		fmt.Printf("⚠️  Warning: Connection string format may be malformed: %s\n", connectionString)
+		fmt.Printf("Warning: Connection string format may be malformed: %s\n", connectionString)
 		return connectionString, nil
 	}
 
@@ -620,7 +620,7 @@ func encodeConnectionString(connectionString string) (string, error) {
 	userInfo := strings.SplitN(parts[0], ":", 2)
 	if len(userInfo) != 2 {
 		// Handle cases where there might be no password or malformed userinfo
-		fmt.Printf("⚠️  Warning: User info format may be malformed: %s\n", parts[0])
+		fmt.Printf("Warning: User info format may be malformed: %s\n", parts[0])
 		return connectionString, nil
 	}
 

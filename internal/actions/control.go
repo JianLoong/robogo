@@ -76,7 +76,7 @@ func handleIfStatement(args []interface{}, silent bool) (interface{}, error) {
 
 	// Only print if not silent
 	if !silent {
-		fmt.Printf("🔍 If condition '%s' evaluated to: %v\n", condition, result)
+		fmt.Printf("If condition '%s' evaluated to: %v\n", condition, result)
 	}
 	return result, nil
 }
@@ -114,7 +114,7 @@ func handleWhileLoop(args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("failed to evaluate while condition '%s': %w", condition, err)
 	}
 
-	fmt.Printf("🔄 While condition '%s' evaluated to: %v\n", condition, result)
+	fmt.Printf("While condition '%s' evaluated to: %v\n", condition, result)
 	return result, nil
 }
 
@@ -223,7 +223,7 @@ func handleRangeLoop(rangeSpec string) (interface{}, error) {
 		return nil, fmt.Errorf("start value cannot be greater than end value: %d > %d", start, end)
 	}
 
-	fmt.Printf("🔄 For loop range: %d to %d (iterations: %d)\n", start, end, end-start+1)
+	fmt.Printf("For loop range: %d to %d (iterations: %d)\n", start, end, end-start+1)
 	return end - start + 1, nil
 }
 
@@ -241,7 +241,7 @@ func handleArrayLoop(arraySpec string) (interface{}, error) {
 		}
 	}
 
-	fmt.Printf("🔄 For loop array: %s (items: %d)\n", arraySpec, count)
+	fmt.Printf("For loop array: %s (items: %d)\n", arraySpec, count)
 	return count, nil
 }
 
@@ -256,6 +256,6 @@ func handleCountLoop(countSpec string) (interface{}, error) {
 		return nil, fmt.Errorf("count cannot be negative: %d", count)
 	}
 
-	fmt.Printf("🔄 For loop count: %d iterations\n", count)
+	fmt.Printf("For loop count: %d iterations\n", count)
 	return count, nil
 }

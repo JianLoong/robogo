@@ -89,7 +89,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 	semaphore := make(chan struct{}, config.MaxConcurrency)
 
 	if !silent {
-		fmt.Printf("🚀 Running %d test files in parallel (max concurrency: %d)\n", len(files), config.MaxConcurrency)
+		fmt.Printf("Running %d test files in parallel (max concurrency: %d)\n", len(files), config.MaxConcurrency)
 	}
 
 	for _, file := range files {
@@ -189,7 +189,7 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 			if step.ContinueOnFailure {
 				// Log and continue to next step
 				if !silent {
-					fmt.Printf("⚠️  Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
+					fmt.Printf("Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
 				}
 				continue
 			} else {

@@ -56,7 +56,7 @@ func LogAction(args []interface{}, options map[string]interface{}, silent bool) 
 
 	// Only print if not silent
 	if !silent {
-		fmt.Printf("📝 %s\n", message)
+		fmt.Printf("%s\n", message)
 	}
 
 	return message, nil

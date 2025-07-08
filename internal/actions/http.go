@@ -265,9 +265,9 @@ func HTTPAction(args []interface{}, options map[string]interface{}, silent bool)
 
 	// Only print if not silent
 	if !silent {
-		fmt.Printf("🌐 %s %s → %d (%v)\n", method, url, resp.StatusCode, duration)
+		fmt.Printf("%s %s → %d (%v)\n", method, url, resp.StatusCode, duration)
 		if len(respBody) > 0 {
-			fmt.Printf("⚠️  Response body: %s\n", string(respBody))
+			fmt.Printf("Response body: %s\n", string(respBody))
 		}
 	}
 
@@ -549,7 +549,7 @@ func HTTPBatchAction(args []interface{}, options map[string]interface{}, silent 
 	}
 
 	if !silent {
-		fmt.Printf("📊 Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
+		fmt.Printf("Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
 	}
 
 	return resultsJSON, nil

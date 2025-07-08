@@ -43,7 +43,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if !silent && attempt > 1 {
-			fmt.Printf("🔄 Retry attempt %d/%d for step '%s'\n", attempt, attempts, step.Name)
+			fmt.Printf("Retry attempt %d/%d for step '%s'\n", attempt, attempts, step.Name)
 		}
 
 		// Execute the step
@@ -52,7 +52,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 		if err == nil {
 			// Success - return immediately
 			if !silent && attempt > 1 {
-				fmt.Printf("✅ Retry successful on attempt %d\n", attempt)
+				fmt.Printf("Retry successful on attempt %d\n", attempt)
 			}
 			return output, nil
 		}
@@ -64,7 +64,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 		// Check if we should retry based on error conditions
 		if !rm.shouldRetry(err, config.Conditions) {
 			if !silent {
-				fmt.Printf("❌ Error not retryable: %v\n", err)
+				fmt.Printf("Error not retryable: %v\n", err)
 			}
 			break
 		}
@@ -77,7 +77,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 		// Calculate delay for next attempt
 		delay := rm.calculateDelay(config, attempt)
 		if !silent {
-			fmt.Printf("⏳ Waiting %v before retry...\n", delay)
+			fmt.Printf("Waiting %v before retry...\n", delay)
 		}
 
 		time.Sleep(delay)

@@ -162,4 +162,4 @@ steps:
   # Success message
   - name: "Test completed"
     action: log
-    args: ["✅ Simple TDM test completed successfully!"] 
+    args: ["Simple TDM test completed successfully!"] 
