@@ -29,21 +29,21 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 
 	if step.If != nil {
 		if err := executeIfStatement(tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
-			return nil, err
+			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
-		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
 	}
 	if step.For != nil {
 		if err := executeForLoop(tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
-			return nil, err
+			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
-		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
 	}
 	if step.While != nil {
 		if err := executeWhileLoop(tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
-			return nil, err
+			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
-		return &parser.StepResult{Step: step, Status: parser.StatusPending}, nil
+		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
 	}
 
 	stepStart := time.Now()

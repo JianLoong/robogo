@@ -16,7 +16,17 @@ func executeIfStatement(tr *TestRunner, ifBlock *parser.ConditionalBlock, execut
 		return fmt.Errorf("failed to evaluate if condition: %w", err)
 	}
 	var stepsToExecute []parser.Step
-	if output == "true" {
+	// Convert output to boolean for comparison
+	var conditionResult bool
+	if boolVal, ok := output.(bool); ok {
+		conditionResult = boolVal
+	} else if stringVal, ok := output.(string); ok {
+		conditionResult = stringVal == "true"
+	} else {
+		conditionResult = false
+	}
+	
+	if conditionResult {
 		stepsToExecute = ifBlock.Then
 	} else {
 		stepsToExecute = ifBlock.Else

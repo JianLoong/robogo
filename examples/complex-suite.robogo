@@ -26,9 +26,9 @@ setup:
 
 testcases:
 
-  # - file: ../tests/core/test-assert.robogo
-  # - file: ../tests/core/test-control-flow.robogo
-  # - file: ../tests/core/test-get-time.robogo
+  - file: ../tests/core/test-assert.robogo
+  - file: ../tests/core/test-control-flow.robogo
+  - file: ../tests/core/test-get-time.robogo
   - file: ./test-kafka-timeout.robogo
   - file: ../tests/integration/test-kafka-integration.robogo
   - file: ../tests/integration/test-kafka-integration.robogo
