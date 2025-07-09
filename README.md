@@ -4,53 +4,53 @@
 
 ---
 
-## Shift Left & Transparency
+## 🏁 Shift Left & Transparency
 
 Robogo is designed to help teams **shift left** in their testing strategy by giving developers full transparency and control over test cases. All tests are written in clear, version-controlled YAML, making it easy for anyone on the team to:
-- Understand exactly what is being tested
-- Review, modify, and extend test coverage early in the development lifecycle
-- Integrate tests directly into CI/CD pipelines for rapid feedback
+- 🧐 Understand exactly what is being tested
+- ✍️ Review, modify, and extend test coverage early in the development lifecycle
+- 🔄 Integrate tests directly into CI/CD pipelines for rapid feedback
 
 This approach reduces bugs, increases confidence, and ensures quality is built in from the start.
 
 ---
 
-## What is Robogo?
+## ❓ What is Robogo?
 
 Robogo is a powerful, developer-friendly test automation framework written in Go. It lets you define, run, and report on complex end-to-end tests for APIs, databases, message queues (Kafka, RabbitMQ), SWIFT/SEPA messages, and more—all using a simple YAML-based DSL.
 
 Robogo is designed for:
-- API and microservice teams
-- Financial services and payment systems
-- Data engineering and integration testing
-- CI/CD pipelines and regression testing
+- 👩‍💻 API and microservice teams
+- 💸 Financial services and payment systems
+- 🛠️ Data engineering and integration testing
+- 🚦 CI/CD pipelines and regression testing
 
 ---
 
-## Features
+## ✨ Features
 
-- **API Testing:** HTTP(S) with mTLS, custom headers, and full response validation
-- **Database Testing:** PostgreSQL and Google Cloud Spanner support
-- **Message Queues:** Native Kafka and RabbitMQ publish/consume actions
-- **Test Data Management:** Structured data sets, environments, and lifecycle
-- **SWIFT/SEPA Message Generation:** Template-based financial message support
-- **Parallel Execution:** Run tests and steps concurrently with dependency analysis
-- **Retry & Control Flow:** If, for, while, and robust retry logic
-- **Secrets Management:** File-based secrets with output masking
-- **Multiple Output Formats:** Console, JSON, Markdown
-- **VS Code Extension:** Syntax highlighting, autocomplete, validation, and one-click execution
-- **Extensible:** Add your own actions and templates
-- **Comprehensive Reporting:** Always-on summary, step-level analytics, and error introspection
+- 🌐 **API Testing:** HTTP(S) with mTLS, custom headers, and full response validation
+- 🗄️ **Database Testing:** PostgreSQL and Google Cloud Spanner support
+- 📬 **Message Queues:** Native Kafka and RabbitMQ publish/consume actions
+- 🗃️ **Test Data Management:** Structured data sets, environments, and lifecycle
+- 💶 **SWIFT/SEPA Message Generation:** Template-based financial message support
+- ⚡ **Parallel Execution:** Run tests and steps concurrently with dependency analysis
+- 🔁 **Retry & Control Flow:** If, for, while, and robust retry logic
+- 🔐 **Secrets Management:** File-based secrets with output masking
+- 🖨️ **Multiple Output Formats:** Console, JSON, Markdown
+- 🧩 **VS Code Extension:** Syntax highlighting, autocomplete, validation, and one-click execution
+- 🧱 **Extensible:** Add your own actions and templates
+- 📊 **Comprehensive Reporting:** Always-on summary, step-level analytics, and error introspection
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Go 1.22+ (required)
-- Docker (for Kafka, RabbitMQ, Postgres, Spanner emulators)
-- (Optional) VS Code for enhanced editing
+- 🦫 Go 1.22+ (required)
+- 🐳 Docker (for Kafka, RabbitMQ, Postgres, Spanner emulators)
+- 💻 (Optional) VS Code for enhanced editing
 
 ### Installation
 
@@ -99,19 +99,9 @@ go run cmd/robogo/main.go run hello.robogo
 
 ---
 
-## How It Works
+## 🧩 Examples: API, Kafka, Database, SWIFT
 
-- **Test files** (`.robogo`): Define a single test case or a suite of cases in YAML.
-- **Actions:** Each step uses an action (e.g., `http_get`, `kafka`, `postgres`, `assert`, `log`, `template`, etc.).
-- **Variables:** Use `${var}` syntax for dynamic values, including secrets and outputs from previous steps.
-- **Suites:** Group multiple test files with shared setup/teardown and parallelism.
-- **Steps:** Every step must have a unique, non-empty `name` field. This is required for clarity, reporting, and debugging. Validation will fail if any step is missing a name.
-
----
-
-## Example: API, Kafka, and Database
-
-### HTTP API Test
+### 🌐 HTTP API Test
 
 ```yaml
 testcase: "API Test"
@@ -128,7 +118,7 @@ steps:
     args: ["Body: ${response.body}"]
 ```
 
-### Kafka Publish/Consume
+### 📬 Kafka Publish/Consume
 
 ```yaml
 testcase: "Kafka Integration"
@@ -150,7 +140,7 @@ steps:
     args: ["${consumed}", "contains", "${message}"]
 ```
 
-### PostgreSQL Query
+### 🗄️ PostgreSQL Query
 
 ```yaml
 testcase: "Postgres Query"
@@ -169,7 +159,7 @@ steps:
     args: ["${query_result.rows_affected}", "==", "1"]
 ```
 
-### SWIFT Message Generation
+### 💶 SWIFT Message Generation
 
 ```yaml
 testcase: "SWIFT MT103 Generation"
@@ -226,9 +216,9 @@ steps:
 
 ---
 
-## Parallelism & Configuration
+## ⚡ Parallelism & Configuration
 
-- **Suite-level:**  
+- **Suite-level:**
   ```yaml
   testsuite: "Parallel Suite"
   parallel: true
@@ -237,7 +227,7 @@ steps:
     - file: ./test-api.robogo
     - file: ./test-kafka.robogo
   ```
-- **Step-level:**  
+- **Step-level:**
   ```yaml
   parallelism:
     enabled: true
@@ -245,11 +235,11 @@ steps:
     steps: true
   ```
 
-- **Output formats:**  
-  - Console (default), JSON, Markdown  
-    `./robogo.exe run test.robogo --output json`
+- **Output formats:**
+  - 🖨️ Console (default), 🗂️ JSON, 📝 Markdown  
+    `./robogo run test.robogo --output json`
 
-- **Secrets:**  
+- **Secrets:**
   ```yaml
   variables:
     secrets:
@@ -260,35 +250,37 @@ steps:
 
 ---
 
-## Advanced Topics
+## 🧠 Advanced Topics
 
-- **Retry Logic:**  
+- 🔁 **Retry Logic:**
   ```yaml
   retry:
     attempts: 3
     delay: "1s"
     backoff: "exponential"
   ```
-- **Loops & Data-driven:**  
+- 🔄 **Loops & Data-driven:**
   ```yaml
   - for:
       condition: "1..5"
       steps:
-        - action: get_random
+        - name: "Random value"
+          action: get_random
           args: [100]
           result: rand
-        - action: log
+        - name: "Log random"
+          action: log
           args: ["Random: ${rand}"]
   ```
-- **Templates:**  
+- 🏷️ **Templates:**
   Use Go templates for SWIFT/SEPA or custom payloads.
 
-- **Reserved Variables:**  
+- 🪪 **Reserved Variables:**
   `__robogo_steps` gives you access to all previous step results and errors.
 
 ---
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 robogo/
@@ -303,24 +295,24 @@ robogo/
 
 ---
 
-## Development & Contribution
+## 🛠️ Development & Contribution
 
-- Build: `go build -o robogo.exe ./cmd/robogo`
-- Run all Go tests: `go test ./...`
-- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code style and PR guidelines.
-
----
-
-## Troubleshooting & FAQ
-
-- **Summary not printing?** Always prints in latest version, even on error/panic.
-- **Parallel deadlocks?** All goroutines send results, even on panic. Check for infinite loops.
-- **Error handling?** Steps fail on error unless `expect_error` is set and error matches.
-- **Need more examples?** See the `examples/` and `tests/` directories.
+- 🏗️ Build: `go build -o robogo ./cmd/robogo`
+- 🧪 Run all Go tests: `go test ./...`
+- 📄 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code style and PR guidelines.
 
 ---
 
-## License
+## 🆘 Troubleshooting & FAQ
+
+- ❓ **Summary not printing?** Always prints in latest version, even on error/panic.
+- 🌀 **Parallel deadlocks?** All goroutines send results, even on panic. Check for infinite loops.
+- 🚨 **Error handling?** Steps fail on error unless `expect_error` is set and error matches.
+- 📚 **Need more examples?** See the `examples/` and `tests/` directories.
+
+---
+
+## 📄 License
 
 MIT License. See LICENSE file for details.
 
