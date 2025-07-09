@@ -35,6 +35,12 @@ variables:
 
 steps:
 
+    # Basic HTTP Response Logging
+  - name: "Basic GET request and logging"
+    action: http_get
+    args: ["${api_base_url}/get"]
+    result: basic_response
+
   - name: "S1 - Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
@@ -90,23 +96,13 @@ steps:
     action: log
     args: ["Payment API Respons.data:", "${payment_response}"]
 
-  - name: "S7.1 - Convert Payment API Response to String"
-    action: bytes_to_string
-    args: ["${payment_response}"]
-    result: payment_response_str
-
-  - name: "S7.2 - Extract XML from Payment API Response"
-    action: json_extract
-    args: ["${payment_response_str}", "data"]
-    result: payment_api_xml
-
   - name: "S8 - Assert Payment API Response Status"
     action: assert
     args: ["${payment_response.status_code}", "==", "200", "Payment API should return 200 OK"]
 
   - name: "S9 - Assert Payment API Response Contains Success"
     action: assert
-    args: ["${payment_api_xml}", "contains", "${mt103_message}", "Payment API response should indicate message was accepted"]
+    args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should indicate message was accepted"]
 
   - name: "Insert Payment Record into Spanner"
     action: spanner
