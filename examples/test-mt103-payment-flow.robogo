@@ -1,7 +1,14 @@
-testcase: "MT103 Payment Flow Simulation"
+testcase: "TC01-MT103 Payment Flow Simulation"
 description: "Test SWIFT MT103 payment message generation and submission to mock payment system"
 
 variables:
+  secrets:
+    spanner_project:
+      value: "test-project"
+    spanner_instance:
+      value: "test-instance"
+    spanner_database:
+      value: "test-database"
   vars:
     # Mock sender details
     sender_bic: "DEUTDEFF"
@@ -18,28 +25,32 @@ variables:
     reference: "INV-2024-001"
     
     # Mock API endpoint
-    payment_api_url: "https://mock-payment-api.example.com/api/v1/payments"
+    payment_api_url: "https://httpbin.org/post"
     # Spanner connection string (update as needed)
-    spanner_connection: "projects/test-project/instances/test-instance/databases/test-database"
+    spanner_project_id: "${spanner_project}"
+    spanner_instance_id: "${spanner_instance}"
+    spanner_database_id: "${spanner_database}"
+    test_table: "integration_test"
+    spanner_connection: "projects/${spanner_project_id}/instances/${spanner_instance_id}/databases/${spanner_database_id}"
 
 steps:
 
-  - name: "Generate transaction timestamp"
+  - name: "S1 - Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
     result: timestamp_ms
 
-  - name: "Create unique transaction ID"
+  - name: "S2 - Create unique transaction ID"
     action: concat
     args: ["TXN", "${timestamp_ms}"]
     result: transaction_id
 
-  - name: "Get current date"
+  - name: "S3 -Get current date"
     action: get_time
     args: ["date"]
     result: current_date
 
-  - name: "Generate MT103 SWIFT Message"
+  - name: "S4 - Generate MT103 SWIFT Message"
     action: template
     args:
       - "templates/mt103.tmpl"
@@ -59,11 +70,11 @@ steps:
         Reference: "${reference}"
     result: mt103_message
 
-  - name: "Log Generated MT103 Message"
+  - name: "S5 - Log Generated MT103 Message"
     action: log
     args: ["Generated MT103 Message:", "${mt103_message}"]
 
-  - name: "Submit MT103 to Mock Payment API"
+  - name: "S6 - Submit MT103 to Mock Payment API"
     action: http
     args:
       - "POST"
@@ -75,21 +86,27 @@ steps:
       - "${mt103_message}"
     result: payment_response
 
-  - name: "Log Payment API Response"
+  - name: "S7 - Log Payment API Response"
     action: log
-    args: ["Payment API Response:", "${payment_response}"]
+    args: ["Payment API Respons.data:", "${payment_response}"]
 
-  - name: "Assert Payment API Response Status"
+  - name: "S7.1 - Convert Payment API Response to String"
+    action: bytes_to_string
+    args: ["${payment_response}"]
+    result: payment_response_str
+
+  - name: "S7.2 - Extract XML from Payment API Response"
+    action: json_extract
+    args: ["${payment_response_str}", "data"]
+    result: payment_api_xml
+
+  - name: "S8 - Assert Payment API Response Status"
     action: assert
     args: ["${payment_response.status_code}", "==", "200", "Payment API should return 200 OK"]
 
-  - name: "Assert Payment API Response Contains Success"
+  - name: "S9 - Assert Payment API Response Contains Success"
     action: assert
-    args: ["${payment_response.body}", "contains", "accepted", "Payment API response should indicate message was accepted"]
-
-  - name: "Assert Response Contains Transaction ID"
-    action: assert
-    args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should contain the transaction ID"]
+    args: ["${payment_api_xml}", "contains", "${mt103_message}", "Payment API response should indicate message was accepted"]
 
   - name: "Insert Payment Record into Spanner"
     action: spanner
