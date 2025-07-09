@@ -54,6 +54,11 @@ func validateTestCase(testCase *TestCase) error {
 
 	// Validate each step
 	for i, step := range testCase.Steps {
+		// Enforce that every step has a name
+		if strings.TrimSpace(step.Name) == "" {
+			return fmt.Errorf("step %d: every step must have a non-empty 'name' field", i+1)
+		}
+
 		// Check if step has any control flow or regular action
 		hasControlFlow := step.If != nil || step.For != nil || step.While != nil
 		hasAction := step.Action != ""

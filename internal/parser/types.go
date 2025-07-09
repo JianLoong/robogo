@@ -110,7 +110,7 @@ type ExpectErrorConfig struct {
 }
 
 // Step represents a single test step
-// 'name' is optional but strongly recommended for clarity and reporting
+// 'name' is now mandatory for every step and must be unique within the test case
 type Step struct {
 	Name    string                 `yaml:"name,omitempty"`
 	Action  string                 `yaml:"action"`

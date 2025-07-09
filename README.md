@@ -4,6 +4,17 @@
 
 ---
 
+## Shift Left & Transparency
+
+Robogo is designed to help teams **shift left** in their testing strategy by giving developers full transparency and control over test cases. All tests are written in clear, version-controlled YAML, making it easy for anyone on the team to:
+- Understand exactly what is being tested
+- Review, modify, and extend test coverage early in the development lifecycle
+- Integrate tests directly into CI/CD pipelines for rapid feedback
+
+This approach reduces bugs, increases confidence, and ensures quality is built in from the start.
+
+---
+
 ## What is Robogo?
 
 Robogo is a powerful, developer-friendly test automation framework written in Go. It lets you define, run, and report on complex end-to-end tests for APIs, databases, message queues (Kafka, RabbitMQ), SWIFT/SEPA messages, and more—all using a simple YAML-based DSL.
@@ -68,7 +79,8 @@ Create a file `hello.robogo`:
 testcase: "Hello World"
 description: "A minimal Robogo test"
 steps:
-  - action: log
+  - name: "Log Hello"
+    action: log
     args: ["Hello, Robogo!"]
 ```
 
@@ -93,6 +105,7 @@ go run cmd/robogo/main.go run hello.robogo
 - **Actions:** Each step uses an action (e.g., `http_get`, `kafka`, `postgres`, `assert`, `log`, `template`, etc.).
 - **Variables:** Use `${var}` syntax for dynamic values, including secrets and outputs from previous steps.
 - **Suites:** Group multiple test files with shared setup/teardown and parallelism.
+- **Steps:** Every step must have a unique, non-empty `name` field. This is required for clarity, reporting, and debugging. Validation will fail if any step is missing a name.
 
 ---
 
@@ -103,12 +116,15 @@ go run cmd/robogo/main.go run hello.robogo
 ```yaml
 testcase: "API Test"
 steps:
-  - action: http_get
+  - name: "GET request"
+    action: http_get
     args: ["https://httpbin.org/get"]
     result: response
-  - action: assert
+  - name: "Assert status"
+    action: assert
     args: ["${response.status_code}", "==", "200"]
-  - action: log
+  - name: "Log body"
+    action: log
     args: ["Body: ${response.body}"]
 ```
 
@@ -122,12 +138,15 @@ variables:
     topic: "robogo_test"
     message: "hello from robogo"
 steps:
-  - action: kafka
+  - name: "Publish message"
+    action: kafka
     args: ["publish", "${kafka_broker}", "${topic}", "${message}"]
-  - action: kafka
+  - name: "Consume message"
+    action: kafka
     args: ["consume", "${kafka_broker}", "${topic}", {fromOffset: "first", count: 1, timeout: 5}]
     result: consumed
-  - action: assert
+  - name: "Assert consumed"
+    action: assert
     args: ["${consumed}", "contains", "${message}"]
 ```
 
@@ -141,10 +160,12 @@ variables:
       file: "db_secret.txt"
       mask_output: true
 steps:
-  - action: postgres
+  - name: "Query DB"
+    action: postgres
     args: ["query", "postgres://user:${db_password}@localhost/db", "SELECT 1"]
     result: query_result
-  - action: assert
+  - name: "Assert rows"
+    action: assert
     args: ["${query_result.rows_affected}", "==", "1"]
 ```
 
@@ -154,12 +175,15 @@ steps:
 testcase: "SWIFT MT103 Generation"
 variables:
   vars:
-    bank_bic: "DEUTDEFF"
+    sender_bic: "DEUTDEFF"
+    sender_account: "1234567890"
+    sender_name: "Sender Company"
+    beneficiary_account: "0987654321"
+    beneficiary_name: "Beneficiary Company"
     currency: "EUR"
     amount: "1000.00"
-    transaction_id: "TXN123456"
+    reference: "INV-2024-001"
 steps:
-
   - name: "Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
@@ -195,7 +219,7 @@ steps:
         Reference: "${reference}"
     result: mt103_message
 
-  - name: Log Swift Message
+  - name: "Log Swift Message"
     action: log
     args: ["Generated SWIFT MT103 message:\n${mt103_message}"]
 ```
