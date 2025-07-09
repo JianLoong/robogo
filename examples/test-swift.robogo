@@ -1,47 +1,17 @@
-testcase: "SWIFT MT103 Generation"
+testcase: "Kafka Integration"
 variables:
   vars:
-    bank_bic: "DEUTDEFF"
-    currency: "EUR"
-    amount: "1000.00"
-    transaction_id: "TXN123456"
+    kafka_broker: "localhost:9092"
+    topic: "robogo_test"
+    message: "hello from robogo"
 steps:
-
-  - name: "Generate transaction timestamp"
-    action: get_time
-    args: ["unix_ms"]
-    result: timestamp_ms
-
-  - name: "Create unique transaction ID"
-    action: concat
-    args: ["TXN", "${timestamp_ms}"]
-    result: transaction_id
-
-  - name: "Get current date"
-    action: get_time
-    args: ["date"]
-    result: current_date
-
-  - name: "Generate MT103 SWIFT Message"
-    action: template
-    args:
-      - "templates/mt103.tmpl"
-      -
-        Sender:
-          BIC: "${sender_bic}"
-          Account: "${sender_account}"
-          Name: "${sender_name}"
-        Beneficiary:
-          Account: "${beneficiary_account}"
-          Name: "${beneficiary_name}"
-        TransactionID: "${transaction_id}"
-        Timestamp: "${timestamp_ms}"
-        Date: "${current_date}"
-        Currency: "${currency}"
-        Amount: "${amount}"
-        Reference: "${reference}"
-    result: mt103_message
-
-  - name: Log Swift Message
-    action: log
-    args: ["Generated SWIFT MT103 message:\n${mt103_message}"]
+  - name: "Publish message"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${topic}", "${message}"]
+  - name: "Consume message"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${topic}", {fromOffset: "first", count: 1, timeout: 5}]
+    result: consumed
+  - name: "Assert consumed"
+    action: assert
+    args: ["${consumed}", "contains", "${message}"]
