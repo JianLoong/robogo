@@ -1,0 +1,20 @@
+testcase: "HTTP Response Format Test"
+description: "Test to understand HTTP response format"
+
+steps:
+  - name: "Make simple HTTP request"
+    action: http_get
+    args: ["https://httpbin.org/status/200"]
+    result: "http_response"
+
+  - name: "Log raw response"
+    action: log
+    args: ["Raw response: ${http_response}"]
+
+  - name: "Log status code"
+    action: log
+    args: ["Status code: ${http_response.status_code}"]
+
+  - name: "Test status code assertion"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200", "Should be 200"]

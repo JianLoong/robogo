@@ -1,0 +1,198 @@
+testcase: "HTTP Logging in Loops"
+description: "Demonstrate logging multiple HTTP responses in loops"
+
+variables:
+  vars:
+    api_base_url: "https://httpbin.org"
+    max_iterations: 3
+
+steps:
+  # Logging Multiple Responses in a Loop
+  - name: "Loop through multiple endpoints"
+    for:
+      condition: "1..${max_iterations}"
+      steps:
+        - name: "Make request to different endpoints"
+          action: http_get
+          args: ["${api_base_url}/status/${iteration}00"]
+          result: loop_response
+        
+        - name: "Log response for iteration"
+          action: log
+          args: ["Iteration ${iteration} - Status: ${loop_response.status_code}"]
+        
+        - name: "Log response body for iteration"
+          action: log
+          args: ["Iteration ${iteration} - Body: ${loop_response.body}"]
+
+  # Logging with Different HTTP Methods
+  - name: "Test different HTTP methods"
+    for:
+      condition: ["GET", "POST", "PUT", "DELETE"]
+      steps:
+        - name: "Make ${iteration} request"
+          action: http
+          args: 
+            - "${iteration}"
+            - "${api_base_url}/${iteration.lower}"
+            - '{"method": "${iteration}", "data": "test"}'
+          result: method_response
+        
+        - name: "Log ${iteration} response"
+          action: log
+          args: ["${iteration} Response Status: ${method_response.status_code}"]
+        
+        - name: "Log ${iteration} response body"
+          action: log
+          args: ["${iteration} Response Body: ${method_response.body}"]
+
+  # Logging with Retry Logic
+  - name: "Request with retry and logging"
+    action: http_get
+    args: ["${api_base_url}/status/500"]
+    result: retry_response
+    retry:
+      attempts: 3
+      delay: "1s"
+      backoff: "exponential"
+  
+  - name: "Log retry response"
+    action: log
+    args: ["Retry response status: ${retry_response.status_code}"]
+  
+  - name: "Log retry response body"
+    action: log
+    args: ["Retry response body: ${retry_response.body}"]
+
+  # Logging with Conditional Logic
+  - name: "Conditional request and logging"
+    for:
+      condition: "1..5"
+      steps:
+        - name: "Make conditional request"
+          action: http_get
+          args: ["${api_base_url}/status/${iteration}00"]
+          result: conditional_response
+        
+        - name: "Check if successful"
+          if:
+            condition: "${conditional_response.status_code} == 200"
+            then:
+              - name: "Log success"
+                action: log
+                args: ["✅ Iteration ${iteration}: SUCCESS (${conditional_response.status_code})"]
+            else:
+              - name: "Log failure"
+                action: log
+                args: ["❌ Iteration ${iteration}: FAILED (${conditional_response.status_code})"]
+        
+        - name: "Log response details"
+          action: log
+          args: ["  Response body: ${conditional_response.body}"]
+
+  # Logging with Custom Headers in Loop
+  - name: "Requests with custom headers"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Request with iteration-specific header"
+          action: http_get
+          args: 
+            - "${api_base_url}/headers"
+            - 
+              X-Iteration: "${iteration}"
+              X-Test-ID: "test-${iteration}"
+          result: header_response
+        
+        - name: "Log iteration header response"
+          action: log
+          args: ["=== Iteration ${iteration} Headers ==="]
+        
+        - name: "Log request headers"
+          action: log
+          args: ["Request headers: ${header_response.body.headers}"]
+        
+        - name: "Log specific headers"
+          action: log
+          args: ["X-Iteration: ${header_response.body.headers.X-Iteration}"]
+        
+        - name: "Log test ID"
+          action: log
+          args: ["X-Test-ID: ${header_response.body.headers.X-Test-ID}"]
+
+  # Logging with Data-Driven Testing
+  - name: "Data-driven HTTP testing"
+    for:
+      condition: 
+        - url: "/get"
+          expected_status: 200
+        - url: "/status/404"
+          expected_status: 404
+        - url: "/status/500"
+          expected_status: 500
+      steps:
+        - name: "Request to ${iteration.url}"
+          action: http_get
+          args: ["${api_base_url}${iteration.url}"]
+          result: data_response
+        
+        - name: "Log data-driven response"
+          action: log
+          args: ["URL: ${iteration.url}"]
+        
+        - name: "Log actual vs expected status"
+          action: log
+          args: ["Expected: ${iteration.expected_status}, Actual: ${data_response.status_code}"]
+        
+        - name: "Log response body"
+          action: log
+          args: ["Response: ${data_response.body}"]
+
+  # Logging with Timing Information
+  - name: "Timed requests with logging"
+    for:
+      condition: "1..3"
+      steps:
+        - name: "Get current timestamp"
+          action: get_time
+          args: ["unix"]
+          result: start_time
+        
+        - name: "Make timed request"
+          action: http_get
+          args: ["${api_base_url}/delay/1"]
+          result: timed_response
+        
+        - name: "Get end timestamp"
+          action: get_time
+          args: ["unix"]
+          result: end_time
+        
+        - name: "Log timing information"
+          action: log
+          args: ["Iteration ${iteration} timing:"]
+        
+        - name: "Log start time"
+          action: log
+          args: ["  Start: ${start_time}"]
+        
+        - name: "Log end time"
+          action: log
+          args: ["  End: ${end_time}"]
+        
+        - name: "Log response status"
+          action: log
+          args: ["  Status: ${timed_response.status_code}"]
+        
+        - name: "Log response body"
+          action: log
+          args: ["  Body: ${timed_response.body}"]
+
+  # Summary Logging
+  - name: "Log test summary"
+    action: log
+    args: ["=== HTTP LOGGING IN LOOPS TEST COMPLETE ==="]
+  
+  - name: "Log completion message"
+    action: log
+    args: ["All HTTP requests and logging examples completed successfully!"] 

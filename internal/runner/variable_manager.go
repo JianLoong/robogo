@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"reflect"
@@ -278,8 +279,24 @@ func (vm *VariableManager) resolveDotNotation(varName string) (interface{}, bool
 		return nil, false
 	}
 
+	// Try to parse JSON if the root variable is a byte array or string
+	var current interface{} = rootVar
+	switch v := rootVar.(type) {
+	case []byte:
+		// Try to parse as JSON
+		var parsed interface{}
+		if err := json.Unmarshal(v, &parsed); err == nil {
+			current = parsed
+		}
+	case string:
+		// Try to parse as JSON string
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(v), &parsed); err == nil {
+			current = parsed
+		}
+	}
+
 	// Navigate through the nested structure
-	current := rootVar
 	for i := 1; i < len(parts); i++ {
 		switch v := current.(type) {
 		case map[string]interface{}:

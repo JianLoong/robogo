@@ -1,0 +1,41 @@
+testcase: "Edge Cases for Non-JSON Responses"
+description: "Test edge cases with non-JSON HTTP responses"
+
+steps:
+  - name: "Get HTML response"
+    action: http_get
+    args: ["https://httpbin.org/html"]
+    result: "html_response"
+
+  # Test accessing valid properties
+  - name: "Access status code"
+    action: log
+    args: ["Status: ${html_response.status_code}"]
+
+  - name: "Access content type header"
+    action: log
+    args: ["Content-Type: ${html_response.headers.Content-Type}"]
+
+  - name: "Access body (should show HTML)"
+    action: log
+    args: ["Body preview: ${html_response.body}"]
+
+  # Test accessing non-existent properties (should gracefully fail)
+  - name: "Try to access non-existent property"
+    action: log
+    args: ["Non-existent: ${html_response.non_existent_field}"]
+
+  # Test that retry still works with non-JSON content
+  - name: "Retry with non-JSON 500 response"
+    action: http_get
+    args: ["https://httpbin.org/status/500"]
+    retry:
+      attempts: 2
+      delay: 1s
+      conditions: ["5xx"]
+    result: "non_json_500"
+    continue_on_failure: true
+
+  - name: "Verify retry worked"
+    action: assert
+    args: ["${non_json_500.status_code}", "==", "500", "Should still extract status code"]

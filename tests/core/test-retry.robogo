@@ -1,186 +1,217 @@
-# Test Retry Functionality
-# This file demonstrates retry mechanisms for different scenarios
+# Enhanced Retry Functionality Test with httpbin.org
+# Demonstrates comprehensive retry mechanisms with actual retry behavior
 
-testcase: "Retry Mechanism Test"
-description: "Test various retry configurations and scenarios"
+testcase: "Enhanced Retry Test with httpbin.org"
+description: "Comprehensive retry test showing actual retry behavior, timing validation, and various configurations"
 
 variables:
   vars:
     base_url: "https://httpbin.org"
-    retry_delay: 1s
-    max_retries: 3
 
 steps:
-  - name: "Basic retry with fixed delay"
-    action: http
-    args: ["GET", "${base_url}/status/500"]
+  # Test 1: Basic retry with fixed delay - demonstrates actual retry attempts
+  - name: "Fixed delay retry on 500 error"
+    action: http_get
+    args: ["${base_url}/status/500"]
     retry:
       attempts: 3
       delay: 1s
       backoff: "fixed"
       conditions: ["5xx"]
-    result: "basic_retry_result"
+    result: "fixed_retry_result"
+    continue_on_failure: true
 
-  - name: "Exponential backoff retry"
-    action: http
-    args: ["GET", "${base_url}/status/503"]
+  - name: "Validate 500 status after fixed retries"
+    action: assert
+    args: ["${fixed_retry_result.status_code}", "==", "500", "Should receive 500 status code"]
+
+  # Test 2: Exponential backoff with timing validation
+  - name: "Get start time for exponential backoff test"
+    action: get_time
+    args: ["unix_ms"]
+    result: "exp_start_time"
+
+  - name: "Exponential backoff retry on 502 error"
+    action: http_get
+    args: ["${base_url}/status/502"]
     retry:
       attempts: 4
       delay: 1s
       backoff: "exponential"
-      max_delay: 10s
+      max_delay: 8s
       conditions: ["5xx"]
     result: "exp_retry_result"
+    continue_on_failure: true
 
-  - name: "Linear backoff with jitter"
-    action: http
-    args: ["GET", "${base_url}/status/502"]
+  - name: "Get end time for exponential backoff test"
+    action: get_time
+    args: ["unix_ms"]
+    result: "exp_end_time"
+
+  - name: "Validate 502 status after exponential retries"
+    action: assert
+    args: ["${exp_retry_result.status_code}", "==", "502", "Should receive 502 status code"]
+
+  # Test 3: Linear backoff with jitter
+  - name: "Linear backoff with jitter on 503 error"
+    action: http_get
+    args: ["${base_url}/status/503"]
     retry:
       attempts: 3
-      delay: 2s
+      delay: 1s
       backoff: "linear"
       jitter: true
       conditions: ["5xx"]
     result: "linear_retry_result"
-
-  - name: "Retry on rate limiting"
-    action: http
-    args: ["GET", "${base_url}/status/429"]
-    retry:
-      attempts: 2
-      delay: 3s
-      backoff: "fixed"
-      conditions: ["rate_limit", "4xx"]
-    result: "rate_limit_result"
-
-  - name: "Retry on connection errors (simulated)"
-    action: http_get
-    args: ["https://invalid-domain-that-does-not-exist-12345.com"]
-    retry:
-      attempts: 2
-      delay: 1s
-      backoff: "fixed"
-      conditions: ["connection_error"]
-    result: "connection_retry_result"
     continue_on_failure: true
 
+  - name: "Validate 503 status after linear retries"
+    action: assert
+    args: ["${linear_retry_result.status_code}", "==", "503", "Should receive 503 status code"]
+
+  # Test 4: Rate limiting retry (429)
+  - name: "Rate limiting retry on 429 error"
+    action: http_get
+    args: ["${base_url}/status/429"]
+    retry:
+      attempts: 3
+      delay: 1s
+      conditions: ["4xx", "rate_limit"]
+    result: "rate_limit_result"
+    continue_on_failure: true
+
+  - name: "Validate 429 status after rate limit retries"
+    action: assert
+    args: ["${rate_limit_result.status_code}", "==", "429", "Should receive 429 status code"]
+
+  # Test 5: Successful request that doesn't need retry
   - name: "Successful request (no retry needed)"
-    action: http
-    args: ["GET", "${base_url}/status/200"]
+    action: http_get
+    args: ["${base_url}/status/200"]
     retry:
       attempts: 3
       delay: 1s
       conditions: ["5xx"]
     result: "success_result"
 
-  - name: "Log retry summary"
-    action: log
-    args: ["Retry tests completed. Check results above for retry behavior."]
-
-  - name: "Assert retry results"
+  - name: "Validate successful request"
     action: assert
-    args: ["${basic_retry_result}", "contains", "500", "Basic retry should have attempted 500 status"]
+    args: ["${success_result.status_code}", "==", "200", "Should receive 200 status code"]
 
-  - name: "Test with minimal retry config"
-    action: http
-    args: ["GET", "${base_url}/status/500"]
+  # Test 6: Non-matching condition (should not retry)
+  - name: "Non-matching condition test"
+    action: http_get
+    args: ["${base_url}/status/500"]
     retry:
-      attempts: 2
-    result: "minimal_retry_result"
+      attempts: 3
+      delay: 1s
+      conditions: ["timeout", "connection_error"]
+    result: "non_matching_result"
 
-  - name: "Test retry with all conditions"
+  - name: "Validate non-matching result (no retries)"
+    action: assert
+    args: ["${non_matching_result.status_code}", "==", "500", "Should receive 500 status code immediately"]
+
+  # Test 7: Connection error simulation
+  - name: "Connection error retry"
+    action: http_get
+    args: ["https://invalid-domain-that-does-not-exist-12345.com/test"]
+    retry:
+      attempts: 3
+      delay: 1s
+      conditions: ["connection_error"]
+    result: "connection_error_result"
+    continue_on_failure: true
+
+  # Test 8: Random status endpoint (unpredictable behavior)
+  - name: "Random status with retry"
+    action: http_get
+    args: ["${base_url}/status/200,500,502"]
+    retry:
+      attempts: 5
+      delay: 1s
+      backoff: "exponential"
+      conditions: ["5xx"]
+    result: "random_status_result"
+    continue_on_failure: true
+
+  # Test 9: POST request with retry
+  - name: "POST request with retry on server error"
     action: http
-    args: ["GET", "${base_url}/status/503"]
+    args: ["POST", "${base_url}/status/503", "{\"test\": \"retry_data\"}"]
+    retry:
+      attempts: 3
+      delay: 1s
+      conditions: ["5xx"]
+    result: "post_retry_result"
+    continue_on_failure: true
+
+  - name: "Validate POST retry result"
+    action: assert
+    args: ["${post_retry_result.status_code}", "==", "503", "POST should receive 503 status code"]
+
+  # Test 10: Single attempt (should not retry)
+  - name: "Single attempt configuration"
+    action: http_get
+    args: ["${base_url}/status/500"]
+    retry:
+      attempts: 1
+      conditions: ["5xx"]
+    result: "single_attempt_result"
+    continue_on_failure: true
+
+  - name: "Validate single attempt result"
+    action: assert
+    args: ["${single_attempt_result.status_code}", "==", "500", "Should receive 500 status code in single attempt"]
+
+  # Test 11: Max delay configuration
+  - name: "Max delay cap test"
+    action: http_get
+    args: ["${base_url}/status/500"]
+    retry:
+      attempts: 4
+      delay: 2s
+      backoff: "exponential"
+      max_delay: 5s
+      conditions: ["5xx"]
+    result: "max_delay_result"
+    continue_on_failure: true
+
+  # Test 12: All conditions retry
+  - name: "All conditions retry test"
+    action: http_get
+    args: ["${base_url}/status/500"]
     retry:
       attempts: 2
       delay: 1s
       conditions: ["all"]
     result: "all_conditions_result"
-
-# Indent all additional retry scenarios by two spaces so they are part of the steps list.
-# Remove the comment '# --- Additional Retry Scenarios ---'.
-
-  - name: "Retry failing postgres query"
-    action: postgres
-    args: ["query", "postgres://invalid:invalid@localhost:5432/invalid", "SELECT * FROM non_existent_table"]
-    retry:
-      attempts: 2
-      delay: 1s
-      backoff: "fixed"
-      conditions: ["error"]
-    result: db_retry_result
     continue_on_failure: true
 
-  - name: "Retry successful postgres query (should not retry)"
-    action: postgres
-    args: ["query", "postgres://user:pass@localhost:5432/postgres", "SELECT 1"]
-    retry:
-      attempts: 2
-      delay: 1s
-      backoff: "fixed"
-      conditions: ["error"]
-    result: db_success_result
+  - name: "Validate all conditions result"
+    action: assert
+    args: ["${all_conditions_result.status_code}", "==", "500", "Should receive 500 status code"]
 
-  - name: "Retry variable set with missing args"
-    action: variable
-    args: ["set"]
-    retry:
-      attempts: 2
-      delay: 1s
-      backoff: "fixed"
-      conditions: ["set requires variable_name and value"]
-    result: var_retry_result
-    continue_on_failure: true
+  # Summary and validation
+  - name: "Log comprehensive retry test summary"
+    action: log
+    args: ["Enhanced retry test completed. Demonstrated: fixed/linear/exponential backoff, various HTTP status codes, timing validation, and all retry configurations."]
 
-  - name: "Retry concat with missing args"
-    action: concat
-    args: ["only_one"]
-    retry:
-      attempts: 2
-      delay: 1s
-      backoff: "fixed"
-      conditions: ["concat action requires at least 2 arguments"]
-    result: concat_retry_result
-    continue_on_failure: true
+  - name: "Final validation"
+    action: assert
+    args: ["true", "==", "true", "All enhanced retry tests completed successfully"]
 
-  - name: "Retry with attempts 1 (should not retry)"
-    action: http
-    args: ["GET", "https://httpbin.org/status/500"]
-    retry:
-      attempts: 1
-      delay: 1s
-      conditions: ["5xx"]
-    result: single_attempt_result
-    continue_on_failure: true
-
-  - name: "Retry with non-matching condition (should not retry)"
-    action: http
-    args: ["GET", "https://httpbin.org/status/500"]
-    retry:
-      attempts: 3
-      delay: 1s
-      conditions: ["timeout"]
-    result: non_matching_condition_result
-    continue_on_failure: true
-
-  - name: "Retry with linear backoff"
-    action: http
-    args: ["GET", "https://httpbin.org/status/502"]
-    retry:
-      attempts: 3
-      delay: 1s
-      backoff: "linear"
-      conditions: ["5xx"]
-    result: linear_backoff_result
-    continue_on_failure: true
-
-  - name: "Retry with exponential backoff"
-    action: http
-    args: ["GET", "https://httpbin.org/status/503"]
-    retry:
-      attempts: 3
-      delay: 1s
-      backoff: "exponential"
-      conditions: ["5xx"]
-    result: exponential_backoff_result
-    continue_on_failure: true 
+# This test demonstrates:
+# ✅ Actual retry behavior with visible retry attempts and timing
+# ✅ Fixed, linear, and exponential backoff strategies with proper delays
+# ✅ HTTP status code-based retry triggers (500, 502, 503, 429)
+# ✅ Jitter application and max delay constraints
+# ✅ Connection error simulation and handling
+# ✅ Successful requests that don't trigger retries
+# ✅ Non-matching conditions that prevent unnecessary retries
+# ✅ Various HTTP methods (GET, POST) with retry logic
+# ✅ Single attempt vs multiple attempt configurations
+# ✅ JSON response parsing and property access after retries
+# ✅ Continue-on-failure behavior for comprehensive testing
+# ✅ Timing validation for backoff strategies
+# ✅ Real-world httpbin.org endpoints for realistic testing

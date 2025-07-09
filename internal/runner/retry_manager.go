@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -50,24 +51,29 @@ func (rm *RetryManager) ExecuteWithRetry(
 		// Execute the step
 		output, err := executor.Execute(step.Action, args, step.Options, silent)
 
-		if err == nil {
-			// Success - return immediately
-			if !silent && attempt > 1 {
-				fmt.Printf("Retry successful on attempt %d\n", attempt)
-			}
-			return output, nil
-		}
-
-		// Store the last error and output
+		// Store the last error and output for potential retry decision
 		lastErr = err
 		lastOutput = output
 
-		// Check if we should retry based on error conditions
-		if !rm.shouldRetry(err, config.Conditions) {
-			if !silent {
+		// Check if we should retry based on error conditions and HTTP status codes
+		shouldRetry := false
+		if err != nil {
+			// Traditional error-based retry
+			shouldRetry = rm.shouldRetry(err, config.Conditions)
+		} else {
+			// Check HTTP response status codes for retry conditions
+			shouldRetry = rm.shouldRetryBasedOnResponse(output, config.Conditions)
+		}
+
+		if !shouldRetry {
+			// Success or non-retryable condition - return immediately
+			if !silent && attempt > 1 && err == nil {
+				fmt.Printf("Retry successful on attempt %d\n", attempt)
+			}
+			if !silent && !shouldRetry && err != nil {
 				fmt.Printf("Error not retryable: %v\n", err)
 			}
-			break
+			return output, err
 		}
 
 		// If this is the last attempt, don't wait
@@ -127,6 +133,106 @@ func (rm *RetryManager) shouldRetry(err error, conditions []string) bool {
 	}
 
 	return false
+}
+
+// shouldRetryBasedOnResponse determines if an HTTP response should trigger a retry based on status code
+func (rm *RetryManager) shouldRetryBasedOnResponse(output interface{}, conditions []string) bool {
+	if len(conditions) == 0 {
+		// Default conditions: retry on 5xx errors
+		conditions = []string{"5xx"}
+	}
+
+	// Try to parse output as HTTP response
+	statusCode := rm.extractStatusCode(output)
+	if statusCode == 0 {
+		// Not an HTTP response or can't parse status code
+		return false
+	}
+
+	for _, condition := range conditions {
+		conditionLower := strings.ToLower(condition)
+
+		switch {
+		case conditionLower == "5xx":
+			if statusCode >= 500 && statusCode < 600 {
+				return true
+			}
+		case conditionLower == "4xx":
+			if statusCode >= 400 && statusCode < 500 {
+				return true
+			}
+		case conditionLower == "rate_limit" || conditionLower == "429":
+			if statusCode == 429 {
+				return true
+			}
+		case conditionLower == "all":
+			if statusCode >= 400 {
+				return true
+			}
+		case strings.HasPrefix(conditionLower, "5") && len(conditionLower) == 3:
+			// Specific status codes like "500", "502", "503"
+			if specificCode := rm.parseStatusCode(conditionLower); specificCode > 0 && statusCode == specificCode {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// extractStatusCode extracts the status code from HTTP response output
+func (rm *RetryManager) extractStatusCode(output interface{}) int {
+	// Handle byte array (JSON response from HTTP action)
+	if bytes, ok := output.([]byte); ok {
+		var response map[string]interface{}
+		if err := json.Unmarshal(bytes, &response); err == nil {
+			if statusCode, ok := response["status_code"].(float64); ok {
+				return int(statusCode)
+			}
+		}
+	}
+
+	// Handle string (might be JSON)
+	if str, ok := output.(string); ok {
+		var response map[string]interface{}
+		if err := json.Unmarshal([]byte(str), &response); err == nil {
+			if statusCode, ok := response["status_code"].(float64); ok {
+				return int(statusCode)
+			}
+		}
+	}
+
+	// Handle map directly
+	if response, ok := output.(map[string]interface{}); ok {
+		if statusCode, ok := response["status_code"].(float64); ok {
+			return int(statusCode)
+		}
+		if statusCode, ok := response["status_code"].(int); ok {
+			return statusCode
+		}
+	}
+
+	return 0
+}
+
+// parseStatusCode parses a status code string to int
+func (rm *RetryManager) parseStatusCode(codeStr string) int {
+	switch codeStr {
+	case "500":
+		return 500
+	case "501":
+		return 501
+	case "502":
+		return 502
+	case "503":
+		return 503
+	case "504":
+		return 504
+	case "429":
+		return 429
+	default:
+		return 0
+	}
 }
 
 // calculateDelay calculates the delay for the next retry attempt

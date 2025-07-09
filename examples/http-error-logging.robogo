@@ -1,0 +1,277 @@
+testcase: "HTTP Error Response Logging"
+description: "Demonstrate logging HTTP error responses and handling different error scenarios"
+
+variables:
+  vars:
+    api_base_url: "https://httpbin.org"
+    timeout_url: "https://httpbin.org/delay/10"
+
+steps:
+  # Logging 4xx Client Errors
+  - name: "Test 400 Bad Request"
+    action: http_get
+    args: ["${api_base_url}/status/400"]
+    result: bad_request_response
+    expect_error: true
+  
+  - name: "Log 400 error details"
+    action: log
+    args: ["=== 400 BAD REQUEST ==="]
+  
+  - name: "Log 400 status"
+    action: log
+    args: ["Status: ${bad_request_response.status_code}"]
+  
+  - name: "Log 400 body"
+    action: log
+    args: ["Body: ${bad_request_response.body}"]
+  
+  - name: "Log 400 error message"
+    action: log
+    args: ["Error: ${bad_request_response.error}"]
+
+  - name: "Test 401 Unauthorized"
+    action: http_get
+    args: ["${api_base_url}/status/401"]
+    result: unauthorized_response
+    expect_error: true
+  
+  - name: "Log 401 error details"
+    action: log
+    args: ["=== 401 UNAUTHORIZED ==="]
+  
+  - name: "Log 401 status"
+    action: log
+    args: ["Status: ${unauthorized_response.status_code}"]
+  
+  - name: "Log 401 body"
+    action: log
+    args: ["Body: ${unauthorized_response.body}"]
+  
+  - name: "Log 401 error message"
+    action: log
+    args: ["Error: ${unauthorized_response.error}"]
+
+  - name: "Test 404 Not Found"
+    action: http_get
+    args: ["${api_base_url}/nonexistent"]
+    result: not_found_response
+    expect_error: true
+  
+  - name: "Log 404 error details"
+    action: log
+    args: ["=== 404 NOT FOUND ==="]
+  
+  - name: "Log 404 status"
+    action: log
+    args: ["Status: ${not_found_response.status_code}"]
+  
+  - name: "Log 404 body"
+    action: log
+    args: ["Body: ${not_found_response.body}"]
+  
+  - name: "Log 404 error message"
+    action: log
+    args: ["Error: ${not_found_response.error}"]
+
+  # Logging 5xx Server Errors
+  - name: "Test 500 Internal Server Error"
+    action: http_get
+    args: ["${api_base_url}/status/500"]
+    result: server_error_response
+    expect_error: true
+  
+  - name: "Log 500 error details"
+    action: log
+    args: ["=== 500 INTERNAL SERVER ERROR ==="]
+  
+  - name: "Log 500 status"
+    action: log
+    args: ["Status: ${server_error_response.status_code}"]
+  
+  - name: "Log 500 body"
+    action: log
+    args: ["Body: ${server_error_response.body}"]
+  
+  - name: "Log 500 error message"
+    action: log
+    args: ["Error: ${server_error_response.error}"]
+
+  - name: "Test 502 Bad Gateway"
+    action: http_get
+    args: ["${api_base_url}/status/502"]
+    result: bad_gateway_response
+    expect_error: true
+  
+  - name: "Log 502 error details"
+    action: log
+    args: ["=== 502 BAD GATEWAY ==="]
+  
+  - name: "Log 502 status"
+    action: log
+    args: ["Status: ${bad_gateway_response.status_code}"]
+  
+  - name: "Log 502 body"
+    action: log
+    args: ["Body: ${bad_gateway_response.body}"]
+  
+  - name: "Log 502 error message"
+    action: log
+    args: ["Error: ${bad_gateway_response.error}"]
+
+  - name: "Test 503 Service Unavailable"
+    action: http_get
+    args: ["${api_base_url}/status/503"]
+    result: service_unavailable_response
+    expect_error: true
+  
+  - name: "Log 503 error details"
+    action: log
+    args: ["=== 503 SERVICE UNAVAILABLE ==="]
+  
+  - name: "Log 503 status"
+    action: log
+    args: ["Status: ${service_unavailable_response.status_code}"]
+  
+  - name: "Log 503 body"
+    action: log
+    args: ["Body: ${service_unavailable_response.body}"]
+  
+  - name: "Log 503 error message"
+    action: log
+    args: ["Error: ${service_unavailable_response.error}"]
+
+  # Logging Network Errors
+  - name: "Test connection timeout"
+    action: http_get
+    args: ["${timeout_url}"]
+    result: timeout_response
+    expect_error: true
+  
+  - name: "Log timeout error details"
+    action: log
+    args: ["=== CONNECTION TIMEOUT ==="]
+  
+  - name: "Log timeout status"
+    action: log
+    args: ["Status: ${timeout_response.status_code}"]
+  
+  - name: "Log timeout body"
+    action: log
+    args: ["Body: ${timeout_response.body}"]
+  
+  - name: "Log timeout error message"
+    action: log
+    args: ["Error: ${timeout_response.error}"]
+
+  # Logging Invalid URL Errors
+  - name: "Test invalid URL"
+    action: http_get
+    args: ["https://invalid-domain-that-does-not-exist-12345.com"]
+    result: invalid_url_response
+    expect_error: true
+  
+  - name: "Log invalid URL error details"
+    action: log
+    args: ["=== INVALID URL ==="]
+  
+  - name: "Log invalid URL status"
+    action: log
+    args: ["Status: ${invalid_url_response.status_code}"]
+  
+  - name: "Log invalid URL body"
+    action: log
+    args: ["Body: ${invalid_url_response.body}"]
+  
+  - name: "Log invalid URL error message"
+    action: log
+    args: ["Error: ${invalid_url_response.error}"]
+
+  # Logging with Retry and Error Handling
+  - name: "Test retry with error logging"
+    action: http_get
+    args: ["${api_base_url}/status/500"]
+    result: retry_error_response
+    retry:
+      attempts: 3
+      delay: "1s"
+      backoff: "exponential"
+    expect_error: true
+  
+  - name: "Log retry error details"
+    action: log
+    args: ["=== RETRY WITH ERROR ==="]
+  
+  - name: "Log retry error status"
+    action: log
+    args: ["Status: ${retry_error_response.status_code}"]
+  
+  - name: "Log retry error body"
+    action: log
+    args: ["Body: ${retry_error_response.body}"]
+  
+  - name: "Log retry error message"
+    action: log
+    args: ["Error: ${retry_error_response.error}"]
+
+  # Logging Error Responses in Loops
+  - name: "Test error responses in loop"
+    for:
+      condition: ["400", "401", "403", "404", "500", "502", "503"]
+      steps:
+        - name: "Request status ${iteration}"
+          action: http_get
+          args: ["${api_base_url}/status/${iteration}"]
+          result: loop_error_response
+          expect_error: true
+        
+        - name: "Log error for status ${iteration}"
+          action: log
+          args: ["Status ${iteration} - Code: ${loop_error_response.status_code}"]
+        
+        - name: "Log error body for status ${iteration}"
+          action: log
+          args: ["Status ${iteration} - Body: ${loop_error_response.body}"]
+        
+        - name: "Log error message for status ${iteration}"
+          action: log
+          args: ["Status ${iteration} - Error: ${loop_error_response.error}"]
+
+  # Logging with Conditional Error Handling
+  - name: "Conditional error handling"
+    for:
+      condition: ["200", "400", "500"]
+      steps:
+        - name: "Request status ${iteration}"
+          action: http_get
+          args: ["${api_base_url}/status/${iteration}"]
+          result: conditional_error_response
+        
+        - name: "Check if error occurred"
+          if:
+            condition: "${conditional_error_response.status_code} >= 400"
+            then:
+              - name: "Log error response"
+                action: log
+                args: ["❌ ERROR ${conditional_error_response.status_code}: ${conditional_error_response.body}"]
+              
+              - name: "Log error details"
+                action: log
+                args: ["Error message: ${conditional_error_response.error}"]
+            else:
+              - name: "Log success response"
+                action: log
+                args: ["✅ SUCCESS ${conditional_error_response.status_code}: ${conditional_error_response.body}"]
+
+  # Logging Error Summary
+  - name: "Log error summary"
+    action: log
+    args: ["=== HTTP ERROR LOGGING SUMMARY ==="]
+  
+  - name: "Log completion message"
+    action: log
+    args: ["All HTTP error logging examples completed successfully!"]
+  
+  - name: "Log error types tested"
+    action: log
+    args: ["Error types tested: 4xx, 5xx, network, timeout, invalid URL"] 

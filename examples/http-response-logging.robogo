@@ -1,0 +1,171 @@
+testcase: "HTTP Response Logging Examples"
+description: "Demonstrate various ways to log HTTP response values"
+
+variables:
+  vars:
+    api_base_url: "https://httpbin.org"
+    test_user: "john@example.com"
+
+steps:
+  # Basic HTTP Response Logging
+  - name: "Basic GET request and logging"
+    action: http_get
+    args: ["${api_base_url}/get"]
+    result: basic_response
+  
+  - name: "Log entire response"
+    action: log
+    args: ["Full response: ${basic_response}"]
+  
+  - name: "Log specific response fields"
+    action: log
+    args: ["Status code: ${basic_response.status_code}"]
+  
+  - name: "Log response body"
+    action: log
+    args: ["Response body: ${basic_response.body}"]
+  
+  - name: "Log response headers"
+    action: log
+    args: ["Response headers: ${basic_response.headers}"]
+
+  # Logging Response Body Content
+  - name: "POST request with JSON body"
+    action: http_post
+    args: 
+      - "${api_base_url}/post"
+      - '{"name": "John", "email": "${test_user}"}'
+    result: post_response
+  
+  - name: "Log POST response body"
+    action: log
+    args: ["POST Response body: ${post_response.body}"]
+  
+  - name: "Log specific JSON fields"
+    action: log
+    args: ["Posted data: ${post_response.body.json}"]
+  
+  - name: "Log response URL"
+    action: log
+    args: ["Response URL: ${post_response.body.url}"]
+
+  # Logging with Different Verbosity Levels
+  - name: "Detailed response logging"
+    action: http_get
+    args: ["${api_base_url}/user-agent"]
+    result: detailed_response
+  
+  - name: "Log response details"
+    action: log
+    args: ["=== DETAILED RESPONSE ==="]
+  
+  - name: "Log status code"
+    action: log
+    args: ["  Status: ${detailed_response.status_code}"]
+  
+  - name: "Log headers"
+    action: log
+    args: ["  Headers: ${detailed_response.headers}"]
+  
+  - name: "Log body length"
+    action: log
+    args: ["  Body length: ${detailed_response.body.length}"]
+  
+  - name: "Log body content"
+    action: log
+    args: ["  Body: ${detailed_response.body}"]
+
+  # Logging Error Responses
+  - name: "Request that will return 404"
+    action: http_get
+    args: ["${api_base_url}/nonexistent"]
+    result: error_response
+    expect_error: true
+  
+  - name: "Log error status"
+    action: log
+    args: ["Error status: ${error_response.status_code}"]
+  
+  - name: "Log error body"
+    action: log
+    args: ["Error body: ${error_response.body}"]
+  
+  - name: "Log error message"
+    action: log
+    args: ["Error message: ${error_response.error}"]
+
+  # Logging with Custom Formatting
+  - name: "Formatted response logging"
+    action: http_post
+    args: 
+      - "${api_base_url}/json"
+      - '{"payment": {"amount": 100, "currency": "USD", "reference": "INV-001"}}'
+    result: formatted_response
+  
+  - name: "Log formatted response"
+    action: log
+    args: ["=== FORMATTED RESPONSE ==="]
+  
+  - name: "Log status"
+    action: log
+    args: ["Status: ${formatted_response.status_code}"]
+  
+  - name: "Log JSON data"
+    action: log
+    args: ["JSON data: ${formatted_response.body.json}"]
+  
+  - name: "Log payment amount"
+    action: log
+    args: ["Payment amount: ${formatted_response.body.json.payment.amount} ${formatted_response.body.json.payment.currency}"]
+  
+  - name: "Log payment reference"
+    action: log
+    args: ["Payment reference: ${formatted_response.body.json.payment.reference}"]
+  
+  - name: "Log response origin"
+    action: log
+    args: ["Response origin: ${formatted_response.body.origin}"]
+  
+  - name: "Log response URL"
+    action: log
+    args: ["Response URL: ${formatted_response.body.url}"]
+  
+  - name: "End formatted response"
+    action: log
+    args: ["=========================="]
+
+  # Logging Response Headers
+  - name: "Request with custom headers"
+    action: http_get
+    args: 
+      - "${api_base_url}/headers"
+      - 
+        X-Custom-Header: "test-value"
+        User-Agent: "Robogo-Test"
+    result: headers_response
+  
+  - name: "Log request headers"
+    action: log
+    args: ["Request headers: ${headers_response.body.headers}"]
+  
+  - name: "Log specific header"
+    action: log
+    args: ["Custom header: ${headers_response.body.headers.X-Custom-Header}"]
+  
+  - name: "Log user agent"
+    action: log
+    args: ["User agent: ${headers_response.body.headers.User-Agent}"]
+
+  # Logging Response Timing
+  - name: "Request with timing info"
+    action: http_get
+    args: ["${api_base_url}/delay/1"]
+    result: timing_response
+  
+  - name: "Log timing response"
+    action: log
+    args: ["Timing response status: ${timing_response.status_code}"]
+  
+  - name: "Log timing response body"
+    action: log
+    args: ["Timing response body: ${timing_response.body}"] 
