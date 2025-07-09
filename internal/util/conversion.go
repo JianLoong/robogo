@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -255,4 +256,64 @@ func IsEmpty(value interface{}) bool {
 	default:
 		return false
 	}
+}
+
+// ConvertToMap converts any struct or value to a map[string]interface{} for template engine compatibility
+// This is essential for actions that return structured data to work with ${variable.field} syntax
+func ConvertToMap(v interface{}) (map[string]interface{}, error) {
+	if v == nil {
+		return nil, ConversionError{
+			FromType: "nil",
+			ToType:   "map[string]interface{}",
+			Value:    v,
+			Message:  "cannot convert nil to map",
+		}
+	}
+
+	// If it's already a map, return as-is
+	if m, ok := v.(map[string]interface{}); ok {
+		return m, nil
+	}
+
+	// For structs and other types, convert via JSON marshal/unmarshal
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		return nil, ConversionError{
+			FromType: fmt.Sprintf("%T", v),
+			ToType:   "map[string]interface{}",
+			Value:    v,
+			Message:  fmt.Sprintf("JSON marshal failed: %v", err),
+		}
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		return nil, ConversionError{
+			FromType: fmt.Sprintf("%T", v),
+			ToType:   "map[string]interface{}",
+			Value:    v,
+			Message:  fmt.Sprintf("JSON unmarshal failed: %v", err),
+		}
+	}
+
+	return result, nil
+}
+
+// ConvertToMapOrKeepSimple converts structured data to maps but keeps simple types as-is
+// This is useful for actions that may return either simple values or complex structures
+func ConvertToMapOrKeepSimple(v interface{}) (interface{}, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	// Keep simple types as-is
+	switch v.(type) {
+	case string, int, int64, float64, bool:
+		return v, nil
+	case map[string]interface{}:
+		return v, nil
+	}
+
+	// Convert structured types to maps
+	return ConvertToMap(v)
 }

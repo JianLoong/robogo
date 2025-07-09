@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,12 +15,78 @@ import (
 	"github.com/JianLoong/robogo/internal/util"
 )
 
-// HTTPResponse represents the response from an HTTP request
+// HTTPResponse represents the response from an HTTP request with debugging information
 type HTTPResponse struct {
 	StatusCode int               `json:"status_code"`
-	Headers    map[string]string `json:"headers"`
+	Headers    HTTPHeaders       `json:"headers"`
 	Body       string            `json:"body"`
 	Duration   time.Duration     `json:"duration"`
+	
+	// Enhanced debugging fields
+	Request    HTTPRequestInfo   `json:"request"`
+	Redirects  []HTTPRedirect    `json:"redirects,omitempty"`
+	TLSInfo    *TLSInfo         `json:"tls_info,omitempty"`
+	Timing     HTTPTiming       `json:"timing"`
+	Error      *HTTPError       `json:"error,omitempty"`
+}
+
+// HTTPHeaders provides easy access to common headers plus raw headers
+type HTTPHeaders struct {
+	// Common headers as direct fields for easy access
+	ContentType     string `json:"content_type"`
+	ContentLength   string `json:"content_length"`
+	Authorization   string `json:"authorization"`
+	UserAgent       string `json:"user_agent"`
+	Accept          string `json:"accept"`
+	AcceptEncoding  string `json:"accept_encoding"`
+	CacheControl    string `json:"cache_control"`
+	Connection      string `json:"connection"`
+	Server          string `json:"server"`
+	Date            string `json:"date"`
+	Location        string `json:"location"`
+	SetCookie       string `json:"set_cookie"`
+	
+	// Raw headers as map for full access
+	Raw map[string]string `json:"raw"`
+}
+
+// HTTPRequestInfo contains information about the HTTP request
+type HTTPRequestInfo struct {
+	Method    string      `json:"method"`
+	URL       string      `json:"url"`
+	Headers   HTTPHeaders `json:"headers"`
+	BodySize  int64       `json:"body_size"`
+}
+
+// HTTPRedirect contains information about HTTP redirects
+type HTTPRedirect struct {
+	From       string `json:"from"`
+	To         string `json:"to"`
+	StatusCode int    `json:"status_code"`
+}
+
+// TLSInfo contains TLS connection information
+type TLSInfo struct {
+	Version            string   `json:"version"`
+	CipherSuite        string   `json:"cipher_suite"`
+	ServerCertificates []string `json:"server_certificates,omitempty"`
+	ClientCertUsed     bool     `json:"client_cert_used"`
+}
+
+// HTTPTiming contains detailed timing information
+type HTTPTiming struct {
+	DNSLookup    time.Duration `json:"dns_lookup"`
+	TCPConnect   time.Duration `json:"tcp_connect"`
+	TLSHandshake time.Duration `json:"tls_handshake"`
+	FirstByte    time.Duration `json:"first_byte"`
+	Total        time.Duration `json:"total"`
+}
+
+// HTTPError contains detailed error information
+type HTTPError struct {
+	Message string                 `json:"message"`
+	Type    string                 `json:"type"`
+	Details map[string]interface{} `json:"details,omitempty"`
 }
 
 // loadCertificateData loads certificate data from either a file path or PEM content
@@ -75,6 +140,113 @@ func loadX509KeyPair(certInput, keyInput string) (tls.Certificate, error) {
 	}
 
 	return tls.X509KeyPair(certData, keyData)
+}
+
+// getTLSVersion returns a human-readable TLS version string
+func getTLSVersion(version uint16) string {
+	switch version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return fmt.Sprintf("TLS 0x%04x", version)
+	}
+}
+
+// getCipherSuite returns a human-readable cipher suite string
+func getCipherSuite(cipherSuite uint16) string {
+	switch cipherSuite {
+	case tls.TLS_RSA_WITH_RC4_128_SHA:
+		return "TLS_RSA_WITH_RC4_128_SHA"
+	case tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA:
+		return "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_128_CBC_SHA:
+		return "TLS_RSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_256_CBC_SHA:
+		return "TLS_RSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_128_CBC_SHA256:
+		return "TLS_RSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_RSA_WITH_AES_128_GCM_SHA256:
+		return "TLS_RSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_RSA_WITH_AES_256_GCM_SHA384:
+		return "TLS_RSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+		return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+		return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+		return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+		return "TLS_ECDHE_RSA_WITH_RC4_128_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+		return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+		return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+		return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+		return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+		return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+		return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+		return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+		return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+		return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+		return "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+	case tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
+		return "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
+	default:
+		return fmt.Sprintf("CIPHER_SUITE_0x%04x", cipherSuite)
+	}
+}
+
+// newHTTPHeaders creates an HTTPHeaders struct from a map[string]string
+func newHTTPHeaders(headerMap map[string]string) HTTPHeaders {
+	headers := HTTPHeaders{
+		Raw: headerMap,
+	}
+	
+	// Populate common headers (case-insensitive lookup)
+	for key, value := range headerMap {
+		switch strings.ToLower(key) {
+		case "content-type":
+			headers.ContentType = value
+		case "content-length":
+			headers.ContentLength = value
+		case "authorization":
+			headers.Authorization = value
+		case "user-agent":
+			headers.UserAgent = value
+		case "accept":
+			headers.Accept = value
+		case "accept-encoding":
+			headers.AcceptEncoding = value
+		case "cache-control":
+			headers.CacheControl = value
+		case "connection":
+			headers.Connection = value
+		case "server":
+			headers.Server = value
+		case "date":
+			headers.Date = value
+		case "location":
+			headers.Location = value
+		case "set-cookie":
+			headers.SetCookie = value
+		}
+	}
+	
+	return headers
 }
 
 // HTTPAction performs HTTP requests with comprehensive configuration and response handling.
@@ -158,6 +330,19 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	var timeout time.Duration = 30 * time.Second
 	var certFile, keyFile, caFile string
 
+	// Parse timeout from options
+	if timeoutVal, ok := options["timeout"]; ok {
+		if timeoutStr, ok := timeoutVal.(string); ok {
+			timeout = util.ParseTimeout(timeoutStr, 30*time.Second)
+		} else if timeoutDur, ok := timeoutVal.(time.Duration); ok {
+			timeout = timeoutDur
+		}
+	}
+
+	// Apply action timeout to context
+	ctx, cancel := util.WithActionTimeout(ctx, timeout, "http")
+	defer cancel()
+
 	for i := 2; i < len(args); i++ {
 		switch v := args[i].(type) {
 		case map[string]interface{}:
@@ -222,13 +407,12 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		tlsConfig.RootCAs = caPool
 	}
 
-	// HTTP client
+	// HTTP client (no timeout here, managed by context)
 	transport := &http.Transport{}
 	if tlsConfig != nil {
 		transport.TLSClientConfig = tlsConfig
 	}
 	client := &http.Client{
-		Timeout:   timeout,
 		Transport: transport,
 	}
 
@@ -264,20 +448,54 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		}
 	}
 
-	// Execute request
+	// Execute request with detailed timing
 	startTime := time.Now()
 	resp, err := client.Do(req)
+	duration := time.Since(startTime)
+	
 	if err != nil {
-		return nil, util.NewNetworkError("request failed", err, "http").
-			WithDetails(map[string]interface{}{
-				"method":  method,
-				"url":     url,
-				"timeout": timeout.String(),
-			})
+		// Create error response map instead of returning Go error
+		// This maintains consistency with successful responses
+		errorResponse := HTTPResponse{
+			StatusCode: 0, // 0 indicates network error
+			Headers:    newHTTPHeaders(make(map[string]string)),
+			Body:       "",
+			Duration:   duration,
+			Request: HTTPRequestInfo{
+				Method:   method,
+				URL:      url,
+				Headers:  newHTTPHeaders(make(map[string]string)),
+				BodySize: int64(len(body)),
+			},
+			Timing: HTTPTiming{
+				Total: duration,
+			},
+			Error: &HTTPError{
+				Message: err.Error(),
+				Type:    "network_error",
+				Details: map[string]interface{}{
+					"method":   method,
+					"url":      url,
+					"timeout":  timeout.String(),
+					"duration": duration.String(),
+				},
+			},
+		}
+		
+		// Convert to map for template engine compatibility
+		errorMap, convertErr := util.ConvertToMap(errorResponse)
+		if convertErr != nil {
+			return nil, util.NewExecutionError("failed to convert error response to map", convertErr, "http")
+		}
+		
+		// Enhanced output for debugging
+		if !silent {
+			fmt.Printf("❌ %s %s → ERROR (%v): %s\n", method, url, duration, err.Error())
+		}
+		
+		return errorMap, nil
 	}
 	defer resp.Body.Close()
-
-	duration := time.Since(startTime)
 
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
@@ -291,37 +509,113 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	}
 
 	// Build response headers map
-	respHeaders := make(map[string]string)
+	respHeadersMap := make(map[string]string)
 	for k, v := range resp.Header {
-		respHeaders[k] = strings.Join(v, ", ")
+		respHeadersMap[k] = strings.Join(v, ", ")
 	}
 
-	// Create response object
+	// Build request info for debugging
+	requestHeadersMap := make(map[string]string)
+	for k, v := range req.Header {
+		requestHeadersMap[k] = strings.Join(v, ", ")
+	}
+	
+	requestInfo := HTTPRequestInfo{
+		Method:   method,
+		URL:      url,
+		Headers:  newHTTPHeaders(requestHeadersMap),
+		BodySize: int64(len(body)),
+	}
+	
+	// Build timing info
+	timingInfo := HTTPTiming{
+		Total: duration,
+		// TODO: Add detailed timing metrics using httptrace
+	}
+	
+	// Build TLS info if available
+	var tlsInfo *TLSInfo
+	if resp.TLS != nil {
+		tlsInfo = &TLSInfo{
+			Version:        getTLSVersion(resp.TLS.Version),
+			CipherSuite:    getCipherSuite(resp.TLS.CipherSuite),
+			ClientCertUsed: len(resp.TLS.PeerCertificates) > 0,
+		}
+		
+		// Add server certificate info
+		for _, cert := range resp.TLS.PeerCertificates {
+			tlsInfo.ServerCertificates = append(tlsInfo.ServerCertificates, cert.Subject.String())
+		}
+	}
+	
+	// Check if this is an HTTP error status and add error information
+	var httpError *HTTPError
+	if resp.StatusCode >= 400 {
+		errorType := "client_error"
+		if resp.StatusCode >= 500 {
+			errorType = "server_error"
+		}
+		
+		httpError = &HTTPError{
+			Message: fmt.Sprintf("HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode)),
+			Type:    errorType,
+			Details: map[string]interface{}{
+				"status_code":   resp.StatusCode,
+				"status_text":   http.StatusText(resp.StatusCode),
+				"method":        method,
+				"url":           url,
+				"response_body": string(respBody),
+			},
+		}
+	}
+	
+	// Create enhanced response object
 	httpResp := HTTPResponse{
 		StatusCode: resp.StatusCode,
-		Headers:    respHeaders,
+		Headers:    newHTTPHeaders(respHeadersMap),
 		Body:       string(respBody),
 		Duration:   duration,
+		Request:    requestInfo,
+		Timing:     timingInfo,
+		TLSInfo:    tlsInfo,
+		Error:      httpError,
 	}
 
-	// Convert to JSON for return
-	jsonResp, err := json.Marshal(httpResp)
+	// Convert struct to map for template engine compatibility
+	// The variable manager only supports map access, not Go struct field access
+	responseMap, err := util.ConvertToMap(httpResp)
 	if err != nil {
-		return nil, util.NewExecutionError("failed to marshal response", err, "http").
-			WithDetails(map[string]interface{}{
-				"response": httpResp,
-			})
+		return nil, util.NewExecutionError("failed to convert response to map", err, "http")
 	}
 
-	// Only print if not silent
+	// Enhanced output for debugging
 	if !silent {
-		fmt.Printf("%s %s → %d (%v)\n", method, url, resp.StatusCode, duration)
+		statusIcon := "→"
+		if resp.StatusCode >= 400 {
+			statusIcon = "❌"
+		} else if resp.StatusCode >= 300 {
+			statusIcon = "↗"
+		} else {
+			statusIcon = "✅"
+		}
+		
+		fmt.Printf("%s %s %s %d (%v)\n", method, url, statusIcon, resp.StatusCode, duration)
 		if len(respBody) > 0 {
-			fmt.Printf("Response body: %s\n", string(respBody))
+			if len(respBody) > 500 {
+				fmt.Printf("Response body (%d bytes): %s...\n", len(respBody), string(respBody[:500]))
+			} else {
+				fmt.Printf("Response body: %s\n", string(respBody))
+			}
+		}
+		if tlsInfo != nil {
+			fmt.Printf("TLS: %s with %s\n", tlsInfo.Version, tlsInfo.CipherSuite)
+		}
+		if httpError != nil {
+			fmt.Printf("Error: %s\n", httpError.Message)
 		}
 	}
 
-	return jsonResp, nil
+	return responseMap, nil
 }
 
 // HTTPGetAction performs HTTP GET requests with simplified syntax.
@@ -588,15 +882,15 @@ func HTTPBatchAction(ctx context.Context, args []interface{}, options map[string
 			}
 
 			// Build response headers map
-			respHeaders := make(map[string]string)
+			respHeadersMap := make(map[string]string)
 			for k, v := range resp.Header {
-				respHeaders[k] = strings.Join(v, ", ")
+				respHeadersMap[k] = strings.Join(v, ", ")
 			}
 
 			// Create response object
 			response := HTTPResponse{
 				StatusCode: resp.StatusCode,
-				Headers:    respHeaders,
+				Headers:    newHTTPHeaders(respHeadersMap),
 				Body:       string(respBody),
 				Duration:   duration,
 			}
@@ -610,20 +904,17 @@ func HTTPBatchAction(ctx context.Context, args []interface{}, options map[string
 
 	wg.Wait()
 
-	// Convert results to JSON
-	resultsJSON, err := json.Marshal(results)
+	// Convert results to map format for template engine compatibility
+	resultsMap, err := util.ConvertToMap(results)
 	if err != nil {
-		return nil, util.NewExecutionError("failed to marshal batch results", err, "http_batch").
-			WithDetails(map[string]interface{}{
-				"results_count": len(results),
-			})
+		return nil, util.NewExecutionError("failed to convert batch results to map", err, "http_batch")
 	}
 
 	if !silent {
 		fmt.Printf("Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
 	}
 
-	return resultsJSON, nil
+	return resultsMap, nil
 }
 
 // HTTPGetActionWithContext performs HTTP GET requests with context support.
@@ -746,14 +1037,12 @@ func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options
 		}
 	}
 
-	// Set timeout on context
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	// Apply action timeout to context
+	ctx, cancel := util.WithActionTimeout(ctx, timeout, "http_batch")
 	defer cancel()
 
-	// Create HTTP client
-	client := &http.Client{
-		Timeout: timeout,
-	}
+	// Create HTTP client (no timeout here, managed by context)
+	client := &http.Client{}
 
 	// Execute requests in parallel
 	results := make([]HTTPBatchResult, len(urls))
@@ -828,15 +1117,15 @@ func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options
 			}
 
 			// Build response headers map
-			respHeaders := make(map[string]string)
+			respHeadersMap := make(map[string]string)
 			for k, v := range resp.Header {
-				respHeaders[k] = strings.Join(v, ", ")
+				respHeadersMap[k] = strings.Join(v, ", ")
 			}
 
 			// Create response object
 			response := HTTPResponse{
 				StatusCode: resp.StatusCode,
-				Headers:    respHeaders,
+				Headers:    newHTTPHeaders(respHeadersMap),
 				Body:       string(respBody),
 				Duration:   duration,
 			}
@@ -850,18 +1139,15 @@ func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options
 
 	wg.Wait()
 
-	// Convert results to JSON
-	resultsJSON, err := json.Marshal(results)
+	// Convert results to map format for template engine compatibility
+	resultsMap, err := util.ConvertToMap(results)
 	if err != nil {
-		return nil, util.NewExecutionError("failed to marshal batch results", err, "http_batch").
-			WithDetails(map[string]interface{}{
-				"results_count": len(results),
-			})
+		return nil, util.NewExecutionError("failed to convert batch results to map", err, "http_batch")
 	}
 
 	if !silent {
 		fmt.Printf("Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
 	}
 
-	return resultsJSON, nil
+	return resultsMap, nil
 }

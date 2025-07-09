@@ -2,9 +2,10 @@ package actions
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
+	
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // VariableAction manages test variables for dynamic data handling and state management.
@@ -94,12 +95,12 @@ func setVariable(name string, args []interface{}, silent bool) (interface{}, err
 		"status":    "success",
 	}
 
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert result to map: %w", err)
 	}
 
-	return jsonResult, nil
+	return resultMap, nil
 }
 
 // getVariable gets a variable value (placeholder - actual implementation would need access to runner variables)
@@ -111,12 +112,12 @@ func getVariable(name string, silent bool) (interface{}, error) {
 		"message":   "get requires access to runner variables - use ${variable_name} syntax instead",
 	}
 
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert result to map: %w", err)
 	}
 
-	return jsonResult, nil
+	return resultMap, nil
 }
 
 // listVariables lists all variables (placeholder - actual implementation would need access to runner variables)
@@ -127,10 +128,10 @@ func listVariables(silent bool) (interface{}, error) {
 		"message":   "list requires access to runner variables - not yet implemented",
 	}
 
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert result to map: %w", err)
 	}
 
-	return jsonResult, nil
+	return resultMap, nil
 }

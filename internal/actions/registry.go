@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -247,6 +248,37 @@ func (ar *ActionRegistry) registerBasicActions() {
 			{Name: "reason", Type: ParamTypeString, Required: false, Description: "Reason for skipping"},
 		},
 	}))
+
+	ar.Register(NewActionWithContext(
+		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+			return bytesToStringAction(args, options, silent)
+		},
+		ActionMetadata{
+			Name:        "bytes_to_string",
+			Description: "Convert a byte slice or any value to a string.",
+			Example:     `- action: bytes_to_string\n  args: ["${some_bytes}"]\n  result: my_string`,
+			Category:    CategoryBasic,
+			Parameters: []ParameterInfo{
+				{Name: "value", Type: ParamTypeString, Required: true, Description: "Value to convert to string (bytes or any)"},
+			},
+		},
+	))
+
+	ar.Register(NewActionWithContext(
+		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+			return jsonExtractAction(args, options, silent)
+		},
+		ActionMetadata{
+			Name:        "json_extract",
+			Description: "Extract a value by key from a JSON string.",
+			Example:     `- action: json_extract\n  args: ["${json_str}", "data"]\n  result: extracted_value`,
+			Category:    CategoryBasic,
+			Parameters: []ParameterInfo{
+				{Name: "json", Type: ParamTypeString, Required: true, Description: "JSON string to extract from"},
+				{Name: "key", Type: ParamTypeString, Required: true, Description: "Key to extract"},
+			},
+		},
+	))
 }
 
 // registerHTTPActions registers HTTP-related actions

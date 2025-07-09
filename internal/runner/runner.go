@@ -14,31 +14,33 @@ import (
 
 // TestRunner runs test cases
 type TestRunner struct {
-	variableManager *VariableManager       // Variable management
-	outputCapture   *OutputCapture         // Output capture
-	retryManager    *RetryManager          // Retry logic
-	secretManager   *actions.SecretManager // Secret manager for handling secrets
-	tdmManager      *actions.TDMManager    // TDM manager for test data management
+	variableManager *VariableManager        // Variable management
+	outputCapture   *OutputCapture          // Output capture
+	retryManager    *RetryManager           // Retry logic
+	secretManager   *actions.SecretManager  // Secret manager for handling secrets
+	tdmManager      *actions.TDMManager     // TDM manager for test data management
+	executor        *actions.ActionExecutor // Action executor (injected)
 }
 
 // NewTestRunner creates a new test runner
-func NewTestRunner() *TestRunner {
+func NewTestRunner(executor *actions.ActionExecutor) *TestRunner {
 	return &TestRunner{
 		variableManager: NewVariableManager(),
 		outputCapture:   NewOutputCapture(),
 		retryManager:    NewRetryManager(),
 		secretManager:   actions.NewSecretManager(),
 		tdmManager:      actions.NewTDMManager(),
+		executor:        executor,
 	}
 }
 
 // RunTestFiles runs multiple test cases in parallel
-func RunTestFiles(paths []string, silent bool) ([]*parser.TestResult, error) {
-	return RunTestFilesWithConfig(paths, silent, nil)
+func RunTestFiles(paths []string, silent bool, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
+	return RunTestFilesWithConfig(paths, silent, nil, executor)
 }
 
 // RunTestFilesWithConfig runs multiple test cases with parallelism configuration
-func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.ParallelConfig) ([]*parser.TestResult, error) {
+func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
 	var files []string
 	for _, path := range paths {
 		info, err := os.Stat(path)
@@ -71,7 +73,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 	if !config.Enabled || !config.TestCases {
 		var results []*parser.TestResult
 		for _, file := range files {
-			result, err := RunTestFile(file, silent)
+			result, err := RunTestFile(file, silent, executor)
 			if err != nil {
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
@@ -102,7 +104,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			result, err := RunTestFile(file, silent)
+			result, err := RunTestFile(file, silent, executor)
 			if err != nil {
 				// In case of a fatal error before the test can even run properly,
 				// create a dummy result to report the failure.
@@ -132,7 +134,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 }
 
 // RunTestFile runs a test case from a file
-func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
+func RunTestFile(filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
 	// Parse the test case
 	testCase, err := parser.ParseTestFile(filename)
 	if err != nil {
@@ -140,7 +142,7 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 	}
 
 	// Run the test case
-	result, err := RunTestCase(testCase, silent)
+	result, err := RunTestCase(testCase, silent, executor)
 	if err != nil {
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
@@ -150,8 +152,8 @@ func RunTestFile(filename string, silent bool) (*parser.TestResult, error) {
 }
 
 // RunTestCase runs a test case and returns the result
-func RunTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
-	tr := NewTestRunner()
+func RunTestCase(testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
+	tr := NewTestRunner(executor)
 
 	// Create execution engine
 	engine := NewExecutionEngine(tr)

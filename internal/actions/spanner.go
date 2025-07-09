@@ -2,7 +2,6 @@ package actions
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -13,6 +12,8 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // SpannerManager manages Spanner connections
@@ -193,11 +194,11 @@ func executeSpannerQuery(ctx context.Context, connectionString string, args []in
 	}
 
 	// Marshal to JSON and return the string
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert to map result to JSON: %w", err)
 	}
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // executeSpannerStatement executes an INSERT/UPDATE/DELETE statement
@@ -253,11 +254,11 @@ func executeSpannerStatement(ctx context.Context, connectionString string, args 
 	}
 
 	// Marshal to JSON and return the string
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert to map result to JSON: %w", err)
 	}
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // testSpannerConnection tests the Spanner connection
@@ -284,11 +285,11 @@ func testSpannerConnection(ctx context.Context, connectionString string) (interf
 	}
 
 	// Marshal to JSON and return the string
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert to map result to JSON: %w", err)
 	}
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // closeSpannerConnection closes the Spanner connection
@@ -308,11 +309,11 @@ func closeSpannerConnection(ctx context.Context, connectionString string) (inter
 	}
 
 	// Marshal to JSON and return the string
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert to map result to JSON: %w", err)
 	}
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // getSpannerClient gets or creates a Spanner client

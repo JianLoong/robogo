@@ -4,7 +4,7 @@ description: "Integration test for Kafka using RoboGo. Publishes and consumes a 
 variables:
   vars:
     kafka_broker: "localhost:9092"
-    kafka_topic: "robogo_test_topic"
+    kafka_topic: "robogo_test"
     test_message: "hello from robogo"
 
 steps:

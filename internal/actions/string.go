@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -122,4 +123,55 @@ func LengthAction(ctx context.Context, args []interface{}, options map[string]in
 
 	result := strconv.Itoa(length)
 	return result, nil
+}
+
+// Add bytes_to_string action
+// bytesToStringAction converts a byte slice or any value to a string
+func bytesToStringAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	if len(args) == 0 {
+		return "", fmt.Errorf("bytes_to_string: missing argument")
+	}
+	switch v := args[0].(type) {
+	case []byte:
+		return string(v), nil
+	case string:
+		return v, nil
+	default:
+		return fmt.Sprintf("%v", v), nil
+	}
+}
+
+// jsonExtractAction extracts a value by key from a JSON string
+func jsonExtractAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("json_extract: requires json string and key")
+	}
+	jsonStr, ok := args[0].(string)
+	if !ok {
+		return "", fmt.Errorf("json_extract: first argument must be a string (json)")
+	}
+	key, ok := args[1].(string)
+	if !ok {
+		return "", fmt.Errorf("json_extract: second argument must be a string (key)")
+	}
+	var m map[string]interface{}
+	err := json.Unmarshal([]byte(jsonStr), &m)
+	if err != nil {
+		return "", fmt.Errorf("json_extract: invalid json: %w", err)
+	}
+	val, exists := m[key]
+	if !exists {
+		return "", fmt.Errorf("json_extract: key '%s' not found", key)
+	}
+	// If the value is not a string, marshal it back to string
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "", fmt.Errorf("json_extract: error marshaling value: %w", err)
+		}
+		return string(b), nil
+	}
 }

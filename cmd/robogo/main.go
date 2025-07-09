@@ -104,6 +104,11 @@ func realMain() error {
 
 	// Ensure cleanup happens even if we exit normally
 	defer cleanup()
+
+	// Create the action registry and executor once
+	registry := actions.NewActionRegistry()
+	executor := actions.NewActionExecutor(registry)
+
 	var rootCmd = &cobra.Command{
 		Use:   "robogo",
 		Short: "Robogo - A modern, git-driven test automation framework",
@@ -173,14 +178,14 @@ Key Features:
 							if err != nil {
 								return err
 							}
-							suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner())
+							suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner(executor))
 							result, err := suiteRunner.RunTestSuite(ts, fp, false)
 							if err != nil {
 								return err
 							}
 							suiteResults = append(suiteResults, result)
 						} else {
-							results, err := runner.RunTestFilesWithConfig([]string{fp}, silent, parallelConfig)
+							results, err := runner.RunTestFilesWithConfig([]string{fp}, silent, parallelConfig, executor)
 							if err != nil {
 								return err
 							}
@@ -201,14 +206,14 @@ Key Features:
 						if err != nil {
 							return err
 						}
-						suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner())
+						suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner(executor))
 						result, err := suiteRunner.RunTestSuite(ts, path, false)
 						if err != nil {
 							return err
 						}
 						suiteResults = append(suiteResults, result)
 					} else {
-						results, err := runner.RunTestFilesWithConfig([]string{path}, silent, parallelConfig)
+						results, err := runner.RunTestFilesWithConfig([]string{path}, silent, parallelConfig, executor)
 						if err != nil {
 							return err
 						}
@@ -233,14 +238,30 @@ Key Features:
 					}
 				} else {
 					// Multiple suites
-					// TODO: aggregate and output grand total
-					return outputMultipleSuitesConsole(suiteResults, struct {
+					var grandTotal struct {
 						TotalCases   int
 						PassedCases  int
 						FailedCases  int
 						SkippedCases int
 						Duration     time.Duration
-					}{})
+					}
+					for _, sr := range suiteResults {
+						grandTotal.TotalCases += sr.TotalCases
+						grandTotal.PassedCases += sr.PassedCases
+						grandTotal.FailedCases += sr.FailedCases
+						grandTotal.SkippedCases += sr.SkippedCases
+						grandTotal.Duration += sr.Duration
+					}
+					switch outputFormat {
+					case "json":
+						return outputMultipleSuitesJSON(suiteResults, grandTotal)
+					case "markdown":
+						return outputMultipleSuitesMarkdown(suiteResults, grandTotal)
+					case "console", "":
+						return outputMultipleSuitesConsole(suiteResults, grandTotal)
+					default:
+						return fmt.Errorf("unsupported output format: %s", outputFormat)
+					}
 				}
 			} else if len(caseResults) > 0 && len(suiteResults) == 0 {
 				// Only test cases
@@ -599,7 +620,7 @@ func outputSuiteConsole(result *parser.TestSuiteResult) error {
 
 	// Ensure all output is flushed before exit
 	os.Stdout.Sync()
-	
+
 	// Exit with non-zero code if test suite failed
 	if result.Status == "failed" {
 		return fmt.Errorf("test suite failed")

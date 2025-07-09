@@ -1,0 +1,128 @@
+testcase: "HTTP Error Logging Demo"
+description: "Demonstrate the improved HTTP error logging and handling"
+
+variables:
+  vars:
+    api_base_url: "https://httpbin.org"
+
+steps:
+  - name: "Test 400 Bad Request"
+    action: http_get
+    args: ["${api_base_url}/status/400"]
+    result: bad_request_response
+    continue_on_error: true
+  
+  - name: "Log 400 error details"
+    action: log
+    args: ["=== 400 BAD REQUEST ==="]
+  
+  - name: "Log 400 status"
+    action: log
+    args: ["Status: ${bad_request_response.status_code}"]
+  
+  - name: "Log 400 error message"
+    action: log
+    args: ["Error: ${bad_request_response.error.message}"]
+  
+  - name: "Log 400 error type"
+    action: log
+    args: ["Error Type: ${bad_request_response.error.type}"]
+
+  - name: "Test 404 Not Found"
+    action: http_get
+    args: ["${api_base_url}/nonexistent"]
+    result: not_found_response
+    continue_on_error: true
+  
+  - name: "Log 404 error details"
+    action: log
+    args: ["=== 404 NOT FOUND ==="]
+  
+  - name: "Log 404 status"
+    action: log
+    args: ["Status: ${not_found_response.status_code}"]
+  
+  - name: "Log 404 error message"
+    action: log
+    args: ["Error: ${not_found_response.error.message}"]
+
+  - name: "Test 500 Internal Server Error"
+    action: http_get
+    args: ["${api_base_url}/status/500"]
+    result: server_error_response
+    continue_on_error: true
+  
+  - name: "Log 500 error details"
+    action: log
+    args: ["=== 500 INTERNAL SERVER ERROR ==="]
+  
+  - name: "Log 500 status"
+    action: log
+    args: ["Status: ${server_error_response.status_code}"]
+  
+  - name: "Log 500 error message"
+    action: log
+    args: ["Error: ${server_error_response.error.message}"]
+
+  - name: "Test connection timeout"
+    action: http_get
+    args: ["https://httpbin.org/delay/10"]
+    result: timeout_response
+    continue_on_error: true
+    options:
+      timeout: "2s"
+  
+  - name: "Log timeout error details"
+    action: log
+    args: ["=== CONNECTION TIMEOUT ==="]
+  
+  - name: "Log timeout status"
+    action: log
+    args: ["Status: ${timeout_response.status_code}"]
+  
+  - name: "Log timeout error message"
+    action: log
+    args: ["Error: ${timeout_response.error.message}"]
+  
+  - name: "Log timeout error type"
+    action: log
+    args: ["Error Type: ${timeout_response.error.type}"]
+
+  - name: "Test invalid URL"
+    action: http_get
+    args: ["https://invalid-domain-that-does-not-exist-12345.com"]
+    result: invalid_url_response
+    continue_on_error: true
+  
+  - name: "Log invalid URL error details"
+    action: log
+    args: ["=== INVALID URL ==="]
+  
+  - name: "Log invalid URL status"
+    action: log
+    args: ["Status: ${invalid_url_response.status_code}"]
+  
+  - name: "Log invalid URL error message"
+    action: log
+    args: ["Error: ${invalid_url_response.error.message}"]
+
+  - name: "Test successful request"
+    action: http_get
+    args: ["https://httpbin.org/status/200"]
+    result: success_response
+  
+  - name: "Log success details"
+    action: log
+    args: ["=== SUCCESS ==="]
+  
+  - name: "Log success status"
+    action: log
+    args: ["Status: ${success_response.status_code}"]
+  
+  - name: "Log success has no error"
+    action: log
+    args: ["Error: ${success_response.error}"]
+
+  - name: "Log completion message"
+    action: log
+    args: ["=== HTTP ERROR LOGGING DEMO COMPLETED ==="]

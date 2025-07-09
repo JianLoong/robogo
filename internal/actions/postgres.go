@@ -3,7 +3,6 @@ package actions
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -218,9 +217,9 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 	}
 
 	// Convert to JSON
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to marshal query result", err, "postgres").
+		return nil, util.NewDatabaseError("failed to convert query result to map", err, "postgres").
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -233,7 +232,7 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 		fmt.Printf("🗄️  Query executed: %d rows returned in %v\n", len(resultRows), duration)
 	}
 
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // executeBatchOperations executes multiple database operations in parallel
@@ -343,9 +342,9 @@ func executeBatchOperations(ctx context.Context, connectionString string, args [
 	wg.Wait()
 
 	// Convert results to JSON
-	jsonResult, err := json.Marshal(results)
+	resultMap, err := util.ConvertToMap(results)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to marshal batch results", err, "postgres").
+		return nil, util.NewDatabaseError("failed to convert batch results to map", err, "postgres").
 			WithDetails(map[string]interface{}{
 				"operations_count":  len(operations),
 				"connection_string": connectionString,
@@ -356,7 +355,7 @@ func executeBatchOperations(ctx context.Context, connectionString string, args [
 		fmt.Printf("🗄️  Batch database operations completed: %d operations, %d concurrent\n", len(operations), maxConcurrency)
 	}
 
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // executeSingleBatchOperation executes a single operation within a batch
@@ -616,9 +615,9 @@ func executeStatement(ctx context.Context, connectionString string, args []inter
 	}
 
 	// Convert to JSON
-	jsonResult, err := json.Marshal(dbResult)
+	resultMap, err := util.ConvertToMap(dbResult)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to marshal statement result", err, "postgres").
+		return nil, util.NewDatabaseError("failed to convert statement result to map", err, "postgres").
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -631,7 +630,7 @@ func executeStatement(ctx context.Context, connectionString string, args []inter
 		fmt.Printf("🗄️  Statement executed: %d rows affected in %v\n", rowsAffected, duration)
 	}
 
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // testConnection tests a database connection
@@ -662,16 +661,16 @@ func testConnection(ctx context.Context, connectionString string) (interface{}, 
 		"message":  "Database connection successful",
 	}
 
-	jsonResult, err := json.Marshal(result)
+	resultMap, err := util.ConvertToMap(result)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to marshal test result", err, "postgres").
+		return nil, util.NewDatabaseError("failed to convert test result to map", err, "postgres").
 			WithDetails(map[string]interface{}{
 				"connection_string": connectionString,
 			})
 	}
 
 	fmt.Printf("🗄️  Connection test successful in %v\n", duration)
-	return string(jsonResult), nil
+	return resultMap, nil
 }
 
 // closeConnection closes a PostgreSQL connection
@@ -694,16 +693,16 @@ func closeConnection(ctx context.Context, connectionString string) (interface{},
 			"message": "PostgreSQL connection closed successfully",
 		}
 
-		jsonResult, err := json.Marshal(result)
+		resultMap, err := util.ConvertToMap(result)
 		if err != nil {
-			return nil, util.NewDatabaseError("failed to marshal close result", err, "postgres").
+			return nil, util.NewDatabaseError("failed to convert close result to map", err, "postgres").
 				WithDetails(map[string]interface{}{
 					"connection_string": connectionString,
 				})
 		}
 
 		fmt.Printf("🗄️  PostgreSQL connection closed successfully\n")
-		return string(jsonResult), nil
+		return resultMap, nil
 	}
 
 	return nil, util.NewDatabaseError("no PostgreSQL connection found for the given connection string", nil, "postgres").

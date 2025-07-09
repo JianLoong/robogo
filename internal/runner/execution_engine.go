@@ -41,7 +41,7 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	}
 
 	// Create action executor
-	executor := actions.NewActionExecutor()
+	executor := engine.runner.executor
 
 	result := &parser.TestResult{
 		TestCase:    testCase,

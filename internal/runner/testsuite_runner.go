@@ -181,7 +181,7 @@ func (tsr *TestSuiteRunner) runSetup(steps []parser.Step, variables *parser.Vari
 	}
 
 	// Run setup and capture results
-	result, err := RunTestCase(setupTestCase, false)
+	result, err := RunTestCase(setupTestCase, false, tsr.runner.executor)
 	if err != nil {
 		return result, err
 	}
@@ -203,7 +203,7 @@ func (tsr *TestSuiteRunner) runTeardown(steps []parser.Step, variables *parser.V
 	// Merge setup results and suite variables for teardown
 	mergedTestCase := tsr.mergeSuiteVariables(teardownTestCase, variables)
 
-	return RunTestCase(mergedTestCase, false)
+	return RunTestCase(mergedTestCase, false, tsr.runner.executor)
 }
 
 // runTestCasesSequential runs test cases one after another
@@ -248,7 +248,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			fmt.Printf("      %s: %v\n", k, v)
 		}
 
-		testResult, err := RunTestCase(mergedTestCase, false)
+		testResult, err := RunTestCase(mergedTestCase, false, tsr.runner.executor)
 		duration := time.Since(time.Now())
 
 		caseResult := parser.TestCaseResult{
@@ -357,7 +357,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 			}
 
 			// Use silent=true for parallel execution to avoid stdout capture deadlocks
-			testResult, err := RunTestCase(mergedTestCase, true)
+			testResult, err := RunTestCase(mergedTestCase, true, tsr.runner.executor)
 			duration := time.Since(time.Now())
 
 			caseResult = parser.TestCaseResult{

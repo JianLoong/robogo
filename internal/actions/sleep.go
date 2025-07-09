@@ -41,9 +41,21 @@ func SleepAction(ctx context.Context, args []interface{}, options map[string]int
 		return "", fmt.Errorf("sleep action requires duration argument")
 	}
 
-	duration, err := parseDuration(args[0])
-	if err != nil {
-		return "", fmt.Errorf("invalid duration: %w", err)
+	var duration time.Duration
+	var err error
+
+	switch v := args[0].(type) {
+	case int:
+		duration = time.Duration(v) * time.Second
+	case float64:
+		duration = time.Duration(v * float64(time.Second))
+	case string:
+		duration, err = time.ParseDuration(v)
+		if err != nil {
+			return "", fmt.Errorf("invalid duration string: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("invalid duration type: %T", v)
 	}
 
 	// Only print if not silent
