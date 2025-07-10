@@ -14,16 +14,27 @@ import (
 )
 
 // VariableManager handles variable storage, substitution, and scoping
-// Implements VariableManagerInterface
+// Implements VariableManagerInterface with both regular variables and secrets
 type VariableManager struct {
-	variables map[string]interface{}
-	mutex     sync.RWMutex
+	variables   map[string]interface{} // Regular variables namespace
+	secrets     map[string]SecretValue // Secrets with metadata
+	maskConfig  map[string]bool        // Masking configuration per secret
+	mutex       sync.RWMutex
+}
+
+// SecretValue holds secret data with metadata
+type SecretValue struct {
+	Value      interface{}
+	MaskOutput bool
+	Source     string // "file" or "inline"
 }
 
 // NewVariableManager creates a new variable manager
 func NewVariableManager() VariableManagerInterface {
 	return &VariableManager{
-		variables: make(map[string]interface{}),
+		variables:  make(map[string]interface{}),
+		secrets:    make(map[string]SecretValue),
+		maskConfig: make(map[string]bool),
 	}
 }
 
@@ -32,31 +43,43 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 	vm.mutex.Lock()
 	defer vm.mutex.Unlock()
 
-	// Initialize secret variables FIRST
+	// Initialize secrets FIRST
 	if testCase.Variables.Secrets != nil {
 		for key, secret := range testCase.Variables.Secrets {
+			var secretValue interface{}
+			var source string
+
 			// Handle secret values (inline or file-based)
 			if secret.Value != "" {
-				// Substitute variables in secret values
-				substitutedValue := vm.substituteString(secret.Value)
-				vm.variables[key] = substitutedValue
+				secretValue = secret.Value
+				source = "inline"
 			} else if secret.File != "" {
-				// Read the file and set the variable to its contents
+				// Read the file and set the secret to its contents
 				data, err := ioutil.ReadFile(secret.File)
 				if err != nil {
 					panic(fmt.Sprintf("Failed to read secret file '%s': %v", secret.File, err))
 				}
-				fileContent := strings.TrimSpace(string(data))
-				// Substitute variables in file content
-				substitutedContent := vm.substituteString(fileContent)
-				vm.variables[key] = substitutedContent
+				secretValue = strings.TrimSpace(string(data))
+				source = "file"
+			} else {
+				panic(fmt.Sprintf("Secret '%s' must have either 'value' or 'file' specified", key))
 			}
+
+			// Store secret with metadata
+			vm.secrets[key] = SecretValue{
+				Value:      secretValue,
+				MaskOutput: secret.MaskOutput,
+				Source:     source,
+			}
+
+			// Also add to variables for substitution compatibility
+			vm.variables[key] = secretValue
+			vm.maskConfig[key] = secret.MaskOutput
 		}
 	}
 
-	// Initialize regular variables with support for dynamic construction
+	// Initialize regular variables
 	if testCase.Variables.Regular != nil {
-		// First pass: set all variables as-is
 		for key, value := range testCase.Variables.Regular {
 			vm.variables[key] = value
 		}
@@ -67,14 +90,34 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 	maxPasses := 10 // Prevent infinite loops
 	for pass := 0; pass < maxPasses; pass++ {
 		changed := false
+		
+		// Substitute in secrets
+		for key, secretVal := range vm.secrets {
+			substitutedValue := vm.substituteValue(secretVal.Value)
+			if !vm.valuesEqual(substitutedValue, secretVal.Value) {
+				vm.secrets[key] = SecretValue{
+					Value:      substitutedValue,
+					MaskOutput: secretVal.MaskOutput,
+					Source:     secretVal.Source,
+				}
+				vm.variables[key] = substitutedValue
+				changed = true
+			}
+		}
+		
+		// Substitute in regular variables
 		for key, value := range vm.variables {
+			// Skip secrets (already handled above)
+			if _, isSecret := vm.secrets[key]; isSecret {
+				continue
+			}
 			substitutedValue := vm.substituteValue(value)
-			// Safe comparison that handles map types
 			if !vm.valuesEqual(substitutedValue, value) {
 				vm.variables[key] = substitutedValue
 				changed = true
 			}
 		}
+		
 		// If no changes in this pass, we're done
 		if !changed {
 			break
@@ -298,6 +341,56 @@ func (vm *VariableManager) resolveDotNotationInternal(varName string) (interface
 	return current, true
 }
 
+
+// MaskSensitiveOutput masks sensitive values in output strings
+func (vm *VariableManager) MaskSensitiveOutput(output string) string {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
+	
+	maskedOutput := output
+	for _, secretVal := range vm.secrets {
+		if secretVal.MaskOutput {
+			if secretStr, ok := secretVal.Value.(string); ok && secretStr != "" {
+				maskedOutput = strings.ReplaceAll(maskedOutput, secretStr, "[MASKED]")
+			}
+		}
+	}
+	return maskedOutput
+}
+
+// IsSecretMasked checks if a secret should be masked in output
+func (vm *VariableManager) IsSecretMasked(secretName string) bool {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
+	
+	if secretVal, exists := vm.secrets[secretName]; exists {
+		return secretVal.MaskOutput
+	}
+	return false
+}
+
+// GetSecretInfo returns information about a secret without exposing the value
+func (vm *VariableManager) GetSecretInfo(secretName string) (source string, masked bool, exists bool) {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
+	
+	if secretVal, ok := vm.secrets[secretName]; ok {
+		return secretVal.Source, secretVal.MaskOutput, true
+	}
+	return "", false, false
+}
+
+// ListSecrets returns a list of secret names without their values
+func (vm *VariableManager) ListSecrets() []string {
+	vm.mutex.RLock()
+	defer vm.mutex.RUnlock()
+	
+	secrets := make([]string, 0, len(vm.secrets))
+	for key := range vm.secrets {
+		secrets = append(secrets, key)
+	}
+	return secrets
+}
 
 // valuesEqual safely compares two values, handling map types that are not directly comparable
 func (vm *VariableManager) valuesEqual(a, b interface{}) bool {

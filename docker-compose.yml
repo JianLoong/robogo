@@ -10,7 +10,7 @@ services:
       - ALLOW_ANONYMOUS_LOGIN=yes
 
   kafka:
-    image: bitnami/kafka:3.6
+    image: &kafka-image bitnami/kafka:3.6
     container_name: kafka
     ports:
       - "9092:9092"
@@ -27,18 +27,16 @@ services:
       start_period: 15s
       interval: 10s
 
-  kafka-init:
-    image: bitnami/kafka:3.6
-    container_name: kafka-init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    volumes:
-      - ./create_topic.sh:/create_topic.sh
-    entrypoint: ["/bin/bash", "/create_topic.sh"]
-    environment:
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - ALLOW_PLAINTEXT_LISTENER=yes
+  # kafka-init:
+  #   image: *kafka-image
+  #   container_name: kafka-init
+  #   working_dir: /opt/bitnami/kafka/bin
+  #   entrypoint: /bin/bash
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #   command: |
+  #     kafka-topics.sh --create --if-not-exists --topic robogo_test --replication-factor=1 --partitions=3 --bootstrap-server localhost:9092
 
   spanner:
     image: gcr.io/cloud-spanner-emulator/emulator:latest
@@ -62,14 +60,16 @@ services:
       - POSTGRESQL_USERNAME=robogo_testuser
       - POSTGRESQL_PASSWORD=robogo_testpass
       - POSTGRESQL_DATABASE=robogo_testdb
+      - POSTGRESQL_HOST_AUTH_METHOD=md5
       - ALLOW_EMPTY_PASSWORD=no
     volumes:
       - ./data:/bitnami/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=robogo_testpass psql -U robogo_testuser -d robogo_testdb -c 'SELECT 1;' || exit 1"]
+      test: ["CMD-SHELL", "PGPASSWORD=robogo_testpass psql -h localhost -U robogo_testuser -d robogo_testdb -c 'SELECT 1;' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3-management

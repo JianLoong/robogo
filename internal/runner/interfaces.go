@@ -43,6 +43,12 @@ type VariableManagerInterface interface {
 	SubstituteString(s string) string
 	resolveDotNotation(varName string) (interface{}, bool)
 	substituteStringForDisplay(s string) string
+	
+	// Secret management methods
+	MaskSensitiveOutput(output string) string
+	IsSecretMasked(secretName string) bool
+	GetSecretInfo(secretName string) (source string, masked bool, exists bool)
+	ListSecrets() []string
 }
 
 // OutputManager interface for output capture and management
