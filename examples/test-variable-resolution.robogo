@@ -1,0 +1,23 @@
+testcase: "Variable Resolution Test"
+description: "Test variable resolution with secrets and regular variables"
+
+variables:
+  secrets:
+    db_password:
+      file: "db_secret.txt"
+      mask_output: false
+  vars:
+    db_host: "localhost"
+    db_port: "5432"
+    db_name: "robogo_testdb"
+    db_user: "robogo_testuser"
+    pg_url: "postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=disable"
+
+steps:
+  - name: "Show all variables"
+    action: log
+    args: ["Host: ${db_host}, Port: ${db_port}, User: ${db_user}, Password: ${db_password}"]
+    
+  - name: "Show constructed URL"
+    action: log
+    args: ["URL: ${pg_url}"]

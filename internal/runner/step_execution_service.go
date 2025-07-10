@@ -7,19 +7,24 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // StepExecutionService encapsulates all step execution logic
 // This replaces the global execution functions with a proper service
 // Implements StepExecutor interface
 type StepExecutionService struct {
-	context ExecutionContext
+	context        ExecutionContext
+	retryExecutor  *util.RetryExecutor
+	recoveryExecutor *util.RecoveryExecutor
 }
 
 // NewStepExecutionService creates a new step execution service
 func NewStepExecutionService(ctx ExecutionContext) StepExecutor {
 	return &StepExecutionService{
-		context: ctx,
+		context:          ctx,
+		retryExecutor:    util.NewRetryExecutor(nil), // Use default config
+		recoveryExecutor: util.NewRecoveryExecutor(nil), // Use default config
 	}
 }
 
@@ -59,15 +64,23 @@ func (ses *StepExecutionService) ExecuteStep(ctx context.Context, step parser.St
 		return ses.executeWhileLoop(ctx, step, silent)
 	}
 
-	// Execute step with retry logic
-	output, err := ses.executeStepWithRetry(ctx, step, silent)
+	// Execute step with enhanced error handling and retry logic
+	output, err := ses.executeStepWithEnhancedErrorHandling(ctx, step, silent)
 	
 	result.Duration = time.Since(startTime)
 	
 	if err != nil {
 		result.Status = "FAILED"
-		result.Error = err.Error()
+		result.Error = util.FormatRobogoError(err)
 		result.Output = fmt.Sprintf("%v", output)
+		
+		// Add error context
+		if roboErr := util.GetRobogoError(err); roboErr != nil {
+			roboErr.WithStep(step.Name)
+			if step.Action != "" {
+				roboErr.WithAction(step.Action)
+			}
+		}
 		return result, err
 	}
 	
@@ -186,23 +199,122 @@ func (ses *StepExecutionService) evaluateSkipCondition(step parser.Step) SkipInf
 	}
 }
 
-func (ses *StepExecutionService) executeStepWithRetry(ctx context.Context, step parser.Step, silent bool) (interface{}, error) {
-	return ses.context.Retry().ExecuteWithRetry(ctx, step, ses.context.Actions(), silent)
+// executeStepWithEnhancedErrorHandling executes a step with comprehensive error handling, retry, and recovery
+func (ses *StepExecutionService) executeStepWithEnhancedErrorHandling(ctx context.Context, step parser.Step, silent bool) (interface{}, error) {
+	// Create error context with step information
+	errorContext := util.NewErrorContext().
+		AddBreadcrumb(fmt.Sprintf("Executing step: %s", step.Name)).
+		SetVariable("step_name", step.Name).
+		SetVariable("step_action", step.Action)
+	
+	// Check if step has custom retry configuration
+	retryConfig := parser.GetStepRetryConfig(step)
+	if retryConfig != nil {
+		// Create custom retry executor for this step
+		customRetryExecutor := util.NewRetryExecutor(retryConfig)
+		
+		// Execute with custom retry logic
+		return customRetryExecutor.ExecuteWithRetryTyped(ctx, func() (interface{}, error) {
+			return ses.executeStepCore(ctx, step, silent, errorContext)
+		})
+	}
+	
+	// Check if step has recovery configuration
+	recoveryConfig := parser.GetStepRecoveryConfig(step)
+	if recoveryConfig != nil {
+		// Create custom recovery executor for this step
+		customRecoveryExecutor := util.NewRecoveryExecutor(recoveryConfig)
+		
+		// Execute with recovery logic
+		var result interface{}
+		err := customRecoveryExecutor.ExecuteWithRecovery(ctx, func() error {
+			var execErr error
+			result, execErr = ses.executeStepCore(ctx, step, silent, errorContext)
+			return execErr
+		}, func() error {
+			// Fallback function
+			return ses.executeFallback(ctx, step, recoveryConfig, silent, errorContext)
+		})
+		
+		return result, err
+	}
+	
+	// Default execution with standard retry
+	return ses.retryExecutor.ExecuteWithRetryTyped(ctx, func() (interface{}, error) {
+		return ses.executeStepCore(ctx, step, silent, errorContext)
+	})
+}
+
+// executeStepCore executes the core step logic with enhanced error context
+func (ses *StepExecutionService) executeStepCore(ctx context.Context, step parser.Step, silent bool, errorContext *util.ErrorContext) (interface{}, error) {
+	// Add execution breadcrumb
+	errorContext.AddBreadcrumb(fmt.Sprintf("Executing action: %s", step.Action))
+	
+	// Execute through the action executor
+	result, err := ses.context.Actions().Execute(ctx, step.Action, step.Args, step.Options, silent)
+	
+	if err != nil {
+		// For debugging: preserve original error unless we're adding significant value
+		if roboErr := util.GetRobogoError(err); roboErr != nil {
+			// Only enhance if we don't already have step context
+			if roboErr.Step == "" {
+				roboErr.WithStep(step.Name)
+			}
+			if roboErr.Action == "" {
+				roboErr.WithAction(step.Action)
+			}
+			return result, roboErr
+		}
+		// For regular errors, don't wrap unless it's truly helpful
+		// Just return the original error to keep debugging simple
+		return result, err
+	}
+	
+	return result, nil
+}
+
+// executeFallback executes a fallback operation
+func (ses *StepExecutionService) executeFallback(ctx context.Context, originalStep parser.Step, config *util.RecoveryConfig, silent bool, errorContext *util.ErrorContext) error {
+	if config.FallbackAction == "" {
+		return nil // No fallback defined
+	}
+	
+	errorContext.AddBreadcrumb(fmt.Sprintf("Executing fallback: %s", config.FallbackAction))
+	
+	// Create a fallback step
+	fallbackStep := parser.Step{
+		Name:   fmt.Sprintf("Fallback for %s", originalStep.Name),
+		Action: config.FallbackAction,
+		Args:   originalStep.Args, // Use same args as original
+	}
+	
+	_, err := ses.executeStepCore(ctx, fallbackStep, silent, errorContext)
+	return err
 }
 
 func (ses *StepExecutionService) preprocessStep(step parser.Step, contextStr string) (parser.Step, error) {
 	// Create a copy of the step to avoid modifying the original
 	processedStep := step
 	
-	// Substitute variables in step name
-	processedStep.Name = ses.context.Variables().Substitute(step.Name)
+	// Substitute variables in step name with debugging
+	if step.Name != "" {
+		if execCtx, ok := ses.context.(*DefaultExecutionContext); ok {
+			processedStep.Name = execCtx.SubstituteWithDebug(step.Name)
+		} else {
+			processedStep.Name = ses.context.Variables().Substitute(step.Name)
+		}
+	}
 	
 	// Substitute variables in arguments
 	if len(step.Args) > 0 {
 		processedArgs := make([]interface{}, len(step.Args))
 		for i, arg := range step.Args {
 			if argStr, ok := arg.(string); ok {
-				processedArgs[i] = ses.context.Variables().Substitute(argStr)
+				if execCtx, ok := ses.context.(*DefaultExecutionContext); ok {
+					processedArgs[i] = execCtx.SubstituteWithDebug(argStr)
+				} else {
+					processedArgs[i] = ses.context.Variables().Substitute(argStr)
+				}
 			} else {
 				processedArgs[i] = arg
 			}
@@ -215,7 +327,11 @@ func (ses *StepExecutionService) preprocessStep(step parser.Step, contextStr str
 		processedOptions := make(map[string]interface{})
 		for key, value := range step.Options {
 			if valueStr, ok := value.(string); ok {
-				processedOptions[key] = ses.context.Variables().Substitute(valueStr)
+				if execCtx, ok := ses.context.(*DefaultExecutionContext); ok {
+					processedOptions[key] = execCtx.SubstituteWithDebug(valueStr)
+				} else {
+					processedOptions[key] = ses.context.Variables().Substitute(valueStr)
+				}
 			} else {
 				processedOptions[key] = value
 			}

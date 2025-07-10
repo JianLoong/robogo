@@ -69,6 +69,44 @@ func PrintStepResultsSimple(stepResults []parser.StepResult, title string, inden
 	}
 }
 
+// PrintStepResultsDetailed prints detailed step results for debugging
+func PrintStepResultsDetailed(stepResults []parser.StepResult, title string) {
+	if len(stepResults) == 0 {
+		return
+	}
+
+	fmt.Printf("\n%s\n", title)
+	fmt.Printf("%s\n", strings.Repeat("=", len(title)))
+
+	for i, stepResult := range stepResults {
+		status := stepResult.Status
+		icon := "✅"
+		if status == "FAILED" {
+			icon = "❌"
+		} else if status == "SKIPPED" {
+			icon = "⏭️"
+		}
+
+		fmt.Printf("\n%s Step %d: %s\n", icon, i+1, stepResult.Step.Name)
+		fmt.Printf("   Action: %s\n", stepResult.Step.Action)
+		fmt.Printf("   Status: %s\n", status)
+		fmt.Printf("   Duration: %v\n", stepResult.Duration)
+		
+		if stepResult.Step.Args != nil && len(stepResult.Step.Args) > 0 {
+			fmt.Printf("   Args: %v\n", stepResult.Step.Args)
+		}
+		
+		if stepResult.Output != "" {
+			fmt.Printf("   Output: %s\n", stepResult.Output)
+		}
+		
+		if stepResult.Error != "" {
+			fmt.Printf("   Error: %s\n", stepResult.Error)
+		}
+	}
+	fmt.Printf("\n")
+}
+
 // PrintStepResultsMarkdown prints step results in markdown table format
 func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 	if len(stepResults) == 0 {
@@ -228,7 +266,11 @@ func (f *ConsoleFormatter) FormatTestResults(results []*parser.TestResult) error
 
 		// Print step details as a markdown table
 		if len(result.StepResults) > 0 {
-			fmt.Println("\nStep Results (Markdown Table):")
+			// Show detailed step breakdown for debugging
+			PrintStepResultsDetailed(result.StepResults, "## Detailed Step Results")
+			
+			// Also show compact table
+			fmt.Println("\nStep Results (Compact Table):")
 			PrintStepResultsMarkdown(result.StepResults, "Step Results:")
 		}
 	}
@@ -249,7 +291,7 @@ func (f *ConsoleFormatter) FormatSuiteResult(result *parser.TestSuiteResult) err
 	fmt.Printf("Duration: %v\n", result.Duration)
 	fmt.Printf("\n## Test Case Summary\n")
 	fmt.Printf("| %-4s | %-24s | %-8s | %-10s | %-24s |\n", "#", "Name", "Status", "Duration", "Error")
-	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\\n")
+	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\n")
 	for i, caseResult := range result.CaseResults {
 		status := strings.ToUpper(caseResult.Status)
 		duration := ""

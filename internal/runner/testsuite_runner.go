@@ -250,8 +250,10 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(ctx context.Context, testCase
 			fmt.Printf("      %s: %v\n", k, v)
 		}
 
+		// Capture start time for duration measurement
+		testStartTime := time.Now()
 		testResult, err := RunTestCase(ctx, mergedTestCase, false, tsr.runner.GetExecutor())
-		duration := time.Since(time.Now())
+		duration := time.Since(testStartTime)
 
 		caseResult := parser.TestCaseResult{
 			TestCase: mergedTestCase,
@@ -359,8 +361,10 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(ctx context.Context, testCases 
 			}
 
 			// Use silent=true for parallel execution to avoid stdout capture deadlocks
+			// Capture start time for duration measurement
+			testStartTime := time.Now()
 			testResult, err := RunTestCase(ctx, mergedTestCase, true, tsr.runner.GetExecutor())
-			duration := time.Since(time.Now())
+			duration := time.Since(testStartTime)
 
 			caseResult = parser.TestCaseResult{
 				TestCase: mergedTestCase,

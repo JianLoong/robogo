@@ -45,6 +45,11 @@ func RunTestFiles(ctx context.Context, paths []string, silent bool, executor *ac
 
 // RunTestFilesWithConfig runs multiple test cases with parallelism configuration
 func RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
+	return RunTestFilesWithConfigAndDebug(ctx, paths, silent, parallelConfig, executor, false)
+}
+
+// RunTestFilesWithConfigAndDebug runs multiple test cases with parallelism configuration and optional variable debugging
+func RunTestFilesWithConfigAndDebug(ctx context.Context, paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor, variableDebug bool) ([]*parser.TestResult, error) {
 	var files []string
 	for _, path := range paths {
 		info, err := os.Stat(path)
@@ -77,7 +82,7 @@ func RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, pa
 	if !config.Enabled || !config.TestCases {
 		var results []*parser.TestResult
 		for _, file := range files {
-			result, err := RunTestFile(ctx, file, silent, executor)
+			result, err := RunTestFileWithDebug(ctx, file, silent, executor, variableDebug)
 			if err != nil {
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
@@ -108,7 +113,7 @@ func RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, pa
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			result, err := RunTestFile(ctx, file, silent, executor)
+			result, err := RunTestFileWithDebug(ctx, file, silent, executor, variableDebug)
 			if err != nil {
 				// In case of a fatal error before the test can even run properly,
 				// create a dummy result to report the failure.
@@ -139,14 +144,19 @@ func RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, pa
 
 // RunTestFile runs a test case from a file
 func RunTestFile(ctx context.Context, filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
+	return RunTestFileWithDebug(ctx, filename, silent, executor, false)
+}
+
+// RunTestFileWithDebug runs a test file with optional variable debugging
+func RunTestFileWithDebug(ctx context.Context, filename string, silent bool, executor *actions.ActionExecutor, variableDebug bool) (*parser.TestResult, error) {
 	// Parse the test case
 	testCase, err := parser.ParseTestFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse test file: %w", err)
 	}
 
-	// Run the test case
-	result, err := RunTestCase(ctx, testCase, silent, executor)
+	// Run the test case with debugging
+	result, err := RunTestCaseWithDebug(ctx, testCase, silent, executor, variableDebug)
 	if err != nil {
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
@@ -157,9 +167,19 @@ func RunTestFile(ctx context.Context, filename string, silent bool, executor *ac
 
 // RunTestCase runs a test case and returns the result
 func RunTestCase(ctx context.Context, testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
+	return RunTestCaseWithDebug(ctx, testCase, silent, executor, false)
+}
+
+// RunTestCaseWithDebug runs a test case with optional variable debugging
+func RunTestCaseWithDebug(ctx context.Context, testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor, variableDebug bool) (*parser.TestResult, error) {
 	// Create test execution service with proper dependency injection
 	testService := NewTestExecutionService(executor)
 	defer testService.Cleanup()
+
+	// Enable variable debugging if requested
+	if variableDebug {
+		testService.GetContext().EnableVariableDebugging(true)
+	}
 
 	// Execute the test case using the new service
 	result, err := testService.ExecuteTestCase(ctx, testCase, silent)

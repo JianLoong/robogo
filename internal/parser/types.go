@@ -103,6 +103,13 @@ type RetryConfig struct {
 	Jitter     bool          `yaml:"jitter,omitempty"`     // Add randomness to delay
 }
 
+// RecoveryConfig represents error recovery configuration
+type RecoveryConfig struct {
+	Strategy       string `yaml:"strategy,omitempty"`        // none, fallback, skip, retry, circuit
+	FallbackAction string `yaml:"fallback_action,omitempty"` // Action to execute as fallback
+	SkipOnError    bool   `yaml:"skip_on_error,omitempty"`   // Skip step on error
+}
+
 // ExpectErrorConfig represents error expectation configuration
 type ExpectErrorConfig struct {
 	Type    string `yaml:"type,omitempty"`    // any, contains, matches, exact, starts_with, ends_with, not_contains, not_matches
@@ -117,8 +124,9 @@ type Step struct {
 	Args    []interface{}          `yaml:"args"`
 	Options map[string]interface{} `yaml:"options,omitempty"`
 	Result  string                 `yaml:"result,omitempty"`
-	Verbose interface{}            `yaml:"verbose,omitempty"` // true/false or "basic"/"detailed"/"debug"
-	Retry   *RetryConfig           `yaml:"retry,omitempty"`   // Retry configuration
+	Verbose  interface{}     `yaml:"verbose,omitempty"`  // true/false or "basic"/"detailed"/"debug"
+	Retry    *RetryConfig    `yaml:"retry,omitempty"`    // Retry configuration
+	Recovery *RecoveryConfig `yaml:"recovery,omitempty"` // Recovery configuration
 
 	// Control flow fields
 	If    *ConditionalBlock `yaml:"if,omitempty"`    // If statement

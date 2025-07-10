@@ -689,7 +689,24 @@ func FormatRobogoError(err error) string {
 		return ""
 	}
 	if re, ok := err.(*RobogoError); ok {
-		// Customize as needed: include type, message, action, step
+		// For debugging, prioritize the original error message
+		if re.Cause != nil {
+			// If we have a cause, show the original error first
+			return re.Cause.Error()
+		}
+		// Otherwise show our enhanced message
+		return re.Message
+	}
+	return err.Error()
+}
+
+// FormatRobogoErrorDetailed formats errors with full context for debugging
+func FormatRobogoErrorDetailed(err error) string {
+	if err == nil {
+		return ""
+	}
+	if re, ok := err.(*RobogoError); ok {
+		// Detailed format with type, action, step info
 		msg := fmt.Sprintf("[%s] %s", re.Type, re.Message)
 		if re.Action != "" {
 			msg += fmt.Sprintf(" | action: %s", re.Action)
@@ -701,6 +718,29 @@ func FormatRobogoError(err error) string {
 			msg += fmt.Sprintf(" | cause: %s", re.Cause.Error())
 		}
 		return msg
+	}
+	return err.Error()
+}
+
+// FormatRobogoErrorForLogging formats errors for structured logging
+func FormatRobogoErrorForLogging(err error) string {
+	if err == nil {
+		return ""
+	}
+	if re, ok := err.(*RobogoError); ok {
+		var parts []string
+		parts = append(parts, fmt.Sprintf("type=%s", re.Type))
+		parts = append(parts, fmt.Sprintf("message=%s", re.Message))
+		if re.Action != "" {
+			parts = append(parts, fmt.Sprintf("action=%s", re.Action))
+		}
+		if re.Step != "" {
+			parts = append(parts, fmt.Sprintf("step=%s", re.Step))
+		}
+		if re.Context != nil && re.Context.CorrelationID != "" {
+			parts = append(parts, fmt.Sprintf("correlation_id=%s", re.Context.CorrelationID))
+		}
+		return strings.Join(parts, " | ")
 	}
 	return err.Error()
 }

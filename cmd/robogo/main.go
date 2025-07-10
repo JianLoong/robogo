@@ -24,9 +24,10 @@ var (
 	date    = "unknown"
 
 	// CLI flags
-	outputFormat    string
-	parallelEnabled bool
-	maxConcurrency  int
+	outputFormat     string
+	parallelEnabled  bool
+	maxConcurrency   int
+	variableDebug    bool
 )
 
 func isTestSuiteFile(filePath string) (bool, error) {
@@ -134,6 +135,11 @@ Key Features:
 			defer actionCtx.Cleanup()
 			ctx = actions.WithActionContext(ctx, actionCtx)
 			
+			// Enable variable debugging if requested
+			if variableDebug {
+				fmt.Printf("🔍 Variable debugging enabled\n\n")
+			}
+			
 			// Determine silent mode
 			silent := false
 			switch outputFormat {
@@ -180,6 +186,10 @@ Key Features:
 								return err
 							}
 							testExecutor := runner.NewTestExecutionService(executor)
+							// Enable variable debugging if requested
+							if variableDebug {
+								testExecutor.GetContext().EnableVariableDebugging(true)
+							}
 							suiteRunner := runner.NewTestSuiteRunner(testExecutor)
 							result, err := suiteRunner.RunTestSuite(ctx, ts, fp, false)
 							if err != nil {
@@ -187,7 +197,7 @@ Key Features:
 							}
 							suiteResults = append(suiteResults, result)
 						} else {
-							results, err := runner.RunTestFilesWithConfig(ctx, []string{fp}, silent, parallelConfig, executor)
+							results, err := runner.RunTestFilesWithConfigAndDebug(ctx, []string{fp}, silent, parallelConfig, executor, variableDebug)
 							if err != nil {
 								return err
 							}
@@ -209,6 +219,10 @@ Key Features:
 							return err
 						}
 						testExecutor := runner.NewTestExecutionService(executor)
+						// Enable variable debugging if requested
+						if variableDebug {
+							testExecutor.GetContext().EnableVariableDebugging(true)
+						}
 						suiteRunner := runner.NewTestSuiteRunner(testExecutor)
 						result, err := suiteRunner.RunTestSuite(ctx, ts, path, false)
 						if err != nil {
@@ -216,7 +230,7 @@ Key Features:
 						}
 						suiteResults = append(suiteResults, result)
 					} else {
-						results, err := runner.RunTestFilesWithConfig(ctx, []string{path}, silent, parallelConfig, executor)
+						results, err := runner.RunTestFilesWithConfigAndDebug(ctx, []string{path}, silent, parallelConfig, executor, variableDebug)
 						if err != nil {
 							return err
 						}
@@ -328,6 +342,7 @@ Key Features:
 	runCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json, markdown)")
 	runCmd.Flags().BoolVarP(&parallelEnabled, "parallel", "p", false, "Enable parallel execution")
 	runCmd.Flags().IntVarP(&maxConcurrency, "concurrency", "c", 4, "Maximum concurrency for parallel execution")
+	runCmd.Flags().BoolVarP(&variableDebug, "debug-vars", "d", false, "Enable variable resolution debugging")
 	listCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
 	completionsCmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
 

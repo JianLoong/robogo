@@ -156,12 +156,18 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 		}
 	}
 	
-	// Initialize variables
-	if testCase.Variables.Regular != nil {
-		// Load regular variables
-		for key, value := range testCase.Variables.Regular {
-			if err := tes.context.Variables().Set(key, value); err != nil {
-				return fmt.Errorf("failed to set variable %s: %w", key, err)
+	// Initialize variables using the VariableManager's proper initialization
+	// This ensures correct multi-pass substitution and cross-substitution between secrets and variables
+	if execCtx, ok := tes.context.(*DefaultExecutionContext); ok {
+		execCtx.variableManager.InitializeVariables(testCase)
+	} else {
+		// Fallback for other ExecutionContext implementations
+		if testCase.Variables.Regular != nil {
+			// Load regular variables
+			for key, value := range testCase.Variables.Regular {
+				if err := tes.context.Variables().Set(key, value); err != nil {
+					return fmt.Errorf("failed to set variable %s: %w", key, err)
+				}
 			}
 		}
 		

@@ -12,7 +12,8 @@
       "Bash(grep:*)",
       "Bash(rm:*)",
       "Bash(go mod:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(./robogo.exe --help)"
     ],
     "deny": []
   }

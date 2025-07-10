@@ -2,10 +2,14 @@ package runner
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // ExecutionContext provides a clean interface for test execution dependencies
@@ -28,6 +32,10 @@ type ExecutionContext interface {
 	
 	// Action execution
 	Actions() ActionExecutor
+	
+	// Variable debugging
+	VariableDebugger() *util.VariableResolutionDebugger
+	EnableVariableDebugging(enabled bool)
 	
 	// Context lifecycle
 	Cleanup() error
@@ -81,16 +89,20 @@ type ActionExecutor interface {
 
 // DefaultExecutionContext implements ExecutionContext with the existing components
 type DefaultExecutionContext struct {
-	variableManager *VariableManager
-	secretManager   *actions.SecretManager
-	tdmManager      *actions.TDMManager
-	executor        *actions.ActionExecutor
+	variableManager   *VariableManager
+	secretManager     *actions.SecretManager
+	tdmManager        *actions.TDMManager
+	executor          *actions.ActionExecutor
+	variableDebugger  *util.VariableResolutionDebugger
+	variableDebugging bool
 }
 
 // NewExecutionContext creates a new execution context with default implementations
 func NewExecutionContext(executor *actions.ActionExecutor) ExecutionContext {
 	return &DefaultExecutionContext{
-		variableManager: NewVariableManager().(*VariableManager),
+		variableManager:   NewVariableManager().(*VariableManager),
+		variableDebugger:  util.NewVariableResolutionDebugger(false, "execution"),
+		variableDebugging: false,
 		secretManager:   actions.NewSecretManager(),
 		tdmManager:      actions.NewTDMManager(),
 		executor:        executor,
@@ -133,6 +145,25 @@ func (ctx *DefaultExecutionContext) Cleanup() error {
 	return nil
 }
 
+// VariableDebugger returns the variable resolution debugger
+func (ctx *DefaultExecutionContext) VariableDebugger() *util.VariableResolutionDebugger {
+	return ctx.variableDebugger
+}
+
+// EnableVariableDebugging enables or disables variable debugging
+func (ctx *DefaultExecutionContext) EnableVariableDebugging(enabled bool) {
+	ctx.variableDebugging = enabled
+	ctx.variableDebugger = util.NewVariableResolutionDebugger(enabled, "execution")
+}
+
+// SubstituteWithDebug performs variable substitution with debugging
+func (ctx *DefaultExecutionContext) SubstituteWithDebug(template string) string {
+	if ctx.variableDebugging && ctx.variableManager != nil {
+		return ctx.variableManager.SubstituteStringWithDebug(template, ctx.variableDebugger)
+	}
+	return ctx.variableManager.SubstituteString(template)
+}
+
 // Adapter implementations to bridge existing components with new interfaces
 
 type variableStoreAdapter struct {
@@ -169,8 +200,12 @@ func (v *variableStoreAdapter) LoadSecrets(secrets map[string]parser.Secret) err
 		if secret.Value != "" {
 			value = secret.Value
 		} else if secret.File != "" {
-			// This should be handled by the secret manager
-			value = secret.File
+			// Read the file and set the variable to its contents
+			data, err := ioutil.ReadFile(secret.File)
+			if err != nil {
+				return fmt.Errorf("failed to read secret file '%s': %w", secret.File, err)
+			}
+			value = strings.TrimSpace(string(data))
 		}
 		v.vm.SetVariable(key, value)
 	}

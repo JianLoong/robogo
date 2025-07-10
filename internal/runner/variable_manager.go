@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/JianLoong/robogo/internal/parser"
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // VariableManager handles variable storage, substitution, and scoping
@@ -59,23 +60,24 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 		for key, value := range testCase.Variables.Regular {
 			vm.variables[key] = value
 		}
+	}
 
-		// Multiple passes: substitute variables until no more changes
-		maxPasses := 10 // Prevent infinite loops
-		for pass := 0; pass < maxPasses; pass++ {
-			changed := false
-			for key, value := range vm.variables {
-				substitutedValue := vm.substituteValue(value)
-				// Safe comparison that handles map types
-				if !vm.valuesEqual(substitutedValue, value) {
-					vm.variables[key] = substitutedValue
-					changed = true
-				}
+	// Multiple passes: substitute variables until no more changes
+	// This includes both secrets and regular variables for cross-substitution
+	maxPasses := 10 // Prevent infinite loops
+	for pass := 0; pass < maxPasses; pass++ {
+		changed := false
+		for key, value := range vm.variables {
+			substitutedValue := vm.substituteValue(value)
+			// Safe comparison that handles map types
+			if !vm.valuesEqual(substitutedValue, value) {
+				vm.variables[key] = substitutedValue
+				changed = true
 			}
-			// If no changes in this pass, we're done
-			if !changed {
-				break
-			}
+		}
+		// If no changes in this pass, we're done
+		if !changed {
+			break
 		}
 	}
 }
@@ -85,6 +87,14 @@ func (vm *VariableManager) SetVariable(name string, value interface{}) {
 	vm.mutex.Lock()
 	defer vm.mutex.Unlock()
 	vm.variables[name] = value
+}
+
+// Delete removes a variable
+func (vm *VariableManager) Delete(name string) error {
+	vm.mutex.Lock()
+	defer vm.mutex.Unlock()
+	delete(vm.variables, name)
+	return nil
 }
 
 // GetVariable retrieves a variable value
@@ -108,6 +118,29 @@ func (vm *VariableManager) SubstituteVariables(args []interface{}) []interface{}
 // SubstituteString substitutes variables in a string - public version of substituteString
 func (vm *VariableManager) SubstituteString(s string) string {
 	return vm.substituteString(s)
+}
+
+// SubstituteStringWithDebug substitutes variables with debugging support
+func (vm *VariableManager) SubstituteStringWithDebug(s string, debugger *util.VariableResolutionDebugger) string {
+	original := s
+	result := vm.substituteString(s)
+	
+	if debugger != nil {
+		// Get all available variables for debugging
+		availableVars := make(map[string]interface{})
+		vm.mutex.RLock()
+		for k, v := range vm.variables {
+			availableVars[k] = v
+		}
+		vm.mutex.RUnlock()
+		
+		// Log the substitution if there are variables or unresolved variables
+		if strings.Contains(original, "${") {
+			debugger.LogVariableSubstitution(original, result, availableVars)
+		}
+	}
+	
+	return result
 }
 
 // substituteValue recursively substitutes variables in a value
