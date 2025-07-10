@@ -11,7 +11,7 @@ variables:
 steps:
   # Test 1: Basic retry with fixed delay - demonstrates actual retry attempts
   - name: "Fixed delay retry on 500 error"
-    action: http_get
+    action: http
     args: ["${base_url}/status/500"]
     retry:
       attempts: 3
@@ -32,7 +32,7 @@ steps:
     result: "exp_start_time"
 
   - name: "Exponential backoff retry on 502 error"
-    action: http_get
+    action: http
     args: ["${base_url}/status/502"]
     retry:
       attempts: 4
@@ -54,7 +54,7 @@ steps:
 
   # Test 3: Linear backoff with jitter
   - name: "Linear backoff with jitter on 503 error"
-    action: http_get
+    action: http
     args: ["${base_url}/status/503"]
     retry:
       attempts: 3
@@ -71,7 +71,7 @@ steps:
 
   # Test 4: Rate limiting retry (429)
   - name: "Rate limiting retry on 429 error"
-    action: http_get
+    action: http
     args: ["${base_url}/status/429"]
     retry:
       attempts: 3
@@ -86,7 +86,7 @@ steps:
 
   # Test 5: Successful request that doesn't need retry
   - name: "Successful request (no retry needed)"
-    action: http_get
+    action: http
     args: ["${base_url}/status/200"]
     retry:
       attempts: 3
@@ -100,7 +100,7 @@ steps:
 
   # Test 6: Non-matching condition (should not retry)
   - name: "Non-matching condition test"
-    action: http_get
+    action: http
     args: ["${base_url}/status/500"]
     retry:
       attempts: 3
@@ -114,7 +114,7 @@ steps:
 
   # Test 7: Connection error simulation
   - name: "Connection error retry"
-    action: http_get
+    action: http
     args: ["https://invalid-domain-that-does-not-exist-12345.com/test"]
     retry:
       attempts: 3
@@ -125,7 +125,7 @@ steps:
 
   # Test 8: Random status endpoint (unpredictable behavior)
   - name: "Random status with retry"
-    action: http_get
+    action: http
     args: ["${base_url}/status/200,500,502"]
     retry:
       attempts: 5
@@ -152,7 +152,7 @@ steps:
 
   # Test 10: Single attempt (should not retry)
   - name: "Single attempt configuration"
-    action: http_get
+    action: http
     args: ["${base_url}/status/500"]
     retry:
       attempts: 1
@@ -166,7 +166,7 @@ steps:
 
   # Test 11: Max delay configuration
   - name: "Max delay cap test"
-    action: http_get
+    action: http
     args: ["${base_url}/status/500"]
     retry:
       attempts: 4
@@ -179,7 +179,7 @@ steps:
 
   # Test 12: All conditions retry
   - name: "All conditions retry test"
-    action: http_get
+    action: http
     args: ["${base_url}/status/500"]
     retry:
       attempts: 2

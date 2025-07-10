@@ -162,7 +162,7 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 
 // registerBasicActions registers basic utility actions
 func (ar *ActionRegistry) registerBasicActions() {
-	ar.Register(NewActionWithContext(LogAction, ActionMetadata{
+	ar.Register(NewAction(LogAction, ActionMetadata{
 		Name:        "log",
 		Description: "Log a message",
 		Example:     `- action: log\n  args: ["message"]`,
@@ -172,7 +172,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		},
 	}))
 
-	ar.Register(NewActionWithContext(SleepAction, ActionMetadata{
+	ar.Register(NewAction(SleepAction, ActionMetadata{
 		Name:        "sleep",
 		Description: "Sleep for a duration",
 		Example:     `- action: sleep\n  args: [2]`,
@@ -182,7 +182,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		},
 	}))
 
-	ar.Register(NewActionWithContext(AssertAction, ActionMetadata{
+	ar.Register(NewAction(AssertAction, ActionMetadata{
 		Name:        "assert",
 		Description: "Assert a condition using comparison operators (==, !=, >, <, >=, <=, contains, starts_with, ends_with)",
 		Example:     `- action: assert\n  args: ["value", ">", "0", "Value should be positive"]`,
@@ -195,7 +195,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		},
 	}))
 
-	ar.Register(NewActionWithContext(GetTimeAction, ActionMetadata{
+	ar.Register(NewAction(GetTimeAction, ActionMetadata{
 		Name:        "get_time",
 		Description: "Get current timestamp with optional format (iso, datetime, date, time, timestamp, unix, unix_ms, or custom Go format)",
 		Example:     `- action: get_time\n  args: ["iso"]\n  result: timestamp`,
@@ -206,7 +206,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		Returns: "timestamp string",
 	}))
 
-	ar.Register(NewActionWithContext(GetRandomAction, ActionMetadata{
+	ar.Register(NewAction(GetRandomAction, ActionMetadata{
 		Name:        "get_random",
 		Description: "Get a random number",
 		Example:     `- action: get_random\n  args: [100]\n  result: random_number`,
@@ -217,7 +217,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		Returns: "random number",
 	}))
 
-	ar.Register(NewActionWithContext(ConcatAction, ActionMetadata{
+	ar.Register(NewAction(ConcatAction, ActionMetadata{
 		Name:        "concat",
 		Description: "Concatenate strings",
 		Example:     `- action: concat\n  args: ["Hello", " ", "World"]\n  result: message`,
@@ -228,7 +228,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		Returns: "concatenated string",
 	}))
 
-	ar.Register(NewActionWithContext(LengthAction, ActionMetadata{
+	ar.Register(NewAction(LengthAction, ActionMetadata{
 		Name:        "length",
 		Description: "Get length of string or array",
 		Example:     `- action: length\n  args: ["Hello World"]\n  result: str_length`,
@@ -239,7 +239,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		Returns: "length as number",
 	}))
 
-	ar.Register(NewActionWithContext(SkipAction, ActionMetadata{
+	ar.Register(NewAction(SkipAction, ActionMetadata{
 		Name:        "skip",
 		Description: "Skip a test case with an optional reason",
 		Example:     `- action: skip\n  args: ["Skipping this test case"]`,
@@ -249,7 +249,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		},
 	}))
 
-	ar.Register(NewActionWithContext(
+	ar.Register(NewAction(
 		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 			return bytesToStringAction(ctx, args, options, silent)
 		},
@@ -264,7 +264,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 		},
 	))
 
-	ar.Register(NewActionWithContext(
+	ar.Register(NewAction(
 		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 			return jsonExtractAction(ctx, args, options, silent)
 		},
@@ -283,7 +283,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 
 // registerHTTPActions registers HTTP-related actions
 func (ar *ActionRegistry) registerHTTPActions() {
-	ar.Register(NewActionWithContext(HTTPAction, ActionMetadata{
+	ar.Register(NewAction(HTTPAction, ActionMetadata{
 		Name:        "http",
 		Description: "Perform HTTP request (GET, POST, PUT, DELETE, etc.). Supports client cert (cert/key) and custom CA (ca) options.",
 		Example:     `- action: http\n  args: ["GET", "https://secure.example.com/api", {"cert": "client.crt", "key": "client.key", "ca": "ca.crt", "Authorization": "Bearer ..."}]\n  result: response`,
@@ -297,48 +297,11 @@ func (ar *ActionRegistry) registerHTTPActions() {
 		Returns: "HTTP response",
 	}))
 
-	ar.Register(NewActionWithContext(HTTPGetActionWithContext, ActionMetadata{
-		Name:        "http_get",
-		Description: "Perform HTTP GET request",
-		Example:     `- action: http_get\n  args: ["https://api.example.com/users"]\n  result: response`,
-		Category:    CategoryHTTP,
-		Parameters: []ParameterInfo{
-			{Name: "url", Type: ParamTypeURL, Required: true, Description: "Target URL"},
-			{Name: "headers", Type: ParamTypeObject, Required: false, Description: "Request headers"},
-		},
-		Returns: "HTTP response",
-	}))
-
-	ar.Register(NewActionWithContext(HTTPPostActionWithContext, ActionMetadata{
-		Name:        "http_post",
-		Description: "Perform HTTP POST request",
-		Example:     `- action: http_post\n  args: ["https://api.example.com/users", '{"name": "John"}']\n  result: response`,
-		Category:    CategoryHTTP,
-		Parameters: []ParameterInfo{
-			{Name: "url", Type: ParamTypeURL, Required: true, Description: "Target URL"},
-			{Name: "body", Type: ParamTypeString, Required: false, Description: "Request body"},
-			{Name: "headers", Type: ParamTypeObject, Required: false, Description: "Request headers"},
-		},
-		Returns: "HTTP response",
-	}))
-
-	ar.Register(NewActionWithContext(HTTPBatchActionWithContext, ActionMetadata{
-		Name:        "http_batch",
-		Description: "Perform multiple HTTP requests in parallel with concurrency control",
-		Example:     `- action: http_batch\n  args: ["GET", ["https://api1.com", "https://api2.com"], {"concurrency": 5}]\n  result: batch_response`,
-		Category:    CategoryHTTP,
-		Parameters: []ParameterInfo{
-			{Name: "method", Type: ParamTypeString, Required: true, Description: "HTTP method"},
-			{Name: "urls", Type: ParamTypeArray, Required: true, Description: "Array of URLs"},
-			{Name: "options", Type: ParamTypeObject, Required: false, Description: "Request options"},
-		},
-		Returns: "batch response",
-	}))
 }
 
 // registerDatabaseActions registers database-related actions
 func (ar *ActionRegistry) registerDatabaseActions() {
-	ar.Register(NewActionWithContext(PostgresAction, ActionMetadata{
+	ar.Register(NewAction(PostgresAction, ActionMetadata{
 		Name:        "postgres",
 		Description: "PostgreSQL database operations (query, execute, connect, close, batch)",
 		Example:     `- action: postgres\n  args: ["query", "postgres://user:pass@localhost/db", "SELECT * FROM users"]\n  result: query_result`,
@@ -352,7 +315,7 @@ func (ar *ActionRegistry) registerDatabaseActions() {
 		Returns: "database result",
 	}))
 
-	ar.Register(NewActionWithContext(SpannerAction, ActionMetadata{
+	ar.Register(NewAction(SpannerAction, ActionMetadata{
 		Name:        "spanner",
 		Description: "Google Cloud Spanner operations (connect, query, execute, close) with emulator support",
 		Example:     `- action: spanner\n  args: ["connect", "projects/robogo-test-project/instances/robogo-test-instance/databases/robogo-test-db?useEmulator=true"]\n  result: connection_result`,
@@ -369,7 +332,7 @@ func (ar *ActionRegistry) registerDatabaseActions() {
 
 // registerControlActions registers control flow actions
 func (ar *ActionRegistry) registerControlActions() {
-	ar.Register(NewActionWithContext(ControlFlowAction, ActionMetadata{
+	ar.Register(NewAction(ControlFlowAction, ActionMetadata{
 		Name:        "control",
 		Description: "Control flow operations (if, for, while)",
 		Example:     `- action: control\n  args: ["if", "condition"]\n  result: condition_result`,
@@ -384,7 +347,7 @@ func (ar *ActionRegistry) registerControlActions() {
 
 // registerVariableActions registers variable management actions
 func (ar *ActionRegistry) registerVariableActions() {
-	ar.Register(NewActionWithContext(VariableAction, ActionMetadata{
+	ar.Register(NewAction(VariableAction, ActionMetadata{
 		Name:        "variable",
 		Description: "Variable management operations (set_variable, get_variable, list_variables)",
 		Example:     `- action: variable\n  args: ["set_variable", "my_var", "my_value"]\n  result: set_result`,
@@ -400,7 +363,7 @@ func (ar *ActionRegistry) registerVariableActions() {
 
 // registerTDMActions registers Test Data Management actions
 func (ar *ActionRegistry) registerTDMActions() {
-	ar.Register(NewActionWithContext(TDMAction, ActionMetadata{
+	ar.Register(NewAction(TDMAction, ActionMetadata{
 		Name:        "tdm",
 		Description: "Test Data Management operations (generate, validate, load_dataset, set_environment)",
 		Example:     `- action: tdm\n  args: ["generate", "user_{index}", 5]\n  result: generated_data`,
@@ -416,7 +379,7 @@ func (ar *ActionRegistry) registerTDMActions() {
 
 // registerMessagingActions registers messaging-related actions
 func (ar *ActionRegistry) registerMessagingActions() {
-	ar.Register(NewActionWithContext(RabbitMQActionWrapper, ActionMetadata{
+	ar.Register(NewAction(RabbitMQAction, ActionMetadata{
 		Name:        "rabbitmq",
 		Description: "RabbitMQ operations (connect, publish, consume, close)",
 		Example:     `- action: rabbitmq\n  args: ["connect", "amqp://guest:guest@localhost:5672/", "my_connection"]`,
@@ -429,7 +392,7 @@ func (ar *ActionRegistry) registerMessagingActions() {
 		Returns: "RabbitMQ result",
 	}))
 
-	ar.Register(NewActionWithContext(KafkaActionWrapper, ActionMetadata{
+	ar.Register(NewAction(KafkaAction, ActionMetadata{
 		Name:        "kafka",
 		Description: "Kafka operations (publish, consume) with configurable options",
 		Example:     `- action: kafka\n  args: ["publish", "localhost:9092", "test-topic", "message", {"acks": "all", "compression": "snappy"}]\n  result: publish_result`,
@@ -446,7 +409,7 @@ func (ar *ActionRegistry) registerMessagingActions() {
 
 // registerTemplateActions registers template-related actions
 func (ar *ActionRegistry) registerTemplateActions() {
-	ar.Register(NewActionWithContext(TemplateAction, ActionMetadata{
+	ar.Register(NewAction(TemplateAction, ActionMetadata{
 		Name:        "template",
 		Description: "Render templates using Go template engine with inline template definitions",
 		Example:     `- action: template\n  args: ["mt103", {"transaction_id": "123", "amount": "100.00"}]\n  result: rendered_message`,

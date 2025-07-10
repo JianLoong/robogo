@@ -3,7 +3,7 @@ description: "Quick demonstration of enhanced retry functionality"
 
 steps:
   - name: "Fixed delay retry demo"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/status/500"]
     retry:
       attempts: 3
@@ -17,7 +17,7 @@ steps:
     args: ["${demo_result.status_code}", "==", "500", "Should be 500"]
 
   - name: "Successful request demo"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/status/200"]
     retry:
       attempts: 3

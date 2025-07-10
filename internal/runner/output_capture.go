@@ -7,6 +7,7 @@ import (
 )
 
 // OutputCapture handles capturing and restoring stdout
+// Implements OutputManager interface
 type OutputCapture struct {
 	oldStdout *os.File
 	pipeR     *os.File
@@ -16,7 +17,7 @@ type OutputCapture struct {
 }
 
 // NewOutputCapture creates a new output capture instance
-func NewOutputCapture() *OutputCapture {
+func NewOutputCapture() OutputManager {
 	return &OutputCapture{}
 }
 
@@ -72,5 +73,29 @@ func (oc *OutputCapture) Stop() (string, error) {
 	oc.capturing = false
 
 	return oc.output, nil
+}
+
+// StartCapture begins capturing stdout (implements OutputManager interface)
+func (oc *OutputCapture) StartCapture() {
+	oc.Start() // Ignore error for interface compatibility
+}
+
+// StopCapture stops capturing and returns output (implements OutputManager interface)
+func (oc *OutputCapture) StopCapture() string {
+	output, _ := oc.Stop() // Ignore error for interface compatibility
+	return output
+}
+
+// Write writes data to the captured output (implements OutputManager interface)
+func (oc *OutputCapture) Write(data []byte) (int, error) {
+	if oc.capturing && oc.pipeW != nil {
+		return oc.pipeW.Write(data)
+	}
+	return len(data), nil
+}
+
+// Capture returns the captured output as bytes (implements OutputManager interface)
+func (oc *OutputCapture) Capture() ([]byte, error) {
+	return []byte(oc.output), nil
 }
 

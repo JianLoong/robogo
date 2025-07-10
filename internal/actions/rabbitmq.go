@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/util"
@@ -10,7 +11,18 @@ import (
 
 var rabbitmqConnections = make(map[string]*amqp.Connection)
 
-func RabbitMQActionWithContext(ctx context.Context, args []string) (interface{}, error) {
+// RabbitMQAction performs RabbitMQ operations with context support
+func RabbitMQAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	// Convert interface{} args to string args for compatibility
+	strArgs := make([]string, len(args))
+	for i, v := range args {
+		strArgs[i] = fmt.Sprintf("%v", v)
+	}
+	
+	return rabbitmqActionInternal(ctx, strArgs)
+}
+
+func rabbitmqActionInternal(ctx context.Context, args []string) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, util.NewValidationError("rabbitmq action requires at least one argument", map[string]interface{}{
 			"args_count": len(args),

@@ -88,8 +88,7 @@ func IsStepIndependent(step *Step) bool {
 		"get_time",
 		"get_random",
 		"length",
-		"http_get",  // With rate limiting
-		"http_post", // With rate limiting
+		"http",      // With rate limiting
 		"postgres",  // Database operations with connection pooling
 	}
 

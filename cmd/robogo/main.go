@@ -179,7 +179,8 @@ Key Features:
 							if err != nil {
 								return err
 							}
-							suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner(executor))
+							testExecutor := runner.NewTestExecutionService(executor)
+							suiteRunner := runner.NewTestSuiteRunner(testExecutor)
 							result, err := suiteRunner.RunTestSuite(ctx, ts, fp, false)
 							if err != nil {
 								return err
@@ -207,7 +208,8 @@ Key Features:
 						if err != nil {
 							return err
 						}
-						suiteRunner := runner.NewTestSuiteRunner(runner.NewTestRunner(executor))
+						testExecutor := runner.NewTestExecutionService(executor)
+						suiteRunner := runner.NewTestSuiteRunner(testExecutor)
 						result, err := suiteRunner.RunTestSuite(ctx, ts, path, false)
 						if err != nil {
 							return err

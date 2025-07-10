@@ -14,17 +14,18 @@ import (
 )
 
 // RetryManager handles retry logic for steps
+// Implements RetryPolicy interface
 type RetryManager struct {
 	// No state needed - stateless retry operations
 }
 
 // NewRetryManager creates a new retry manager
-func NewRetryManager() *RetryManager {
+func NewRetryManager() RetryPolicy {
 	return &RetryManager{}
 }
 
-// ExecuteWithRetry executes a step with retry logic
-func (rm *RetryManager) ExecuteWithRetry(
+// ExecuteWithRetryLegacy executes a step with retry logic (legacy method)
+func (rm *RetryManager) ExecuteWithRetryLegacy(
 	ctx context.Context,
 	step parser.Step,
 	args []interface{},
@@ -272,5 +273,86 @@ func (rm *RetryManager) calculateDelay(config *parser.RetryConfig, attempt int) 
 	}
 
 	return delay
+}
+
+// ShouldRetry implements RetryPolicy interface
+func (rm *RetryManager) ShouldRetry(step parser.Step, attempt int, err error) bool {
+	if step.Retry == nil {
+		return false
+	}
+	
+	config := step.Retry
+	maxAttempts := config.Attempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	
+	if attempt >= maxAttempts {
+		return false
+	}
+	
+	return rm.shouldRetry(err, config.Conditions)
+}
+
+// GetRetryDelay implements RetryPolicy interface
+func (rm *RetryManager) GetRetryDelay(attempt int) time.Duration {
+	// Default configuration for interface method
+	config := &parser.RetryConfig{
+		Delay:   time.Second,
+		Backoff: "fixed",
+	}
+	return rm.calculateDelay(config, attempt)
+}
+
+// ExecuteWithRetry implements RetryPolicy interface with ActionExecutor interface
+func (rm *RetryManager) ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error) {
+	if step.Retry == nil {
+		return executor.Execute(ctx, step.Action, step.Args, step.Options, silent)
+	}
+
+	config := step.Retry
+	attempts := config.Attempts
+	if attempts <= 0 {
+		attempts = 1
+	}
+
+	var lastErr error
+	var lastOutput interface{}
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if !silent && attempt > 1 {
+			fmt.Printf("Retry attempt %d/%d for step '%s'\n", attempt, attempts, step.Name)
+		}
+
+		output, err := executor.Execute(ctx, step.Action, step.Args, step.Options, silent)
+		lastErr = err
+		lastOutput = output
+
+		shouldRetry := false
+		if err != nil {
+			shouldRetry = rm.shouldRetry(err, config.Conditions)
+		} else {
+			shouldRetry = rm.shouldRetryBasedOnResponse(output, config.Conditions)
+		}
+
+		if !shouldRetry {
+			if !silent && attempt > 1 && err == nil {
+				fmt.Printf("Retry successful on attempt %d\n", attempt)
+			}
+			return output, err
+		}
+
+		if attempt == attempts {
+			break
+		}
+
+		delay := rm.calculateDelay(config, attempt)
+		if !silent {
+			fmt.Printf("Waiting %v before retry...\n", delay)
+		}
+		time.Sleep(delay)
+	}
+
+	return lastOutput, fmt.Errorf("step failed after %d attempts: %w", attempts, lastErr)
 }
 

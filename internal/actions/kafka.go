@@ -14,7 +14,8 @@ import (
 
 const defaultKafkaConsumeTimeout = 20 * time.Second // Default timeout for Kafka consumer if not specified
 
-func KafkaActionWithContext(ctx context.Context, args []interface{}) (map[string]interface{}, error) {
+// KafkaAction performs Kafka operations with context support
+func KafkaAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, util.NewValidationError("kafka action requires at least one argument", map[string]interface{}{
 			"args_count": len(args),

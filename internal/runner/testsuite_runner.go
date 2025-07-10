@@ -16,13 +16,14 @@ import (
 )
 
 // TestSuiteRunner runs test suites
+// Implements TestSuiteExecutor interface
 type TestSuiteRunner struct {
-	runner       *TestRunner
+	runner       TestExecutor
 	setupResults map[string]interface{} // Store setup step results
 }
 
 // NewTestSuiteRunner creates a new test suite runner
-func NewTestSuiteRunner(runner *TestRunner) *TestSuiteRunner {
+func NewTestSuiteRunner(runner TestExecutor) TestSuiteExecutor {
 	return &TestSuiteRunner{
 		runner:       runner,
 		setupResults: make(map[string]interface{}),
@@ -182,7 +183,7 @@ func (tsr *TestSuiteRunner) runSetup(ctx context.Context, steps []parser.Step, v
 	}
 
 	// Run setup and capture results
-	result, err := RunTestCase(ctx, setupTestCase, false, tsr.runner.executor)
+	result, err := RunTestCase(ctx, setupTestCase, false, tsr.runner.GetExecutor())
 	if err != nil {
 		return result, err
 	}
@@ -204,7 +205,7 @@ func (tsr *TestSuiteRunner) runTeardown(ctx context.Context, steps []parser.Step
 	// Merge setup results and suite variables for teardown
 	mergedTestCase := tsr.mergeSuiteVariables(teardownTestCase, variables)
 
-	return RunTestCase(ctx, mergedTestCase, false, tsr.runner.executor)
+	return RunTestCase(ctx, mergedTestCase, false, tsr.runner.GetExecutor())
 }
 
 // runTestCasesSequential runs test cases one after another
@@ -249,7 +250,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(ctx context.Context, testCase
 			fmt.Printf("      %s: %v\n", k, v)
 		}
 
-		testResult, err := RunTestCase(ctx, mergedTestCase, false, tsr.runner.executor)
+		testResult, err := RunTestCase(ctx, mergedTestCase, false, tsr.runner.GetExecutor())
 		duration := time.Since(time.Now())
 
 		caseResult := parser.TestCaseResult{
@@ -358,7 +359,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(ctx context.Context, testCases 
 			}
 
 			// Use silent=true for parallel execution to avoid stdout capture deadlocks
-			testResult, err := RunTestCase(ctx, mergedTestCase, true, tsr.runner.executor)
+			testResult, err := RunTestCase(ctx, mergedTestCase, true, tsr.runner.GetExecutor())
 			duration := time.Since(time.Now())
 
 			caseResult = parser.TestCaseResult{

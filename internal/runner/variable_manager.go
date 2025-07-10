@@ -13,13 +13,14 @@ import (
 )
 
 // VariableManager handles variable storage, substitution, and scoping
+// Implements VariableManagerInterface
 type VariableManager struct {
 	variables map[string]interface{}
 	mutex     sync.RWMutex
 }
 
 // NewVariableManager creates a new variable manager
-func NewVariableManager() *VariableManager {
+func NewVariableManager() VariableManagerInterface {
 	return &VariableManager{
 		variables: make(map[string]interface{}),
 	}
@@ -104,6 +105,11 @@ func (vm *VariableManager) SubstituteVariables(args []interface{}) []interface{}
 	return substituted
 }
 
+// SubstituteString substitutes variables in a string - public version of substituteString
+func (vm *VariableManager) SubstituteString(s string) string {
+	return vm.substituteString(s)
+}
+
 // substituteValue recursively substitutes variables in a value
 func (vm *VariableManager) substituteValue(value interface{}) interface{} {
 	switch v := value.(type) {
@@ -167,7 +173,7 @@ func (vm *VariableManager) substituteString(s string) string {
 
 		// Handle dot notation for nested properties
 		if strings.Contains(varName, ".") {
-			value, _ := vm.resolveDotNotation(varName)
+			value, _ := vm.resolveDotNotationInternal(varName)
 			if value != nil {
 				return fmt.Sprintf("%v", value)
 			}
@@ -190,6 +196,11 @@ func (vm *VariableManager) substituteStringForDisplay(s string) string {
 	return vm.substituteString(s)
 }
 
+// resolveDotNotation resolves variables with dot notation (exposed for interface)
+func (vm *VariableManager) resolveDotNotation(varName string) (interface{}, bool) {
+	return vm.resolveDotNotationInternal(varName)
+}
+
 // substituteMap substitutes variables in a map
 func (vm *VariableManager) substituteMap(m map[string]interface{}) map[string]interface{} {
 	substituted := make(map[string]interface{})
@@ -201,8 +212,8 @@ func (vm *VariableManager) substituteMap(m map[string]interface{}) map[string]in
 	return substituted
 }
 
-// resolveDotNotation resolves nested properties like "user.name"
-func (vm *VariableManager) resolveDotNotation(varName string) (interface{}, bool) {
+// resolveDotNotationInternal resolves nested properties like "user.name"
+func (vm *VariableManager) resolveDotNotationInternal(varName string) (interface{}, bool) {
 	parts := strings.Split(varName, ".")
 	if len(parts) < 2 {
 		return nil, false

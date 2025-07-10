@@ -1,0 +1,141 @@
+package runner
+
+import (
+	"context"
+	"time"
+
+	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/parser"
+)
+
+// Core service interfaces for component decoupling
+
+// TestExecutor defines the interface for test case execution
+type TestExecutor interface {
+	ExecuteTestCase(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error)
+	ExecuteTestSuite(ctx context.Context, testSuite *parser.TestSuite, filePath string, silent bool) (*parser.TestSuiteResult, error)
+	GetContext() ExecutionContext
+	GetExecutor() *actions.ActionExecutor
+	ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo
+	Cleanup() error
+}
+
+// StepExecutor defines the interface for step execution
+type StepExecutor interface {
+	ExecuteStep(ctx context.Context, step parser.Step, silent bool) (*parser.StepResult, error)
+	ExecuteSteps(ctx context.Context, steps []parser.Step, silent bool) ([]parser.StepResult, error)
+	ExecuteStepsParallel(ctx context.Context, steps []parser.Step, config *parser.ParallelConfig, silent bool) ([]parser.StepResult, error)
+}
+
+// VariableStore interface is already defined in execution_context.go - keeping it there for consistency
+
+// TestSuiteExecutor defines the interface for test suite execution
+type TestSuiteExecutor interface {
+	RunTestSuite(ctx context.Context, testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error)
+}
+
+// VariableManager interface for variable management operations
+type VariableManagerInterface interface {
+	InitializeVariables(testCase *parser.TestCase)
+	SetVariable(name string, value interface{})
+	GetVariable(name string) (interface{}, bool)
+	SubstituteVariables(args []interface{}) []interface{}
+	SubstituteString(s string) string
+	resolveDotNotation(varName string) (interface{}, bool)
+	substituteStringForDisplay(s string) string
+}
+
+// OutputManager interface for output capture and management
+type OutputManager interface {
+	StartCapture()
+	StopCapture() string
+	Write(data []byte) (int, error)
+	Capture() ([]byte, error)
+}
+
+// RetryPolicy interface for retry logic
+type RetryPolicy interface {
+	ShouldRetry(step parser.Step, attempt int, err error) bool
+	GetRetryDelay(attempt int) time.Duration
+	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error)
+}
+
+// SkipEvaluator interface for skip condition evaluation
+type SkipEvaluator interface {
+	EvaluateSkip(skipCondition interface{}, context string) SkipInfo
+	ShouldSkipStep(step parser.Step, context string) SkipInfo
+	ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo
+}
+
+// TestFileExecutor interface for file-based test execution
+type TestFileExecutor interface {
+	RunTestFile(ctx context.Context, filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error)
+	RunTestFiles(ctx context.Context, paths []string, silent bool, executor *actions.ActionExecutor) ([]*parser.TestResult, error)
+	RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error)
+}
+
+// ContextProvider interface for providing execution context
+type ContextProvider interface {
+	GetExecutionContext() ExecutionContext
+	CreateContext(executor *actions.ActionExecutor) ExecutionContext
+	WithContext(context ExecutionContext) ContextProvider
+}
+
+// ServiceFactory interface for creating service instances
+type ServiceFactory interface {
+	CreateTestExecutor(executor *actions.ActionExecutor) TestExecutor
+	CreateStepExecutor(context ExecutionContext) StepExecutor
+	CreateTestSuiteExecutor(runner TestExecutor) TestSuiteExecutor
+	CreateVariableManager() VariableManagerInterface
+	CreateOutputManager() OutputManager
+	CreateRetryPolicy() RetryPolicy
+}
+
+// ConfigManager interface for configuration management
+type ConfigManager interface {
+	GetParallelConfig() *parser.ParallelConfig
+	GetRetryConfig() *parser.RetryConfig
+	MergeParallelConfig(config *parser.ParallelConfig) *parser.ParallelConfig
+	ValidateConfig() error
+}
+
+// ExecutionPipeline interface for orchestrating test execution
+type ExecutionPipeline interface {
+	Initialize(testCase *parser.TestCase) error
+	Execute(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error)
+	Finalize(result *parser.TestResult) error
+}
+
+// TestResultProcessor interface for processing test results
+type TestResultProcessor interface {
+	ProcessStepResult(result *parser.StepResult) error
+	ProcessTestResult(result *parser.TestResult) error
+	ProcessSuiteResult(result *parser.TestSuiteResult) error
+	CalculateStatistics(results []*parser.TestResult) map[string]interface{}
+}
+
+// ValidationEngine interface for data validation
+type ValidationEngine interface {
+	ValidateTestCase(testCase *parser.TestCase) []ValidationError
+	ValidateTestSuite(testSuite *parser.TestSuite) []ValidationError
+	ValidateStep(step parser.Step) []ValidationError
+}
+
+// ValidationError represents a validation error
+type ValidationError struct {
+	Type        string
+	Message     string
+	Field       string
+	Value       interface{}
+	Suggestions []string
+}
+
+// EventPublisher interface for publishing execution events
+type EventPublisher interface {
+	PublishTestStart(testCase *parser.TestCase)
+	PublishTestComplete(result *parser.TestResult)
+	PublishStepStart(step parser.Step)
+	PublishStepComplete(result *parser.StepResult)
+	PublishSuiteStart(testSuite *parser.TestSuite)
+	PublishSuiteComplete(result *parser.TestSuiteResult)
+}

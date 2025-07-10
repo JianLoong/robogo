@@ -4,7 +4,7 @@ description: "Test how the system handles non-JSON HTTP responses"
 steps:
   # Test 1: HTML response from httpbin
   - name: "Get HTML response"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/html"]
     result: "html_response"
 
@@ -18,7 +18,7 @@ steps:
 
   # Test 2: XML response from httpbin
   - name: "Get XML response"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/xml"]
     result: "xml_response"
 
@@ -32,7 +32,7 @@ steps:
 
   # Test 3: Plain text response
   - name: "Get robots.txt (plain text)"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/robots.txt"]
     result: "text_response"
 
@@ -46,7 +46,7 @@ steps:
 
   # Test 4: Retry with non-JSON response that returns server error
   - name: "Retry with HTML 500 error"
-    action: http_get
+    action: http
     args: ["https://httpbin.org/status/500"]
     retry:
       attempts: 2

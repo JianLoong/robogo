@@ -107,8 +107,8 @@ go run cmd/robogo/main.go run hello.robogo
 testcase: "API Test"
 steps:
   - name: "GET request"
-    action: http_get
-    args: ["https://httpbin.org/get"]
+    action: http
+    args: ["GET", "https://httpbin.org/get"]
     result: response
   - name: "Assert status"
     action: assert

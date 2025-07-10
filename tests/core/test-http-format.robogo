@@ -3,8 +3,8 @@ description: "Test to understand HTTP response format"
 
 steps:
   - name: "Make simple HTTP request"
-    action: http_get
-    args: ["https://httpbin.org/status/200"]
+    action: http
+    args: ["GET", "https://httpbin.org/status/200"]
     result: "http_response"
 
   - name: "Log raw response"

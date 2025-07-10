@@ -14,18 +14,20 @@ import (
 	"github.com/JianLoong/robogo/internal/util"
 )
 
-// TestRunner runs test cases
+// TestRunner runs test cases - DEPRECATED: Use TestExecutionService instead
+// This struct is kept for backward compatibility with existing code
+// Implements SkipEvaluator interface
 type TestRunner struct {
-	variableManager *VariableManager        // Variable management
-	outputCapture   *OutputCapture          // Output capture
-	retryManager    *RetryManager           // Retry logic
+	variableManager VariableManagerInterface // Variable management
+	outputCapture   OutputManager           // Output capture
+	retryManager    RetryPolicy             // Retry logic
 	secretManager   *actions.SecretManager  // Secret manager for handling secrets
 	tdmManager      *actions.TDMManager     // TDM manager for test data management
 	executor        *actions.ActionExecutor // Action executor (injected)
 }
 
-// NewTestRunner creates a new test runner
-func NewTestRunner(executor *actions.ActionExecutor) *TestRunner {
+// NewTestRunner creates a new test runner - DEPRECATED: Use NewTestExecutionService instead
+func NewTestRunner(executor *actions.ActionExecutor) SkipEvaluator {
 	return &TestRunner{
 		variableManager: NewVariableManager(),
 		outputCapture:   NewOutputCapture(),
@@ -155,153 +157,19 @@ func RunTestFile(ctx context.Context, filename string, silent bool, executor *ac
 
 // RunTestCase runs a test case and returns the result
 func RunTestCase(ctx context.Context, testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
-	tr := NewTestRunner(executor)
+	// Create test execution service with proper dependency injection
+	testService := NewTestExecutionService(executor)
+	defer testService.Cleanup()
 
-	// Create execution engine
-	engine := NewExecutionEngine(tr)
-
-	// Execute the test case using the engine
-	result, err := engine.ExecuteTestCase(ctx, testCase, silent)
+	// Execute the test case using the new service
+	result, err := testService.ExecuteTestCase(ctx, testCase, silent)
 	if err != nil {
-		// RunTestCase returns an error when the test fails, but we still want to return the result
-		// The error just indicates test failure, not a fatal error
-		return result, nil // Return the result, not the error
+		// Return the result even on error - the error indicates test failure, not fatal error
+		return result, nil
 	}
 	return result, nil
 }
 
-// executeSteps executes a slice of steps, collecting StepResults recursively
-func executeSteps(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase) error {
-	return executeStepsWithConfig(ctx, tr, steps, executor, parentLoop, silent, stepResults, contextStr, testCase, nil)
-}
-
-// executeStepsWithConfig executes steps with parallelism configuration
-func executeStepsWithConfig(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
-	// Check if parallel step execution is enabled
-	config := parser.MergeParallelConfig(parallelConfig)
-	if config.Enabled && config.Steps && len(steps) > 1 {
-		if !silent {
-			fmt.Printf("Running %d steps in parallel for test case: %s\n", len(steps), testCase.Name)
-		}
-		return executeStepsParallel(ctx, tr, steps, executor, parentLoop, silent, stepResults, contextStr, testCase, config)
-	}
-
-	// Execute steps sequentially (original behavior)
-	for idx, step := range steps {
-		stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, idx)
-		if err != nil {
-			if actions.IsSkipError(err) {
-				*stepResults = append(*stepResults, *stepResult)
-				if !silent {
-					fmt.Printf("Skip error, returning for test case: %s\n", testCase.Name)
-				}
-				return err // propagate skip error up
-			}
-			if step.ContinueOnFailure {
-				// Log and continue to next step
-				if !silent {
-					fmt.Printf("Step '%s' failed but continuing due to continue_on_failure\n", stepResult.Step.Name)
-				}
-				continue
-			} else {
-				if !silent {
-					fmt.Printf("Step failed, returning for test case: %s\n", testCase.Name)
-				}
-				return fmt.Errorf("step '%s' failed: %w", stepResult.Step.Name, err)
-			}
-		}
-		*stepResults = append(*stepResults, *stepResult)
-	}
-	if !silent {
-		fmt.Printf("All steps executed for test case: %s\n", testCase.Name)
-	}
-	return nil
-}
-
-// executeStepsParallel executes independent steps in parallel
-func executeStepsParallel(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, config *parser.ParallelConfig) error {
-	// Group steps into parallel and sequential groups
-	stepGroups := parser.GroupIndependentSteps(steps)
-
-	if !silent {
-		output.PrintParallelStepGroups(len(stepGroups))
-	}
-
-	// Mutex to protect stepResults slice modification
-	var resultsMutex sync.Mutex
-
-	for groupIdx, group := range stepGroups {
-		if len(group) == 1 {
-			// Single step - execute sequentially
-			step := group[0]
-			stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, groupIdx)
-			if err != nil {
-				return err
-			}
-			resultsMutex.Lock()
-			*stepResults = append(*stepResults, *stepResult)
-			resultsMutex.Unlock()
-		} else {
-			// Multiple independent steps - execute in parallel
-			if !silent {
-				output.PrintParallelSteps(len(group), groupIdx)
-			}
-
-			if err := executeStepGroupParallel(ctx, tr, group, executor, parentLoop, silent, stepResults, contextStr, testCase, config, groupIdx, &resultsMutex); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// executeStepGroupParallel executes a group of independent steps in parallel
-func executeStepGroupParallel(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int, resultsMutex *sync.Mutex) error {
-	var wg sync.WaitGroup
-	resultsChan := make(chan *parser.StepResult, len(steps))
-	errorsChan := make(chan error, len(steps))
-	semaphore := make(chan struct{}, config.MaxConcurrency)
-
-	// Execute steps in parallel
-	for i, step := range steps {
-		wg.Add(1)
-		go func(stepIdx int, step parser.Step) {
-			defer wg.Done()
-
-			// Acquire semaphore for concurrency control
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, groupIdx)
-			if err != nil {
-				errorsChan <- fmt.Errorf("step %d failed: %w", stepIdx+1, err)
-				return
-			}
-			resultsChan <- stepResult
-		}(i, step)
-	}
-
-	// Wait for all steps to complete
-	wg.Wait()
-	close(resultsChan)
-	close(errorsChan)
-
-	// Check for errors
-	select {
-	case err := <-errorsChan:
-		return err
-	default:
-		// No errors, collect results with mutex protection
-		for result := range resultsChan {
-			resultsMutex.Lock()
-			*stepResults = append(*stepResults, *result)
-			resultsMutex.Unlock()
-		}
-	}
-
-	return nil
-}
 
 // initializeVariables initializes variables from the test case
 func (tr *TestRunner) initializeVariables(testCase *parser.TestCase) {
@@ -350,7 +218,7 @@ func (tr *TestRunner) substituteVariables(args []interface{}) []interface{} {
 
 // substituteString replaces ${variable} references in a string
 func (tr *TestRunner) substituteString(s string) string {
-	return tr.variableManager.substituteString(s)
+	return tr.variableManager.SubstituteString(s)
 }
 
 // resolveDotNotation resolves variables with dot notation (e.g., response.status_code)

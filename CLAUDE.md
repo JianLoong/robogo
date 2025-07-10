@@ -8,13 +8,21 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
 
 ## Key Features & Architecture
 
+> **📋 Architecture Documentation**: For detailed information about Robogo's architecture, interfaces, and design patterns, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 ### Core Components
-- **Test Engine**: Located in `internal/` with three main packages:
+- **Test Engine**: Located in `internal/` with modern, interface-driven architecture:
   - `parser/`: YAML parsing, test case validation, and test suite support
-  - `runner/`: Test orchestration, execution engine, and parallel execution
+  - `runner/`: Service-oriented test orchestration with dependency injection and parallel execution
   - `actions/`: Built-in actions for HTTP, database, control flow, templating, etc.
 - **CLI Interface**: `cmd/robogo/main.go` - Cobra-based CLI with multiple output formats
 - **VS Code Extension**: Complete extension in `.vscode/extensions/robogo/` with syntax highlighting, autocomplete, and validation
+
+### Architecture Highlights
+- **Interface-Driven Design**: All major components use interfaces for maximum decoupling
+- **Dependency Injection**: Clean separation of concerns with context-aware execution
+- **Service Factory Pattern**: Centralized service creation with proper dependency wiring
+- **Comprehensive Validation**: Built-in validation engine with detailed error messages and suggestions
 
 ### Supported Test Types
 - **Test Cases**: Individual `.robogo` files with YAML-based test definitions
@@ -22,7 +30,7 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
 - **Parallel Execution**: Both test-level and step-level parallelism with dependency analysis
 
 ### Built-in Actions
-- **HTTP Operations**: `http`, `http_get`, `http_post` with mTLS support
+- **HTTP Operations**: `http` with mTLS support (supports GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
 - **Database**: `postgres` operations and `spanner` (Google Cloud Spanner)
 - **Messaging**: `kafka` publish/consume and `rabbitmq` operations
 - **Control Flow**: `if`, `for`, `while` loops with conditional logic
@@ -150,8 +158,8 @@ variables:
 
 steps:
   - name: "HTTP GET request"
-    action: http_get
-    args: ["${api_url}/users"]
+    action: http
+    args: ["GET", "${api_url}/users"]
     result: response
     
   - name: "Assert response"
@@ -181,11 +189,18 @@ testcases:
 
 ## Key Implementation Details
 
+### Service-Oriented Architecture
+- **TestExecutionService**: Main service for test case execution with proper lifecycle management
+- **StepExecutionService**: Handles step execution, control flow (if/for/while), and parallel processing
+- **ServiceFactory**: Creates and wires services with proper dependency injection
+- **ExecutionContext**: Provides dependency injection container with resource management
+
 ### Variable Management
-- Variables are managed through `internal/runner/variable_manager.go`
-- Support for both regular variables and secrets
+- **VariableManagerInterface**: Interface-based variable management for better testability
+- Support for both regular variables and secrets with secure handling
 - Secrets can be loaded from files with automatic output masking
 - Reserved `__robogo_steps` variable contains step execution history
+- Dot notation support for nested property access
 
 ### Parallel Execution
 - Configured via `ParallelConfig` in `internal/parser/parallel.go`
@@ -213,18 +228,54 @@ testcases:
 
 ## Development Guidelines
 
+### Architecture Best Practices
+- **Use Interfaces**: Always depend on interfaces, not concrete implementations
+- **Dependency Injection**: Use ServiceFactory for creating services with proper dependencies
+- **Context Management**: Use ExecutionContext for resource management and cleanup
+- **Service Boundaries**: Keep services focused on single responsibilities
+
+### Adding New Services
+1. Define interface in `internal/runner/interfaces.go`
+2. Implement service with proper dependency injection
+3. Register with ServiceFactory if needed
+4. Add comprehensive unit tests with mocks
+5. Update architecture documentation
+
 ### Adding New Actions
 1. Implement the `Action` interface in `internal/actions/`
 2. Register the action in `registry.go`
-3. Add comprehensive tests in `tests/`
-4. Update VS Code extension completions
+3. Add validation rules to ValidationEngine if needed
+4. Add comprehensive tests in `tests/`
+5. Update VS Code extension completions
 
 ### Test Writing Best Practices
-- Use descriptive test names and step names
+- Use descriptive test names and step names (now mandatory)
 - Leverage TDM for structured test data
 - Implement proper error handling with assertions
 - Use secrets for sensitive data
 - Consider parallel execution for performance
+- Use ValidationEngine to catch errors early
+
+### Service Development Patterns
+```go
+// Creating services with proper dependency injection
+factory := runner.NewServiceFactory()
+testExecutor := factory.CreateTestExecutor(actionExecutor)
+
+// Using ExecutionContext for resource management  
+context := runner.NewExecutionContext(executor)
+defer context.Cleanup()
+
+// Implementing new services
+type MyService struct {
+    context runner.ExecutionContext
+}
+
+func (s *MyService) Execute() error {
+    // Use context.Variables(), context.Actions(), etc.
+    return nil
+}
+```
 
 ### Common Patterns
 - **SWIFT Message Testing**: Use template action with pre-built templates
