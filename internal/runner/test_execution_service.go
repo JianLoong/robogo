@@ -279,13 +279,32 @@ func (tes *TestExecutionService) executeTeardown(ctx context.Context, testSuite 
 }
 
 func (tes *TestExecutionService) executeTestCaseFromPath(ctx context.Context, path string, silent bool) (parser.TestCaseResult, error) {
-	// This would load and execute a test case from a file path
-	// For now, return a placeholder result
+	// Parse the test case from file
+	testCase, err := parser.ParseTestFile(path)
+	if err != nil {
+		return parser.TestCaseResult{
+			TestCase: &parser.TestCase{Name: path},
+			Status:   "FAILED",
+			Error:    fmt.Sprintf("Failed to parse test case: %v", err),
+		}, err
+	}
+	
+	// Execute the test case
+	result, err := tes.ExecuteTestCase(ctx, testCase, silent)
+	if err != nil {
+		return parser.TestCaseResult{
+			TestCase: testCase,
+			Status:   "FAILED", 
+			Error:    fmt.Sprintf("Failed to execute test case: %v", err),
+		}, err
+	}
+	
+	// Convert TestResult to TestCaseResult
 	return parser.TestCaseResult{
-		TestCase: &parser.TestCase{Name: path},
-		Status:   "SKIPPED",
-		Error:    "Not implemented",
-	}, fmt.Errorf("test case execution from path not implemented")
+		TestCase: testCase,
+		Status:   result.Status,
+		Error:    result.ErrorMessage,
+	}, nil
 }
 
 func (tes *TestExecutionService) calculateTestStatus(stepResults []parser.StepResult, err error) string {

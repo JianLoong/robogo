@@ -14,8 +14,8 @@ type SkipInfo struct {
 }
 
 // EvaluateSkip evaluates a skip condition and returns SkipInfo
-// Supports: bool, string (with variable substitution), and nil
-func (tr *TestRunner) EvaluateSkip(skipCondition interface{}, context string) SkipInfo {
+// Supports: bool, string, and nil
+func EvaluateSkip(skipCondition interface{}) SkipInfo {
 	if skipCondition == nil {
 		return SkipInfo{ShouldSkip: false, Reason: ""}
 	}
@@ -27,14 +27,10 @@ func (tr *TestRunner) EvaluateSkip(skipCondition interface{}, context string) Sk
 		}
 		return SkipInfo{ShouldSkip: false, Reason: ""}
 	case string:
-		// Substitute variables in the skip condition
-		substitutedSkip := tr.substituteString(v)
-
-		// For now, treat any non-empty string as skip=true
-		// In the future, this could be enhanced to evaluate conditions like:
-		// "${environment} == 'prod'" -> evaluate as boolean expression
-		if substitutedSkip != "" {
-			return SkipInfo{ShouldSkip: true, Reason: substitutedSkip}
+		// For non-empty strings, treat as skip condition
+		// Note: Variable substitution should be done by caller before calling this function
+		if v != "" && v != "false" && v != "0" {
+			return SkipInfo{ShouldSkip: true, Reason: v}
 		}
 		return SkipInfo{ShouldSkip: false, Reason: ""}
 	default:
@@ -45,16 +41,6 @@ func (tr *TestRunner) EvaluateSkip(skipCondition interface{}, context string) Sk
 		}
 		return SkipInfo{ShouldSkip: false, Reason: ""}
 	}
-}
-
-// ShouldSkipStep determines if a step should be skipped
-func (tr *TestRunner) ShouldSkipStep(step parser.Step, context string) SkipInfo {
-	return tr.EvaluateSkip(step.Skip, context)
-}
-
-// ShouldSkipTestCase determines if a test case should be skipped
-func (tr *TestRunner) ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo {
-	return tr.EvaluateSkip(testCase.Skip, context)
 }
 
 // PrintSkipMessage prints a consistent skip message

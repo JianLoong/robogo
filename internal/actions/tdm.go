@@ -460,12 +460,6 @@ func TDMAction(ctx context.Context, args []interface{}, options map[string]inter
 	switch operation {
 	case "generate":
 		return generateTestData(args[1:])
-	case "validate":
-		return validateTestData(args[1:])
-	case "load_dataset":
-		return loadDataSet(args[1:])
-	case "set_environment":
-		return setEnvironment(args[1:])
 	default:
 		return nil, fmt.Errorf("unknown tdm operation: %s", operation)
 	}
@@ -502,54 +496,3 @@ func generateTestData(args []interface{}) (interface{}, error) {
 	return result, nil
 }
 
-// validateTestData validates test data
-func validateTestData(args []interface{}) (interface{}, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("validate requires validation rules")
-	}
-
-	// This is a placeholder - in a real implementation, you'd parse validation rules
-	result := map[string]interface{}{
-		"operation": "validate",
-		"status":    "not_implemented",
-		"message":   "Data validation requires TDM manager integration",
-	}
-
-	return result, nil
-}
-
-// loadDataSet loads a data set
-func loadDataSet(args []interface{}) (interface{}, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("load_dataset requires dataset name")
-	}
-
-	datasetName := fmt.Sprintf("%v", args[0])
-
-	result := map[string]interface{}{
-		"operation": "load_dataset",
-		"dataset":   datasetName,
-		"status":    "not_implemented",
-		"message":   "Dataset loading requires TDM manager integration",
-	}
-
-	return result, nil
-}
-
-// setEnvironment sets the active environment
-func setEnvironment(args []interface{}) (interface{}, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("set_environment requires environment name")
-	}
-
-	envName := fmt.Sprintf("%v", args[0])
-
-	result := map[string]interface{}{
-		"operation":   "set_environment",
-		"environment": envName,
-		"status":      "not_implemented",
-		"message":     "Environment setting requires TDM manager integration",
-	}
-
-	return result, nil
-}

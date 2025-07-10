@@ -55,14 +55,6 @@ func VariableAction(ctx context.Context, args []interface{}, options map[string]
 		return setVariable(variableName, args[2:], silent)
 	case "set_variable":
 		return nil, fmt.Errorf("'set_variable' is not supported. Use 'set' instead.")
-	case "get":
-		if len(args) < 2 {
-			return nil, fmt.Errorf("get requires variable_name")
-		}
-		variableName := fmt.Sprintf("%v", args[1])
-		return getVariable(variableName, silent)
-	case "list":
-		return listVariables(silent)
 	default:
 		return nil, fmt.Errorf("unknown variable operation: %s", operation)
 	}
@@ -103,35 +95,3 @@ func setVariable(name string, args []interface{}, silent bool) (interface{}, err
 	return resultMap, nil
 }
 
-// getVariable gets a variable value (placeholder - actual implementation would need access to runner variables)
-func getVariable(name string, silent bool) (interface{}, error) {
-	result := map[string]interface{}{
-		"operation": "get",
-		"name":      name,
-		"status":    "not_implemented",
-		"message":   "get requires access to runner variables - use ${variable_name} syntax instead",
-	}
-
-	resultMap, err := util.ConvertToMap(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert result to map: %w", err)
-	}
-
-	return resultMap, nil
-}
-
-// listVariables lists all variables (placeholder - actual implementation would need access to runner variables)
-func listVariables(silent bool) (interface{}, error) {
-	result := map[string]interface{}{
-		"operation": "list",
-		"status":    "not_implemented",
-		"message":   "list requires access to runner variables - not yet implemented",
-	}
-
-	resultMap, err := util.ConvertToMap(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert result to map: %w", err)
-	}
-
-	return resultMap, nil
-}

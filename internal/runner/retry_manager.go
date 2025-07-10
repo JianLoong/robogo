@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/parser"
 	"github.com/JianLoong/robogo/internal/util"
 )
@@ -24,78 +23,6 @@ func NewRetryManager() RetryPolicy {
 	return &RetryManager{}
 }
 
-// ExecuteWithRetryLegacy executes a step with retry logic (legacy method)
-func (rm *RetryManager) ExecuteWithRetryLegacy(
-	ctx context.Context,
-	step parser.Step,
-	args []interface{},
-	executor *actions.ActionExecutor,
-	silent bool,
-) (interface{}, error) {
-	if step.Retry == nil {
-		// No retry configuration, execute normally
-		return executor.Execute(ctx, step.Action, args, step.Options, silent)
-	}
-
-	config := step.Retry
-	attempts := config.Attempts
-	if attempts <= 0 {
-		attempts = 1 // Default to 1 attempt if not specified
-	}
-
-	var lastErr error
-	var lastOutput interface{}
-
-	for attempt := 1; attempt <= attempts; attempt++ {
-		if !silent && attempt > 1 {
-			fmt.Printf("Retry attempt %d/%d for step '%s'\n", attempt, attempts, step.Name)
-		}
-
-		// Execute the step
-		output, err := executor.Execute(ctx, step.Action, args, step.Options, silent)
-
-		// Store the last error and output for potential retry decision
-		lastErr = err
-		lastOutput = output
-
-		// Check if we should retry based on error conditions and HTTP status codes
-		shouldRetry := false
-		if err != nil {
-			// Traditional error-based retry
-			shouldRetry = rm.shouldRetry(err, config.Conditions)
-		} else {
-			// Check HTTP response status codes for retry conditions
-			shouldRetry = rm.shouldRetryBasedOnResponse(output, config.Conditions)
-		}
-
-		if !shouldRetry {
-			// Success or non-retryable condition - return immediately
-			if !silent && attempt > 1 && err == nil {
-				fmt.Printf("Retry successful on attempt %d\n", attempt)
-			}
-			if !silent && !shouldRetry && err != nil {
-				fmt.Printf("Error not retryable: %v\n", err)
-			}
-			return output, err
-		}
-
-		// If this is the last attempt, don't wait
-		if attempt == attempts {
-			break
-		}
-
-		// Calculate delay for next attempt
-		delay := rm.calculateDelay(config, attempt)
-		if !silent {
-			fmt.Printf("Waiting %v before retry...\n", delay)
-		}
-
-		time.Sleep(delay)
-	}
-
-	// All attempts failed
-	return lastOutput, fmt.Errorf("step failed after %d attempts: %w", attempts, lastErr)
-}
 
 // shouldRetry determines if an error should trigger a retry based on conditions
 func (rm *RetryManager) shouldRetry(err error, conditions []string) bool {

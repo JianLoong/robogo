@@ -60,19 +60,7 @@ type RetryPolicy interface {
 	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error)
 }
 
-// SkipEvaluator interface for skip condition evaluation
-type SkipEvaluator interface {
-	EvaluateSkip(skipCondition interface{}, context string) SkipInfo
-	ShouldSkipStep(step parser.Step, context string) SkipInfo
-	ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo
-}
 
-// TestFileExecutor interface for file-based test execution
-type TestFileExecutor interface {
-	RunTestFile(ctx context.Context, filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error)
-	RunTestFiles(ctx context.Context, paths []string, silent bool, executor *actions.ActionExecutor) ([]*parser.TestResult, error)
-	RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error)
-}
 
 // ContextProvider interface for providing execution context
 type ContextProvider interface {
@@ -99,21 +87,6 @@ type ConfigManager interface {
 	ValidateConfig() error
 }
 
-// ExecutionPipeline interface for orchestrating test execution
-type ExecutionPipeline interface {
-	Initialize(testCase *parser.TestCase) error
-	Execute(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error)
-	Finalize(result *parser.TestResult) error
-}
-
-// TestResultProcessor interface for processing test results
-type TestResultProcessor interface {
-	ProcessStepResult(result *parser.StepResult) error
-	ProcessTestResult(result *parser.TestResult) error
-	ProcessSuiteResult(result *parser.TestSuiteResult) error
-	CalculateStatistics(results []*parser.TestResult) map[string]interface{}
-}
-
 // ValidationEngine interface for data validation
 type ValidationEngine interface {
 	ValidateTestCase(testCase *parser.TestCase) []ValidationError
@@ -130,12 +103,3 @@ type ValidationError struct {
 	Suggestions []string
 }
 
-// EventPublisher interface for publishing execution events
-type EventPublisher interface {
-	PublishTestStart(testCase *parser.TestCase)
-	PublishTestComplete(result *parser.TestResult)
-	PublishStepStart(step parser.Step)
-	PublishStepComplete(result *parser.StepResult)
-	PublishSuiteStart(testSuite *parser.TestSuite)
-	PublishSuiteComplete(result *parser.TestSuiteResult)
-}
