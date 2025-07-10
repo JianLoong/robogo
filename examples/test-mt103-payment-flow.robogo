@@ -27,9 +27,9 @@ variables:
     # Mock API endpoint
     payment_api_url: "https://httpbin.org/post"
     # Spanner connection string (update as needed)
-    spanner_project_id: "${spanner_project}"
-    spanner_instance_id: "${spanner_instance}"
-    spanner_database_id: "${spanner_database}"
+    spanner_project_id: "${SECRETS.spanner_project}"
+    spanner_instance_id: "${SECRETS.spanner_instance}"
+    spanner_database_id: "${SECRETS.spanner_database}"
     test_table: "integration_test"
     spanner_connection: "projects/${spanner_project_id}/instances/${spanner_instance_id}/databases/${spanner_database_id}"
 

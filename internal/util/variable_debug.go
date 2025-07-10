@@ -6,28 +6,47 @@ import (
 	"strings"
 )
 
+// SecretManagerInterface defines methods for secret management to avoid import cycles
+type SecretManagerInterface interface {
+	MaskSensitiveOutput(output string) string
+	IsSecretMasked(secretName string) bool
+	GetSecretInfo(secretName string) (source string, masked bool, exists bool)
+	ListSecrets() []string
+}
+
 // VariableResolutionDebugger helps debug variable substitution issues
 type VariableResolutionDebugger struct {
 	enabled bool
 	context string
+	secretManager SecretManagerInterface
 }
 
 // NewVariableResolutionDebugger creates a new variable resolution debugger
-func NewVariableResolutionDebugger(enabled bool, context string) *VariableResolutionDebugger {
+func NewVariableResolutionDebugger(enabled bool, context string, secretManager SecretManagerInterface) *VariableResolutionDebugger {
 	return &VariableResolutionDebugger{
 		enabled: enabled,
 		context: context,
+		secretManager: secretManager,
 	}
 }
 
 // VariableResolutionResult contains the result of variable resolution analysis
 type VariableResolutionResult struct {
-	Original           string            `json:"original"`
-	Resolved           string            `json:"resolved"`
-	UnresolvedVars     []string          `json:"unresolved_vars"`
-	ResolvedVars       map[string]string `json:"resolved_vars"`
-	HasUnresolved      bool              `json:"has_unresolved"`
-	ResolutionWarnings []string          `json:"resolution_warnings"`
+	Original           string                    `json:"original"`
+	Resolved           string                    `json:"resolved"`
+	UnresolvedVars     []string                  `json:"unresolved_vars"`
+	ResolvedVars       map[string]ResolvedVarInfo `json:"resolved_vars"`
+	HasUnresolved      bool                      `json:"has_unresolved"`
+	ResolutionWarnings []string                  `json:"resolution_warnings"`
+}
+
+// ResolvedVarInfo contains information about a resolved variable including security context
+type ResolvedVarInfo struct {
+	Value      string `json:"value"`
+	IsSecret   bool   `json:"is_secret"`
+	IsMasked   bool   `json:"is_masked"`
+	Source     string `json:"source"`
+	DisplayValue string `json:"display_value"`
 }
 
 // AnalyzeVariableResolution analyzes a string for variable resolution issues
@@ -36,7 +55,7 @@ func (vrd *VariableResolutionDebugger) AnalyzeVariableResolution(original, resol
 		Original:           original,
 		Resolved:           resolved,
 		UnresolvedVars:     make([]string, 0),
-		ResolvedVars:       make(map[string]string, 0),
+		ResolvedVars:       make(map[string]ResolvedVarInfo, 0),
 		ResolutionWarnings: make([]string, 0),
 	}
 
@@ -79,7 +98,8 @@ func (vrd *VariableResolutionDebugger) AnalyzeVariableResolution(original, resol
 		} else {
 			// Variable was resolved
 			if value, exists := availableVars[varName]; exists {
-				result.ResolvedVars[varName] = fmt.Sprintf("%v", value)
+				varInfo := vrd.createResolvedVarInfo(varName, value)
+				result.ResolvedVars[varName] = varInfo
 			}
 		}
 	}
@@ -102,8 +122,17 @@ func (vrd *VariableResolutionDebugger) LogVariableResolution(result *VariableRes
 	
 	if len(result.ResolvedVars) > 0 {
 		fmt.Printf("   ✅ Resolved Variables:\n")
-		for varName, value := range result.ResolvedVars {
-			fmt.Printf("      ${%s} → %s\n", varName, truncateValue(value, 50))
+		for varName, varInfo := range result.ResolvedVars {
+			displayValue := truncateValue(varInfo.DisplayValue, 50)
+			if varInfo.IsSecret {
+				if varInfo.IsMasked {
+					fmt.Printf("      ${%s} → %s (secret from %s, masked=true)\n", varName, displayValue, varInfo.Source)
+				} else {
+					fmt.Printf("      ${%s} → %s (secret from %s, masked=false)\n", varName, displayValue, varInfo.Source)
+				}
+			} else {
+				fmt.Printf("      ${%s} → %s\n", varName, displayValue)
+			}
 		}
 	}
 	
@@ -203,7 +232,7 @@ func ValidateVariableAvailability(text string, availableVars map[string]interfac
 }
 
 // FormatVariableDebugInfo formats variable debug information for display
-func FormatVariableDebugInfo(availableVars map[string]interface{}, requiredVars []string) string {
+func FormatVariableDebugInfo(availableVars map[string]interface{}, requiredVars []string, secretManager SecretManagerInterface) string {
 	var info strings.Builder
 	
 	info.WriteString("📋 Variable Information:\n")
@@ -211,7 +240,17 @@ func FormatVariableDebugInfo(availableVars map[string]interface{}, requiredVars 
 	if len(availableVars) > 0 {
 		info.WriteString("   Available Variables:\n")
 		for name, value := range availableVars {
-			info.WriteString(fmt.Sprintf("      %s = %s\n", name, truncateValue(fmt.Sprintf("%v", value), 40)))
+			displayValue := fmt.Sprintf("%v", value)
+			if secretManager != nil {
+				if source, masked, exists := secretManager.GetSecretInfo(name); exists {
+					if masked {
+						displayValue = "[MASKED]"
+					}
+					info.WriteString(fmt.Sprintf("      %s = %s (secret from %s, masked=%t)\n", name, truncateValue(displayValue, 40), source, masked))
+					continue
+				}
+			}
+			info.WriteString(fmt.Sprintf("      %s = %s\n", name, truncateValue(displayValue, 40)))
 		}
 	} else {
 		info.WriteString("   No variables defined\n")
@@ -229,4 +268,38 @@ func FormatVariableDebugInfo(availableVars map[string]interface{}, requiredVars 
 	}
 	
 	return info.String()
+}
+
+// createResolvedVarInfo creates resolved variable info with security context
+func (vrd *VariableResolutionDebugger) createResolvedVarInfo(varName string, value interface{}) ResolvedVarInfo {
+	valueStr := fmt.Sprintf("%v", value)
+	
+	// Check if this is a SECRETS namespace variable
+	if strings.HasPrefix(varName, "SECRETS.") {
+		secretName := varName[8:] // Remove "SECRETS." prefix
+		if vrd.secretManager != nil {
+			if source, masked, exists := vrd.secretManager.GetSecretInfo(secretName); exists {
+				displayValue := valueStr
+				if masked {
+					displayValue = "[MASKED]"
+				}
+				return ResolvedVarInfo{
+					Value:        valueStr,
+					IsSecret:     true,
+					IsMasked:     masked,
+					Source:       source,
+					DisplayValue: displayValue,
+				}
+			}
+		}
+	}
+	
+	// Regular variable
+	return ResolvedVarInfo{
+		Value:        valueStr,
+		IsSecret:     false,
+		IsMasked:     false,
+		Source:       "",
+		DisplayValue: valueStr,
+	}
 }

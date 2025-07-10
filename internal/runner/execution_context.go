@@ -99,9 +99,10 @@ type DefaultExecutionContext struct {
 
 // NewExecutionContext creates a new execution context with default implementations
 func NewExecutionContext(executor *actions.ActionExecutor) ExecutionContext {
+	variableManager := NewVariableManager().(*VariableManager)
 	return &DefaultExecutionContext{
-		variableManager:   NewVariableManager().(*VariableManager),
-		variableDebugger:  util.NewVariableResolutionDebugger(false, "execution"),
+		variableManager:   variableManager,
+		variableDebugger:  util.NewVariableResolutionDebugger(false, "execution", variableManager),
 		variableDebugging: false,
 		secretManager:   actions.NewSecretManager(),
 		tdmManager:      actions.NewTDMManager(),
@@ -153,7 +154,7 @@ func (ctx *DefaultExecutionContext) VariableDebugger() *util.VariableResolutionD
 // EnableVariableDebugging enables or disables variable debugging
 func (ctx *DefaultExecutionContext) EnableVariableDebugging(enabled bool) {
 	ctx.variableDebugging = enabled
-	ctx.variableDebugger = util.NewVariableResolutionDebugger(enabled, "execution")
+	ctx.variableDebugger = util.NewVariableResolutionDebugger(enabled, "execution", ctx.variableManager)
 }
 
 // SubstituteWithDebug performs variable substitution with debugging

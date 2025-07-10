@@ -72,8 +72,7 @@ func (vm *VariableManager) InitializeVariables(testCase *parser.TestCase) {
 				Source:     source,
 			}
 
-			// Also add to variables for substitution compatibility
-			vm.variables[key] = secretValue
+			// Store masking config
 			vm.maskConfig[key] = secret.MaskOutput
 		}
 	}
@@ -245,6 +244,15 @@ func (vm *VariableManager) substituteString(s string) string {
 			}
 			// If parsing fails, return original
 			return match
+		}
+
+		// Handle SECRETS namespace (SECRETS.var_name)
+		if strings.HasPrefix(varName, "SECRETS.") {
+			secretName := varName[8:] // Remove "SECRETS." prefix
+			if secret, exists := vm.secrets[secretName]; exists {
+				return fmt.Sprintf("%v", secret.Value)
+			}
+			return match // Secret not found, return original
 		}
 
 		// Handle dot notation for nested properties
