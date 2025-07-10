@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,11 +13,11 @@ import (
 )
 
 // executeSingleStep executes a single test step and returns the result
-func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, groupIdx int) (*parser.StepResult, error) {
-	stepContext := context
+func executeSingleStep(ctx context.Context, tr *TestRunner, step parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, groupIdx int) (*parser.StepResult, error) {
+	stepContext := contextStr
 	if parentLoop != nil {
 		iteration, _ := tr.variableManager.GetVariable("iteration")
-		stepContext = context + fmt.Sprintf("Iteration[%v]: ", iteration)
+		stepContext = contextStr + fmt.Sprintf("Iteration[%v]: ", iteration)
 	}
 
 	// Check for skip at the step level using unified logic
@@ -28,19 +29,19 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	}
 
 	if step.If != nil {
-		if err := executeIfStatement(tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
+		if err := executeIfStatement(ctx, tr, step.If, executor, silent, stepResults, stepContext+step.Name+"/If: ", testCase); err != nil {
 			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
 		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
 	}
 	if step.For != nil {
-		if err := executeForLoop(tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
+		if err := executeForLoop(ctx, tr, step.For, executor, silent, stepResults, stepContext+step.Name+"/For: ", testCase); err != nil {
 			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
 		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
 	}
 	if step.While != nil {
-		if err := executeWhileLoop(tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
+		if err := executeWhileLoop(ctx, tr, step.While, executor, silent, stepResults, stepContext+step.Name+"/While: ", testCase); err != nil {
 			return &parser.StepResult{Step: step, Status: parser.StatusFailed, Error: err.Error()}, nil
 		}
 		return &parser.StepResult{Step: step, Status: parser.StatusPassed}, nil
@@ -56,7 +57,7 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 	}
 
 	substitutedArgs := tr.substituteVariables(step.Args)
-	output, err := executeStepWithRetry(tr, step, substitutedArgs, executor, silent)
+	output, err := executeStepWithRetry(ctx, tr, step, substitutedArgs, executor, silent)
 	stepDuration := time.Since(stepStart)
 
 	// Prepare outputStr and maskedOutput after error extraction
@@ -218,8 +219,8 @@ func executeSingleStep(tr *TestRunner, step parser.Step, executor *actions.Actio
 }
 
 // executeStepWithRetry executes a step with retry logic if configured
-func executeStepWithRetry(tr *TestRunner, step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (interface{}, error) {
-	return tr.retryManager.ExecuteWithRetry(step, args, executor, silent)
+func executeStepWithRetry(ctx context.Context, tr *TestRunner, step parser.Step, args []interface{}, executor *actions.ActionExecutor, silent bool) (interface{}, error) {
+	return tr.retryManager.ExecuteWithRetry(ctx, step, args, executor, silent)
 }
 
 // validateExpectedError validates that an error occurred as expected

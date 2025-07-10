@@ -1,14 +1,20 @@
-package runner
+package output
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/JianLoong/robogo/internal/parser"
 )
 
-// getTemplateNames returns a comma-separated list of template names
-func getTemplateNames(templates map[string]string) string {
+// ConsoleFormatter handles console output formatting
+type ConsoleFormatter struct{}
+
+// Utility functions for console output formatting
+
+// GetTemplateNames returns a comma-separated list of template names
+func GetTemplateNames(templates map[string]string) string {
 	names := make([]string, 0, len(templates))
 	for name := range templates {
 		names = append(names, name)
@@ -30,18 +36,12 @@ func getStepStatusIcon(status string) string {
 	}
 }
 
-// getTestStatusIcon returns the appropriate icon for a test status
-func getTestStatusIcon(status string) string {
-	switch strings.ToLower(status) {
-	case "passed":
-		return "PASSED"
-	case "failed":
-		return "FAILED"
-	case "skipped":
-		return "SKIPPED"
-	default:
-		return "UNKNOWN"
+// padOrTruncate pads or truncates a string to a fixed width
+func padOrTruncate(s string, width int) string {
+	if len(s) > width {
+		return s[:width-3] + "..."
 	}
+	return s + strings.Repeat(" ", width-len(s))
 }
 
 // PrintStepResultsSimple prints step results in simple format
@@ -67,14 +67,6 @@ func PrintStepResultsSimple(stepResults []parser.StepResult, title string, inden
 		}
 		fmt.Println()
 	}
-}
-
-// padOrTruncate pads or truncates a string to a fixed width
-func padOrTruncate(s string, width int) string {
-	if len(s) > width {
-		return s[:width-3] + "..."
-	}
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 // PrintStepResultsMarkdown prints step results in markdown table format
@@ -145,6 +137,8 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 	}
 }
 
+// Console output utility functions
+
 // PrintTDMSetup prints the TDM setup message
 func PrintTDMSetup() {
 	fmt.Printf("Executing TDM setup...\n")
@@ -203,4 +197,124 @@ func PrintTemplatesLoaded(templateCount int, templateNames string) {
 // PrintParallelFiles prints parallel file execution
 func PrintParallelFiles(fileCount, maxConcurrency int) {
 	fmt.Printf("Running %d test files in parallel (max concurrency: %d)\n", fileCount, maxConcurrency)
+}
+
+// FormatTestResults outputs test results in console format
+func (f *ConsoleFormatter) FormatTestResults(results []*parser.TestResult) error {
+	for _, result := range results {
+		// Print captured output (step-by-step execution details)
+		if result.CapturedOutput != "" {
+			fmt.Print(result.CapturedOutput)
+		}
+
+		// Print test summary in markdown format
+		fmt.Printf("\n## Test Results for: %s\n\n", result.TestCase.Name)
+
+		// Choose appropriate status icon
+		statusIcon := "✅"
+		if result.Status == "FAILED" {
+			statusIcon = "❌"
+		} else if result.Status == "SKIPPED" {
+			statusIcon = "⏭️"
+		}
+
+		fmt.Printf("**%s Status:** %s\n\n", statusIcon, result.Status)
+		fmt.Printf("**Duration:** %v\n\n", result.Duration)
+		fmt.Printf("**Steps Summary:**\n\n")
+		fmt.Printf("| %-6s | %-7s | %-6s | %-7s |\n", "Total", "Passed", "Failed", "Skipped")
+		fmt.Printf("|--------|---------|--------|---------|\n")
+		fmt.Printf("| %-6d | %-7d | %-6d | %-7d |\n\n",
+			result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
+
+		// Print step details as a markdown table
+		if len(result.StepResults) > 0 {
+			fmt.Println("\nStep Results (Markdown Table):")
+			PrintStepResultsMarkdown(result.StepResults, "Step Results:")
+		}
+	}
+
+	// Exit with non-zero code if any test failed
+	for _, result := range results {
+		if result.FailedSteps > 0 {
+			return fmt.Errorf("test suite failed")
+		}
+	}
+	return nil
+}
+
+// FormatSuiteResult outputs test suite results in console format
+func (f *ConsoleFormatter) FormatSuiteResult(result *parser.TestSuiteResult) error {
+	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
+	fmt.Printf("Test Suite Results: %s\n", result.TestSuite.Name)
+	fmt.Printf("Duration: %v\n", result.Duration)
+	fmt.Printf("\n## Test Case Summary\n")
+	fmt.Printf("| %-4s | %-24s | %-8s | %-10s | %-24s |\n", "#", "Name", "Status", "Duration", "Error")
+	fmt.Printf("|------|--------------------------|----------|------------|--------------------------|\\n")
+	for i, caseResult := range result.CaseResults {
+		status := strings.ToUpper(caseResult.Status)
+		duration := ""
+		if caseResult.Duration > 0 {
+			duration = fmt.Sprintf("%.4gs", caseResult.Duration.Seconds())
+		}
+		error := caseResult.Error
+		if len(error) > 24 {
+			error = error[:21] + "..."
+		}
+		name := caseResult.TestCase.Name
+		if len(name) > 24 {
+			name = name[:21] + "..."
+		}
+		fmt.Printf("| %-4d | %-24s | %-8s | %-10s | %-24s |\n", i+1, name, status, duration, error)
+	}
+
+	// Print step results for each test case
+	for _, caseResult := range result.CaseResults {
+		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
+			title := "### Step Results for " + caseResult.TestCase.Name
+			PrintStepResultsMarkdown(caseResult.Result.StepResults, title)
+		}
+	}
+
+	// Print step summary table
+	fmt.Printf("\n## Step Summary\n")
+	fmt.Printf("| %-8s | %-8s | %-8s | %-8s |\n", "Total", "Passed", "Failed", "Skipped")
+	fmt.Printf("|----------|----------|----------|----------|\n")
+	fmt.Printf("| %-8d | %-8d | %-8d | %-8d |\n", result.TotalSteps, result.PassedSteps, result.FailedSteps, result.SkippedSteps)
+
+	if result.SetupStatus != "" {
+		fmt.Printf("\nSetup: %s\n", result.SetupStatus)
+	}
+	if result.TeardownStatus != "" {
+		fmt.Printf("\nTeardown: %s\n", result.TeardownStatus)
+	}
+
+	fmt.Printf(strings.Repeat("=", 60) + "\n")
+
+	// Ensure all output is flushed before exit
+	os.Stdout.Sync()
+
+	// Exit with non-zero code if test suite failed
+	if result.Status == "failed" {
+		return fmt.Errorf("test suite failed")
+	}
+	return nil
+}
+
+// FormatMultipleSuites outputs multiple test suite results in console format
+func (f *ConsoleFormatter) FormatMultipleSuites(results []*parser.TestSuiteResult, grandTotal GrandTotal) error {
+	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
+	fmt.Printf("🎯 GRAND TOTAL SUMMARY\n")
+	fmt.Printf("📊 Test Suite Results: Grand Total\n")
+	fmt.Printf("⏱️  Duration: %v\n", grandTotal.Duration)
+	fmt.Printf("📋 Total Cases: %d\n", grandTotal.TotalCases)
+	fmt.Printf("✅ Passed: %d\n", grandTotal.PassedCases)
+	fmt.Printf("❌ Failed: %d\n", grandTotal.FailedCases)
+	fmt.Printf("⏭️  Skipped: %d\n", grandTotal.SkippedCases)
+	fmt.Printf(strings.Repeat("=", 60) + "\n")
+
+	// Exit with non-zero code if any test failed
+	if grandTotal.FailedCases > 0 {
+		return fmt.Errorf("test suite failed")
+	}
+	return nil
 }

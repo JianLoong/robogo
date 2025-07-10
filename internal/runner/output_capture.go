@@ -74,35 +74,3 @@ func (oc *OutputCapture) Stop() (string, error) {
 	return oc.output, nil
 }
 
-// GetCapturedOutput returns the last captured output
-func (oc *OutputCapture) GetCapturedOutput() string {
-	return oc.output
-}
-
-// IsCapturing returns true if currently capturing output
-func (oc *OutputCapture) IsCapturing() bool {
-	return oc.capturing
-}
-
-// Reset clears the captured output
-func (oc *OutputCapture) Reset() {
-	oc.output = ""
-}
-
-// CaptureWithCallback captures output while executing a function
-func (oc *OutputCapture) CaptureWithCallback(callback func() error) (string, error) {
-	if err := oc.Start(); err != nil {
-		return "", err
-	}
-
-	// Execute the callback
-	err := callback()
-
-	// Stop capturing and get output
-	output, stopErr := oc.Stop()
-	if stopErr != nil {
-		return output, stopErr
-	}
-
-	return output, err
-}

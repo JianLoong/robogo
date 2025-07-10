@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/output"
 	"github.com/JianLoong/robogo/internal/parser"
 	"github.com/JianLoong/robogo/internal/util"
 )
@@ -35,12 +37,12 @@ func NewTestRunner(executor *actions.ActionExecutor) *TestRunner {
 }
 
 // RunTestFiles runs multiple test cases in parallel
-func RunTestFiles(paths []string, silent bool, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
-	return RunTestFilesWithConfig(paths, silent, nil, executor)
+func RunTestFiles(ctx context.Context, paths []string, silent bool, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
+	return RunTestFilesWithConfig(ctx, paths, silent, nil, executor)
 }
 
 // RunTestFilesWithConfig runs multiple test cases with parallelism configuration
-func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
+func RunTestFilesWithConfig(ctx context.Context, paths []string, silent bool, parallelConfig *parser.ParallelConfig, executor *actions.ActionExecutor) ([]*parser.TestResult, error) {
 	var files []string
 	for _, path := range paths {
 		info, err := os.Stat(path)
@@ -73,7 +75,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 	if !config.Enabled || !config.TestCases {
 		var results []*parser.TestResult
 		for _, file := range files {
-			result, err := RunTestFile(file, silent, executor)
+			result, err := RunTestFile(ctx, file, silent, executor)
 			if err != nil {
 				result = &parser.TestResult{
 					TestCase:     &parser.TestCase{Name: file},
@@ -104,7 +106,7 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			result, err := RunTestFile(file, silent, executor)
+			result, err := RunTestFile(ctx, file, silent, executor)
 			if err != nil {
 				// In case of a fatal error before the test can even run properly,
 				// create a dummy result to report the failure.
@@ -127,14 +129,14 @@ func RunTestFilesWithConfig(paths []string, silent bool, parallelConfig *parser.
 	}
 
 	if !silent {
-		PrintParallelFiles(len(files), config.MaxConcurrency)
+		output.PrintParallelFiles(len(files), config.MaxConcurrency)
 	}
 
 	return results, nil
 }
 
 // RunTestFile runs a test case from a file
-func RunTestFile(filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
+func RunTestFile(ctx context.Context, filename string, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
 	// Parse the test case
 	testCase, err := parser.ParseTestFile(filename)
 	if err != nil {
@@ -142,7 +144,7 @@ func RunTestFile(filename string, silent bool, executor *actions.ActionExecutor)
 	}
 
 	// Run the test case
-	result, err := RunTestCase(testCase, silent, executor)
+	result, err := RunTestCase(ctx, testCase, silent, executor)
 	if err != nil {
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
@@ -152,14 +154,14 @@ func RunTestFile(filename string, silent bool, executor *actions.ActionExecutor)
 }
 
 // RunTestCase runs a test case and returns the result
-func RunTestCase(testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
+func RunTestCase(ctx context.Context, testCase *parser.TestCase, silent bool, executor *actions.ActionExecutor) (*parser.TestResult, error) {
 	tr := NewTestRunner(executor)
 
 	// Create execution engine
 	engine := NewExecutionEngine(tr)
 
 	// Execute the test case using the engine
-	result, err := engine.ExecuteTestCase(testCase, silent)
+	result, err := engine.ExecuteTestCase(ctx, testCase, silent)
 	if err != nil {
 		// RunTestCase returns an error when the test fails, but we still want to return the result
 		// The error just indicates test failure, not a fatal error
@@ -169,24 +171,24 @@ func RunTestCase(testCase *parser.TestCase, silent bool, executor *actions.Actio
 }
 
 // executeSteps executes a slice of steps, collecting StepResults recursively
-func executeSteps(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
-	return executeStepsWithConfig(tr, steps, executor, parentLoop, silent, stepResults, context, testCase, nil)
+func executeSteps(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase) error {
+	return executeStepsWithConfig(ctx, tr, steps, executor, parentLoop, silent, stepResults, contextStr, testCase, nil)
 }
 
 // executeStepsWithConfig executes steps with parallelism configuration
-func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
+func executeStepsWithConfig(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, parallelConfig *parser.ParallelConfig) error {
 	// Check if parallel step execution is enabled
 	config := parser.MergeParallelConfig(parallelConfig)
 	if config.Enabled && config.Steps && len(steps) > 1 {
 		if !silent {
 			fmt.Printf("Running %d steps in parallel for test case: %s\n", len(steps), testCase.Name)
 		}
-		return executeStepsParallel(tr, steps, executor, parentLoop, silent, stepResults, context, testCase, config)
+		return executeStepsParallel(ctx, tr, steps, executor, parentLoop, silent, stepResults, contextStr, testCase, config)
 	}
 
 	// Execute steps sequentially (original behavior)
 	for idx, step := range steps {
-		stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, idx)
+		stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, idx)
 		if err != nil {
 			if actions.IsSkipError(err) {
 				*stepResults = append(*stepResults, *stepResult)
@@ -217,12 +219,12 @@ func executeStepsWithConfig(tr *TestRunner, steps []parser.Step, executor *actio
 }
 
 // executeStepsParallel executes independent steps in parallel
-func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig) error {
+func executeStepsParallel(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, config *parser.ParallelConfig) error {
 	// Group steps into parallel and sequential groups
 	stepGroups := parser.GroupIndependentSteps(steps)
 
 	if !silent {
-		PrintParallelStepGroups(len(stepGroups))
+		output.PrintParallelStepGroups(len(stepGroups))
 	}
 
 	// Mutex to protect stepResults slice modification
@@ -232,7 +234,7 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 		if len(group) == 1 {
 			// Single step - execute sequentially
 			step := group[0]
-			stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
+			stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, groupIdx)
 			if err != nil {
 				return err
 			}
@@ -242,10 +244,10 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 		} else {
 			// Multiple independent steps - execute in parallel
 			if !silent {
-				PrintParallelSteps(len(group), groupIdx)
+				output.PrintParallelSteps(len(group), groupIdx)
 			}
 
-			if err := executeStepGroupParallel(tr, group, executor, parentLoop, silent, stepResults, context, testCase, config, groupIdx, &resultsMutex); err != nil {
+			if err := executeStepGroupParallel(ctx, tr, group, executor, parentLoop, silent, stepResults, contextStr, testCase, config, groupIdx, &resultsMutex); err != nil {
 				return err
 			}
 		}
@@ -255,7 +257,7 @@ func executeStepsParallel(tr *TestRunner, steps []parser.Step, executor *actions
 }
 
 // executeStepGroupParallel executes a group of independent steps in parallel
-func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int, resultsMutex *sync.Mutex) error {
+func executeStepGroupParallel(ctx context.Context, tr *TestRunner, steps []parser.Step, executor *actions.ActionExecutor, parentLoop *parser.LoopBlock, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase, config *parser.ParallelConfig, groupIdx int, resultsMutex *sync.Mutex) error {
 	var wg sync.WaitGroup
 	resultsChan := make(chan *parser.StepResult, len(steps))
 	errorsChan := make(chan error, len(steps))
@@ -271,7 +273,7 @@ func executeStepGroupParallel(tr *TestRunner, steps []parser.Step, executor *act
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			stepResult, err := executeSingleStep(tr, step, executor, parentLoop, silent, stepResults, context, testCase, groupIdx)
+			stepResult, err := executeSingleStep(ctx, tr, step, executor, parentLoop, silent, stepResults, contextStr, testCase, groupIdx)
 			if err != nil {
 				errorsChan <- fmt.Errorf("step %d failed: %w", stepIdx+1, err)
 				return
@@ -313,26 +315,26 @@ func (tr *TestRunner) initializeTDM(testCase *parser.TestCase) {
 	}
 	if len(testCase.DataManagement.DataSets) > 0 {
 		if err := tr.tdmManager.LoadDataSets(testCase.DataManagement.DataSets); err != nil {
-			PrintWarning("Failed to load data sets: %v", err)
+			output.PrintWarning("Failed to load data sets: %v", err)
 		}
 	}
 	if len(testCase.Environments) > 0 {
 		if err := tr.tdmManager.LoadEnvironments(testCase.Environments); err != nil {
-			PrintWarning("Failed to load environments: %v", err)
+			output.PrintWarning("Failed to load environments: %v", err)
 		}
 	}
 	if testCase.DataManagement.Environment != "" {
 		if err := tr.tdmManager.SetEnvironment(testCase.DataManagement.Environment); err != nil {
-			PrintWarning("Failed to set environment '%s': %v", testCase.DataManagement.Environment, err)
+			output.PrintWarning("Failed to set environment '%s': %v", testCase.DataManagement.Environment, err)
 		}
 	}
 	if len(testCase.DataManagement.Validation) > 0 {
 		validationResults := tr.tdmManager.ValidateData(testCase.DataManagement.Validation)
 		for _, result := range validationResults {
 			if result.Status == parser.StatusFailed {
-				PrintDataValidationFailure(result.Name, result.Message)
+				output.PrintDataValidationFailure(result.Name, result.Message)
 			} else if result.Status == "WARNING" {
-				PrintDataValidationWarning(result.Name, result.Message)
+				output.PrintDataValidationWarning(result.Name, result.Message)
 			}
 		}
 	}

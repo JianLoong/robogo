@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/output"
 	"github.com/JianLoong/robogo/internal/parser"
 )
 
@@ -26,7 +28,7 @@ func NewExecutionEngine(runner *TestRunner) *ExecutionEngine {
 }
 
 // ExecuteTestCase executes a test case and returns the result
-func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
+func (engine *ExecutionEngine) ExecuteTestCase(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
 	// Initialize test runner
 	engine.runner.initializeVariables(testCase)
 	engine.runner.initializeTDM(testCase)
@@ -36,7 +38,7 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 		// Initialize template context if templates are defined
 		actions.SetTemplateContext(testCase.Templates)
 		if !silent {
-			PrintTemplatesLoaded(len(testCase.Templates), getTemplateNames(testCase.Templates))
+			output.PrintTemplatesLoaded(len(testCase.Templates), output.GetTemplateNames(testCase.Templates))
 		}
 	}
 
@@ -81,26 +83,26 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	}
 
 	if !silent {
-		PrintTestCaseStart(testCase.Name)
+		output.PrintTestCaseStart(testCase.Name)
 		if testCase.Description != "" {
-			PrintTestCaseDescription(testCase.Description)
+			output.PrintTestCaseDescription(testCase.Description)
 		}
-		PrintTestCaseSteps(len(testCase.Steps))
+		output.PrintTestCaseSteps(len(testCase.Steps))
 	}
 
 	// Execute TDM setup if configured
 	if testCase.DataManagement != nil && len(testCase.DataManagement.Setup) > 0 {
 		// Execute TDM setup if configured
 		if !silent {
-			PrintTDMSetup()
+			output.PrintTDMSetup()
 		}
-		executeSteps(engine.runner, testCase.DataManagement.Setup, executor, nil, silent, &result.StepResults, "TDM Setup: ", testCase)
+		executeSteps(ctx, engine.runner, testCase.DataManagement.Setup, executor, nil, silent, &result.StepResults, "TDM Setup: ", testCase)
 		result.DataResults.SetupStatus = "COMPLETED"
 	}
 
 	// Execute main test steps
 	var err error
-	err = executeStepsWithConfig(engine.runner, testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
+	err = executeStepsWithConfig(ctx, engine.runner, testCase.Steps, executor, nil, silent, &result.StepResults, "", testCase, testCase.Parallel)
 	if err != nil {
 		if actions.IsSkipError(err) {
 			result.Status = parser.StatusSkipped
@@ -122,9 +124,9 @@ func (engine *ExecutionEngine) ExecuteTestCase(testCase *parser.TestCase, silent
 	if testCase.DataManagement != nil && len(testCase.DataManagement.Teardown) > 0 {
 		// Execute TDM teardown if configured
 		if !silent {
-			PrintTDMTeardown()
+			output.PrintTDMTeardown()
 		}
-		executeSteps(engine.runner, testCase.DataManagement.Teardown, executor, nil, silent, &result.StepResults, "TDM Teardown: ", testCase)
+		executeSteps(ctx, engine.runner, testCase.DataManagement.Teardown, executor, nil, silent, &result.StepResults, "TDM Teardown: ", testCase)
 		result.DataResults.TeardownStatus = "COMPLETED"
 	}
 

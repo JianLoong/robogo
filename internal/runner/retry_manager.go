@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -24,6 +25,7 @@ func NewRetryManager() *RetryManager {
 
 // ExecuteWithRetry executes a step with retry logic
 func (rm *RetryManager) ExecuteWithRetry(
+	ctx context.Context,
 	step parser.Step,
 	args []interface{},
 	executor *actions.ActionExecutor,
@@ -31,7 +33,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 ) (interface{}, error) {
 	if step.Retry == nil {
 		// No retry configuration, execute normally
-		return executor.Execute(step.Action, args, step.Options, silent)
+		return executor.Execute(ctx, step.Action, args, step.Options, silent)
 	}
 
 	config := step.Retry
@@ -49,7 +51,7 @@ func (rm *RetryManager) ExecuteWithRetry(
 		}
 
 		// Execute the step
-		output, err := executor.Execute(step.Action, args, step.Options, silent)
+		output, err := executor.Execute(ctx, step.Action, args, step.Options, silent)
 
 		// Store the last error and output for potential retry decision
 		lastErr = err
@@ -272,27 +274,3 @@ func (rm *RetryManager) calculateDelay(config *parser.RetryConfig, attempt int) 
 	return delay
 }
 
-// ValidateRetryConfig validates retry configuration
-func (rm *RetryManager) ValidateRetryConfig(config *parser.RetryConfig) error {
-	if config == nil {
-		return nil
-	}
-
-	if config.Attempts < 0 {
-		return fmt.Errorf("retry attempts cannot be negative")
-	}
-
-	if config.Delay < 0 {
-		return fmt.Errorf("retry delay cannot be negative")
-	}
-
-	if config.MaxDelay < 0 {
-		return fmt.Errorf("max delay cannot be negative")
-	}
-
-	if config.MaxDelay > 0 && config.Delay > config.MaxDelay {
-		return fmt.Errorf("base delay cannot be greater than max delay")
-	}
-
-	return nil
-}

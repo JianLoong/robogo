@@ -7,6 +7,8 @@ import (
 	"os"
 	"sync"
 	"text/template"
+	
+	"github.com/JianLoong/robogo/internal/util"
 )
 
 // TemplateAction renders templates from a file using Go's template engine
@@ -41,38 +43,62 @@ import (
 //   - Case-sensitive field names
 func TemplateAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("template action requires at least 2 arguments: template file path and data")
+		return "", util.NewArgumentCountError("template", 2, len(args))
 	}
 
 	templatePath, ok := args[0].(string)
 	if !ok {
-		return "", fmt.Errorf("template file path must be a string")
+		return "", util.NewArgumentTypeError("template", 0, "string", args[0])
 	}
 
 	// Read template file
 	templateContent, err := os.ReadFile(templatePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read template file '%s': %w", templatePath, err)
+		return "", util.NewErrorBuilder(util.ErrorTypeFileSystem, "failed to read template file").
+			WithAction("template").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
+			WithDetails(map[string]interface{}{
+				"template_path": templatePath,
+			}).
+			Build()
 	}
 
 	// Get data object and convert to map
 	data := args[1]
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("template data must be a map")
+		return "", util.NewArgumentTypeError("template", 1, "map", args[1])
 	}
 
 	// Parse the template
 	tmpl, err := template.New(templatePath).Parse(string(templateContent))
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template '%s': %w", templatePath, err)
+		return "", util.NewErrorBuilder(util.ErrorTypeTemplate, "failed to parse template").
+			WithAction("template").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
+			WithDetails(map[string]interface{}{
+				"template_path": templatePath,
+			}).
+			Build()
 	}
 
 	// Execute the template
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, dataMap)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute template '%s': %w", templatePath, err)
+		return "", util.NewErrorBuilder(util.ErrorTypeTemplate, "failed to execute template").
+			WithAction("template").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
+			WithDetails(map[string]interface{}{
+				"template_path": templatePath,
+			}).
+			Build()
 	}
 
 	result := buf.String()

@@ -52,21 +52,13 @@ type BatchQueryResult struct {
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// Global PostgreSQL manager instance
-var postgresManager = &PostgreSQLManager{
-	connections: make(map[string]*sql.DB),
-}
 
 // PostgresAction performs PostgreSQL database operations with comprehensive support for queries, transactions, and connection management.
 //
 // Now accepts a context.Context parameter for resource cleanup and timeouts.
 func PostgresAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, util.NewValidationError("postgres action requires at least 2 arguments: operation and connection_string",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("postgres")
+		return nil, util.NewArgumentCountError("postgres", 2, len(args))
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -94,22 +86,14 @@ func PostgresAction(ctx context.Context, args []interface{}, options map[string]
 	case "batch":
 		return executeBatchOperations(ctx, connectionString, args[2:], silent)
 	default:
-		return nil, util.NewValidationError("unknown postgres operation",
-			map[string]interface{}{
-				"operation":        operation,
-				"valid_operations": []string{"query", "select", "execute", "insert", "update", "delete", "connect", "close", "batch"},
-			}).WithAction("postgres")
+		return nil, util.NewArgumentValueError("postgres", 0, operation, "unknown postgres operation")
 	}
 }
 
 // executeQuery executes a SELECT query and returns results
 func executeQuery(ctx context.Context, connectionString string, args []interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return nil, util.NewValidationError("query operation requires a SQL query",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 1,
-			}).WithAction("postgres")
+		return nil, util.NewArgumentCountError("postgres", 1, len(args))
 	}
 
 	query := fmt.Sprintf("%v", args[0])
@@ -125,12 +109,16 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 	}
 
 	// Get or create database connection
-	db, err := getConnection(connectionString)
+	actionCtx := GetActionContext(ctx)
+	db, err := getConnectionWithManager(connectionString, actionCtx.PostgresManager)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get database connection", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get database connection").
+			WithAction("postgres").
+			WithCause(err).
 			WithDetails(map[string]interface{}{
 				"connection_string": connectionString,
-			})
+			}).
+			Build()
 	}
 
 	startTime := time.Now()
@@ -138,7 +126,10 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 	// Execute query with context
 	rows, err := db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
-		return nil, util.NewDatabaseError("query execution failed", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "query execution failed").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -151,7 +142,10 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get column names", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get column names").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -172,7 +166,10 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 
 		// Scan the row into the values slice
 		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, util.NewDatabaseError("failed to scan row", err, "postgres").
+			return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to scan row").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 				WithDetails(map[string]interface{}{
 					"query":             query,
 					"connection_string": connectionString,
@@ -185,7 +182,10 @@ func executeQuery(ctx context.Context, connectionString string, args []interface
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, util.NewDatabaseError("error iterating rows", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "error iterating rows").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -415,12 +415,16 @@ func executeSingleBatchOperation(ctx context.Context, connectionString string, o
 // executeQueryInternal is an internal version of executeQuery that returns QueryResult
 func executeQueryInternal(ctx context.Context, connectionString, query string, params []interface{}) (*QueryResult, error) {
 	// Get or create database connection
-	db, err := getConnection(connectionString)
+	actionCtx := GetActionContext(ctx)
+	db, err := getConnectionWithManager(connectionString, actionCtx.PostgresManager)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get database connection", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get database connection").
+			WithAction("postgres").
+			WithCause(err).
 			WithDetails(map[string]interface{}{
 				"connection_string": connectionString,
-			})
+			}).
+			Build()
 	}
 
 	startTime := time.Now()
@@ -428,7 +432,10 @@ func executeQueryInternal(ctx context.Context, connectionString, query string, p
 	// Execute query with context
 	rows, err := db.QueryContext(ctx, query, params...)
 	if err != nil {
-		return nil, util.NewDatabaseError("query execution failed", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "query execution failed").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -441,7 +448,10 @@ func executeQueryInternal(ctx context.Context, connectionString, query string, p
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get column names", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get column names").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -462,7 +472,10 @@ func executeQueryInternal(ctx context.Context, connectionString, query string, p
 
 		// Scan the row into the values slice
 		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, util.NewDatabaseError("failed to scan row", err, "postgres").
+			return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to scan row").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 				WithDetails(map[string]interface{}{
 					"query":             query,
 					"connection_string": connectionString,
@@ -475,7 +488,10 @@ func executeQueryInternal(ctx context.Context, connectionString, query string, p
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, util.NewDatabaseError("error iterating rows", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "error iterating rows").
+			WithAction("postgres").
+			WithCause(err).
+			Build().
 			WithDetails(map[string]interface{}{
 				"query":             query,
 				"connection_string": connectionString,
@@ -500,12 +516,16 @@ func executeQueryInternal(ctx context.Context, connectionString, query string, p
 // executeStatementInternal is an internal version of executeStatement that returns QueryResult
 func executeStatementInternal(ctx context.Context, connectionString, query string, params []interface{}) (*QueryResult, error) {
 	// Get or create database connection
-	db, err := getConnection(connectionString)
+	actionCtx := GetActionContext(ctx)
+	db, err := getConnectionWithManager(connectionString, actionCtx.PostgresManager)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get database connection", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get database connection").
+			WithAction("postgres").
+			WithCause(err).
 			WithDetails(map[string]interface{}{
 				"connection_string": connectionString,
-			})
+			}).
+			Build()
 	}
 
 	startTime := time.Now()
@@ -561,12 +581,16 @@ func executeStatement(ctx context.Context, connectionString string, args []inter
 	}
 
 	// Get or create database connection
-	db, err := getConnection(connectionString)
+	actionCtx := GetActionContext(ctx)
+	db, err := getConnectionWithManager(connectionString, actionCtx.PostgresManager)
 	if err != nil {
-		return nil, util.NewDatabaseError("failed to get database connection", err, "postgres").
+		return nil, util.NewErrorBuilder(util.ErrorTypeDatabase, "failed to get database connection").
+			WithAction("postgres").
+			WithCause(err).
 			WithDetails(map[string]interface{}{
 				"connection_string": connectionString,
-			})
+			}).
+			Build()
 	}
 
 	startTime := time.Now()
@@ -635,7 +659,8 @@ func executeStatement(ctx context.Context, connectionString string, args []inter
 
 // testConnection tests a database connection
 func testConnection(ctx context.Context, connectionString string) (interface{}, error) {
-	db, err := getConnection(connectionString)
+	actionCtx := GetActionContext(ctx)
+	db, err := getConnectionWithManager(connectionString, actionCtx.PostgresManager)
 	if err != nil {
 		return nil, util.NewDatabaseError("connection test failed", err, "postgres").
 			WithDetails(map[string]interface{}{
@@ -675,12 +700,13 @@ func testConnection(ctx context.Context, connectionString string) (interface{}, 
 
 // closeConnection closes a PostgreSQL connection
 func closeConnection(ctx context.Context, connectionString string) (interface{}, error) {
-	postgresManager.mutex.Lock()
-	defer postgresManager.mutex.Unlock()
+	actionCtx := GetActionContext(ctx)
+	actionCtx.PostgresManager.mutex.Lock()
+	defer actionCtx.PostgresManager.mutex.Unlock()
 
-	if db, exists := postgresManager.connections[connectionString]; exists {
+	if db, exists := actionCtx.PostgresManager.connections[connectionString]; exists {
 		err := db.Close()
-		delete(postgresManager.connections, connectionString)
+		delete(actionCtx.PostgresManager.connections, connectionString)
 		if err != nil {
 			return nil, util.NewDatabaseError("failed to close PostgreSQL connection", err, "postgres").
 				WithDetails(map[string]interface{}{
@@ -748,21 +774,22 @@ func encodeConnectionString(connectionString string) (string, error) {
 	return encodedConnectionString, nil
 }
 
-// getConnection gets or creates a PostgreSQL connection
-func getConnection(connectionString string) (*sql.DB, error) {
-	postgresManager.mutex.RLock()
-	if db, exists := postgresManager.connections[connectionString]; exists {
-		postgresManager.mutex.RUnlock()
+
+// getConnectionWithManager gets or creates a PostgreSQL connection using a specific manager
+func getConnectionWithManager(connectionString string, manager *PostgreSQLManager) (*sql.DB, error) {
+	manager.mutex.RLock()
+	if db, exists := manager.connections[connectionString]; exists {
+		manager.mutex.RUnlock()
 		return db, nil
 	}
-	postgresManager.mutex.RUnlock()
+	manager.mutex.RUnlock()
 
 	// Create new connection
-	postgresManager.mutex.Lock()
-	defer postgresManager.mutex.Unlock()
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 
 	// Double-check after acquiring write lock
-	if db, exists := postgresManager.connections[connectionString]; exists {
+	if db, exists := manager.connections[connectionString]; exists {
 		return db, nil
 	}
 
@@ -797,7 +824,7 @@ func getConnection(connectionString string) (*sql.DB, error) {
 			})
 	}
 
-	postgresManager.connections[connectionString] = db
+	manager.connections[connectionString] = db
 	return db, nil
 }
 
@@ -816,17 +843,18 @@ func getOperationType(query string) string {
 	return "UNKNOWN"
 }
 
-// CloseAllConnections closes all PostgreSQL connections and returns an error if any close fails
-func CloseAllConnections() error {
-	postgresManager.mutex.Lock()
-	defer postgresManager.mutex.Unlock()
+
+// CloseAll closes all PostgreSQL connections in the manager
+func (pgm *PostgreSQLManager) CloseAll() error {
+	pgm.mutex.Lock()
+	defer pgm.mutex.Unlock()
 
 	var lastErr error
-	for connectionString, db := range postgresManager.connections {
+	for connectionString, db := range pgm.connections {
 		if err := db.Close(); err != nil {
 			lastErr = err
 		}
-		delete(postgresManager.connections, connectionString)
+		delete(pgm.connections, connectionString)
 	}
 	return lastErr
 }

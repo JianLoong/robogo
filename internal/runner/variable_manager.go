@@ -94,16 +94,6 @@ func (vm *VariableManager) GetVariable(name string) (interface{}, bool) {
 	return value, exists
 }
 
-// ListVariables returns all variable names
-func (vm *VariableManager) ListVariables() []string {
-	vm.mutex.RLock()
-	defer vm.mutex.RUnlock()
-	var names []string
-	for name := range vm.variables {
-		names = append(names, name)
-	}
-	return names
-}
 
 // SubstituteVariables substitutes variables in arguments
 func (vm *VariableManager) SubstituteVariables(args []interface{}) []interface{} {
@@ -193,61 +183,6 @@ func (vm *VariableManager) substituteString(s string) string {
 	})
 }
 
-// Helper: split variable segments, keeping [index] as a segment
-func splitVarSegments(expr string) []string {
-	var segments []string
-	var buf strings.Builder
-	inBracket := false
-	for i := 0; i < len(expr); i++ {
-		c := expr[i]
-		if c == '.' && !inBracket {
-			if buf.Len() > 0 {
-				segments = append(segments, buf.String())
-				buf.Reset()
-			}
-			continue
-		}
-		if c == '[' {
-			inBracket = true
-		}
-		if c == ']' {
-			inBracket = false
-		}
-		buf.WriteByte(c)
-	}
-	if buf.Len() > 0 {
-		segments = append(segments, buf.String())
-	}
-	return segments
-}
-
-// Helper: parse [index] segment
-func parseIndex(seg string) (int, bool) {
-	if len(seg) >= 3 && seg[0] == '[' && seg[len(seg)-1] == ']' {
-		var idx int
-		_, err := fmt.Sscanf(seg[1:len(seg)-1], "%d", &idx)
-		return idx, err == nil
-	}
-	return 0, false
-}
-
-// Helper: convert to []interface{}
-func toSlice(val interface{}) ([]interface{}, bool) {
-	switch v := val.(type) {
-	case []interface{}:
-		return v, true
-	}
-	return nil, false
-}
-
-// Helper: convert to map[string]interface{}
-func toMap(val interface{}) (map[string]interface{}, bool) {
-	switch v := val.(type) {
-	case map[string]interface{}:
-		return v, true
-	}
-	return nil, false
-}
 
 // substituteStringForDisplay substitutes variables for display purposes (without changing the original)
 func (vm *VariableManager) substituteStringForDisplay(s string) string {
@@ -319,24 +254,6 @@ func (vm *VariableManager) resolveDotNotation(varName string) (interface{}, bool
 	return current, true
 }
 
-// GetVariableCount returns the number of variables
-func (vm *VariableManager) GetVariableCount() int {
-	return len(vm.variables)
-}
-
-// ClearVariables clears all variables
-func (vm *VariableManager) ClearVariables() {
-	vm.variables = make(map[string]interface{})
-}
-
-// GetVariableNames returns all variable names
-func (vm *VariableManager) GetVariableNames() []string {
-	var names []string
-	for name := range vm.variables {
-		names = append(names, name)
-	}
-	return names
-}
 
 // valuesEqual safely compares two values, handling map types that are not directly comparable
 func (vm *VariableManager) valuesEqual(a, b interface{}) bool {

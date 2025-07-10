@@ -296,11 +296,7 @@ func HTTPAction(ctx context.Context, args []interface{}, options map[string]inte
 
 func httpActionInternal(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, util.NewValidationError("http action requires at least 2 arguments: method and url",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("http")
+		return nil, util.NewArgumentCountError("http", 2, len(args))
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -317,11 +313,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		"OPTIONS": true,
 	}
 	if !validMethods[method] {
-		return nil, util.NewValidationError("invalid HTTP method",
-			map[string]interface{}{
-				"method":        method,
-				"valid_methods": []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"},
-			}).WithAction("http")
+		return nil, util.NewArgumentValueError("http", 0, method, "invalid HTTP method")
 	}
 
 	// Parse optional arguments
@@ -427,11 +419,16 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	}
 
 	if err != nil {
-		return nil, util.NewNetworkError("failed to create request", err, "http").
+		return nil, util.NewErrorBuilder(util.ErrorTypeNetwork, "failed to create request").
+			WithAction("http").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
 			WithDetails(map[string]interface{}{
 				"method": method,
 				"url":    url,
-			})
+			}).
+			Build()
 	}
 
 	// Set headers
@@ -485,7 +482,12 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		// Convert to map for template engine compatibility
 		errorMap, convertErr := util.ConvertToMap(errorResponse)
 		if convertErr != nil {
-			return nil, util.NewExecutionError("failed to convert error response to map", convertErr, "http")
+			return nil, util.NewErrorBuilder(util.ErrorTypeExecution, "failed to convert error response to map").
+				WithAction("http").
+				WithCause(convertErr).
+				WithArguments(args).
+				WithOptions(options).
+				Build()
 		}
 		
 		// Enhanced output for debugging
@@ -500,12 +502,17 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, util.NewNetworkError("failed to read response body", err, "http").
+		return nil, util.NewErrorBuilder(util.ErrorTypeNetwork, "failed to read response body").
+			WithAction("http").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
 			WithDetails(map[string]interface{}{
 				"method":      method,
 				"url":         url,
 				"status_code": resp.StatusCode,
-			})
+			}).
+			Build()
 	}
 
 	// Build response headers map
@@ -585,7 +592,12 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	// The variable manager only supports map access, not Go struct field access
 	responseMap, err := util.ConvertToMap(httpResp)
 	if err != nil {
-		return nil, util.NewExecutionError("failed to convert response to map", err, "http")
+		return nil, util.NewErrorBuilder(util.ErrorTypeExecution, "failed to convert response to map").
+			WithAction("http").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
+			Build()
 	}
 
 	// Enhanced output for debugging
@@ -618,99 +630,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	return responseMap, nil
 }
 
-// HTTPGetAction performs HTTP GET requests with simplified syntax.
-//
-// Parameters:
-//   - url: Target URL for the request
-//   - headers: Request headers (optional, map or array of key-value pairs)
-//   - options: Additional options (timeout, follow_redirects, verify_ssl, etc.)
-//   - silent: Whether to suppress output (respects verbosity settings)
-//
-// Returns: JSON response with status, headers, body, and timing information
-//
-// Examples:
-//   - Simple GET: ["https://api.example.com/users"]
-//   - With headers: ["https://api.example.com/data", {"Authorization": "Bearer ${token}"}]
-//   - With options: ["https://api.example.com/slow", {}, {"timeout": 60}]
-//
-// Use Cases:
-//   - Data retrieval from APIs
-//   - Status checking
-//   - Content validation
-//   - Performance testing
-//
-// Notes:
-//   - Simplified syntax for GET requests
-//   - Same functionality as HTTPAction with GET method
-//   - Supports all HTTPAction options and features
-func HTTPGetAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	if len(args) < 1 {
-		return nil, util.NewValidationError("http_get action requires at least 1 argument: url",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 1,
-			}).WithAction("http_get")
-	}
 
-	url := fmt.Sprintf("%v", args[0])
-
-	// Check if headers are provided
-	if len(args) > 1 {
-		if headers, ok := args[1].(map[string]interface{}); ok {
-			return HTTPAction(ctx, []interface{}{"GET", url, headers}, options, silent)
-		}
-	}
-
-	return HTTPAction(ctx, []interface{}{"GET", url}, options, silent)
-}
-
-// HTTPPostAction performs HTTP POST requests with simplified syntax.
-//
-// Parameters:
-//   - url: Target URL for the request
-//   - body: Request body (string, object, or array)
-//   - headers: Request headers (optional, map or array of key-value pairs)
-//   - options: Additional options (timeout, follow_redirects, verify_ssl, etc.)
-//   - silent: Whether to suppress output (respects verbosity settings)
-//
-// Returns: JSON response with status, headers, body, and timing information
-//
-// Examples:
-//   - JSON POST: ["https://api.example.com/users", {"name": "John", "email": "john@example.com"}]
-//   - With headers: ["https://api.example.com/data", "raw data", {"Content-Type": "text/plain"}]
-//   - With options: ["https://api.example.com/upload", "file content", {}, {"timeout": 30}]
-//
-// Use Cases:
-//   - Data submission to APIs
-//   - Form submissions
-//   - File uploads
-//   - Authentication requests
-//
-// Notes:
-//   - Simplified syntax for POST requests
-//   - Same functionality as HTTPAction with POST method
-//   - Supports all HTTPAction options and features
-func HTTPPostAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	if len(args) < 2 {
-		return nil, util.NewValidationError("http_post action requires at least 2 arguments: url and body",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("http_post")
-	}
-
-	url := fmt.Sprintf("%v", args[0])
-	body := fmt.Sprintf("%v", args[1])
-
-	// Check if headers are provided
-	if len(args) > 2 {
-		if headers, ok := args[2].(map[string]interface{}); ok {
-			return HTTPAction(ctx, []interface{}{"POST", url, body, headers}, options, silent)
-		}
-	}
-
-	return HTTPAction(ctx, []interface{}{"POST", url, body}, options, silent)
-}
 
 // HTTPBatchResult represents the result of a batch HTTP operation
 type HTTPBatchResult struct {
@@ -719,212 +639,11 @@ type HTTPBatchResult struct {
 	Error    string       `json:"error,omitempty"`
 }
 
-// HTTPBatchAction performs multiple HTTP requests in parallel
-//
-// Parameters:
-//   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
-//   - urls: Array of URLs to request
-//   - headers: Request headers (optional)
-//   - body: Request body (optional, for POST/PUT requests)
-//   - options: Additional options including concurrency limit
-//   - silent: Whether to suppress output
-//
-// Returns: JSON array of results with status, headers, body, and timing for each request
-//
-// Examples:
-//   - Parallel GET requests: ["GET", ["https://api1.com", "https://api2.com"], {"Authorization": "Bearer ${token}"}]
-//   - Parallel POST requests: ["POST", ["https://api1.com/users", "https://api2.com/users"], {}, {"name": "John"}]
-//   - With concurrency limit: ["GET", ["url1", "url2", "url3"], {}, {}, {"concurrency": 5}]
-//
-// Use Cases:
-//   - Load testing multiple endpoints
-//   - Batch API operations
-//   - Performance testing
-//   - Health checks across multiple services
-func HTTPBatchAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	if len(args) < 2 {
-		return nil, util.NewValidationError("http_batch action requires at least 2 arguments: method and urls",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("http_batch")
-	}
-
-	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
-
-	// Parse URLs
-	var urls []string
-	switch v := args[1].(type) {
-	case []interface{}:
-		for _, url := range v {
-			urls = append(urls, fmt.Sprintf("%v", url))
-		}
-	case []string:
-		urls = v
-	default:
-		return nil, util.NewValidationError("urls must be an array",
-			map[string]interface{}{
-				"urls_type": fmt.Sprintf("%T", args[1]),
-			}).WithAction("http_batch")
-	}
-
-	if len(urls) == 0 {
-		return nil, util.NewValidationError("at least one URL is required",
-			map[string]interface{}{
-				"urls_count": len(urls),
-			}).WithAction("http_batch")
-	}
-
-	// Parse optional arguments
-	var headers map[string]string
-	var body string
-	var timeout time.Duration = 30 * time.Second
-	var maxConcurrency int = 10 // Default concurrency limit
-
-	for i := 2; i < len(args); i++ {
-		switch v := args[i].(type) {
-		case map[string]interface{}:
-			// Check for concurrency limit
-			if c, ok := v["concurrency"]; ok {
-				if concurrency, ok := c.(int); ok {
-					maxConcurrency = concurrency
-				}
-			}
-			// Check for timeout
-			if t, ok := v["timeout"]; ok {
-				if timeoutStr, ok := t.(string); ok {
-					if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
-						timeout = parsedTimeout
-					}
-				}
-			}
-			// Treat other fields as headers
-			if headers == nil {
-				headers = make(map[string]string)
-			}
-			for k, val := range v {
-				if k != "concurrency" && k != "timeout" {
-					headers[k] = fmt.Sprintf("%v", val)
-				}
-			}
-		case string:
-			// This could be body
-			if body == "" && (method == "POST" || method == "PUT" || method == "PATCH") {
-				body = v
-			}
-		}
-	}
-
-	// Create HTTP client
-	client := &http.Client{
-		Timeout: timeout,
-	}
-
-	// Execute requests in parallel
-	results := make([]HTTPBatchResult, len(urls))
-	semaphore := make(chan struct{}, maxConcurrency)
-
-	var wg sync.WaitGroup
-	for i, url := range urls {
-		wg.Add(1)
-		go func(index int, targetURL string) {
-			defer wg.Done()
-
-			// Acquire semaphore
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			// Create request
-			var req *http.Request
-			var err error
-
-			if body != "" && (method == "POST" || method == "PUT" || method == "PATCH") {
-				req, err = http.NewRequestWithContext(ctx, method, targetURL, strings.NewReader(body))
-			} else {
-				req, err = http.NewRequestWithContext(ctx, method, targetURL, nil)
-			}
-
-			if err != nil {
-				results[index] = HTTPBatchResult{
-					URL:   targetURL,
-					Error: fmt.Sprintf("failed to create request: %v", err),
-				}
-				return
-			}
-
-			// Add headers
-			for k, v := range headers {
-				req.Header.Set(k, v)
-			}
-
-			// Execute request
-			startTime := time.Now()
-			resp, err := client.Do(req)
-			duration := time.Since(startTime)
-
-			if err != nil {
-				results[index] = HTTPBatchResult{
-					URL:   targetURL,
-					Error: fmt.Sprintf("request failed: %v", err),
-				}
-				return
-			}
-			defer resp.Body.Close()
-
-			// Read response body
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				results[index] = HTTPBatchResult{
-					URL:   targetURL,
-					Error: fmt.Sprintf("failed to read response body: %v", err),
-				}
-				return
-			}
-
-			// Build response headers map
-			respHeadersMap := make(map[string]string)
-			for k, v := range resp.Header {
-				respHeadersMap[k] = strings.Join(v, ", ")
-			}
-
-			// Create response object
-			response := HTTPResponse{
-				StatusCode: resp.StatusCode,
-				Headers:    newHTTPHeaders(respHeadersMap),
-				Body:       string(respBody),
-				Duration:   duration,
-			}
-
-			results[index] = HTTPBatchResult{
-				URL:      targetURL,
-				Response: response,
-			}
-		}(i, url)
-	}
-
-	wg.Wait()
-
-	// Convert results to map format for template engine compatibility
-	resultsMap, err := util.ConvertToMap(results)
-	if err != nil {
-		return nil, util.NewExecutionError("failed to convert batch results to map", err, "http_batch")
-	}
-
-	if !silent {
-		fmt.Printf("Batch HTTP requests completed: %d URLs, %d concurrent\n", len(urls), maxConcurrency)
-	}
-
-	return resultsMap, nil
-}
 
 // HTTPGetActionWithContext performs HTTP GET requests with context support.
 func HTTPGetActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 1 {
-		return nil, util.NewValidationError("http_get action requires at least 1 argument: url",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 1,
-			}).WithAction("http_get")
+		return nil, util.NewArgumentCountError("http_get", 1, len(args))
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -942,11 +661,7 @@ func HTTPGetActionWithContext(ctx context.Context, args []interface{}, options m
 // HTTPPostActionWithContext performs HTTP POST requests with context support.
 func HTTPPostActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, util.NewValidationError("http_post action requires at least 2 arguments: url and body",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("http_post")
+		return nil, util.NewArgumentCountError("http_post", 2, len(args))
 	}
 
 	url := fmt.Sprintf("%v", args[0])
@@ -965,11 +680,7 @@ func HTTPPostActionWithContext(ctx context.Context, args []interface{}, options 
 // HTTPBatchActionWithContext performs multiple HTTP requests in parallel with context support.
 func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
-		return nil, util.NewValidationError("http_batch action requires at least 2 arguments: method and urls",
-			map[string]interface{}{
-				"provided_args": len(args),
-				"required_args": 2,
-			}).WithAction("http_batch")
+		return nil, util.NewArgumentCountError("http_batch", 2, len(args))
 	}
 
 	method := strings.ToUpper(fmt.Sprintf("%v", args[0]))
@@ -984,17 +695,11 @@ func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options
 	case []string:
 		urls = v
 	default:
-		return nil, util.NewValidationError("urls must be an array",
-			map[string]interface{}{
-				"urls_type": fmt.Sprintf("%T", args[1]),
-			}).WithAction("http_batch")
+		return nil, util.NewArgumentTypeError("http_batch", 1, "array", args[1])
 	}
 
 	if len(urls) == 0 {
-		return nil, util.NewValidationError("at least one URL is required",
-			map[string]interface{}{
-				"urls_count": len(urls),
-			}).WithAction("http_batch")
+		return nil, util.NewArgumentValueError("http_batch", 1, urls, "at least one URL is required")
 	}
 
 	// Parse optional arguments
@@ -1142,7 +847,12 @@ func HTTPBatchActionWithContext(ctx context.Context, args []interface{}, options
 	// Convert results to map format for template engine compatibility
 	resultsMap, err := util.ConvertToMap(results)
 	if err != nil {
-		return nil, util.NewExecutionError("failed to convert batch results to map", err, "http_batch")
+		return nil, util.NewErrorBuilder(util.ErrorTypeExecution, "failed to convert batch results to map").
+			WithAction("http_batch").
+			WithCause(err).
+			WithArguments(args).
+			WithOptions(options).
+			Build()
 	}
 
 	if !silent {

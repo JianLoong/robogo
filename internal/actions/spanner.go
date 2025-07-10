@@ -33,10 +33,6 @@ type SpannerQueryResult struct {
 	Metadata     map[string]interface{}   `json:"metadata,omitempty"`
 }
 
-// Global Spanner manager instance
-var spannerManager = &SpannerManager{
-	connections: make(map[string]*spanner.Client),
-}
 
 // SpannerAction performs Google Cloud Spanner operations with comprehensive support for queries, transactions, and connection management.
 //
@@ -90,7 +86,8 @@ func executeSpannerQuery(ctx context.Context, connectionString string, args []in
 	}
 
 	// Get or create Spanner client
-	client, err := getSpannerClient(ctx, connectionString)
+	actionCtx := GetActionContext(ctx)
+	client, err := getSpannerClientWithManager(ctx, connectionString, actionCtx.SpannerManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Spanner client: %w", err)
 	}
@@ -218,7 +215,8 @@ func executeSpannerStatement(ctx context.Context, connectionString string, args 
 	}
 
 	// Get or create Spanner client
-	client, err := getSpannerClient(ctx, connectionString)
+	actionCtx := GetActionContext(ctx)
+	client, err := getSpannerClientWithManager(ctx, connectionString, actionCtx.SpannerManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Spanner client: %w", err)
 	}
@@ -263,7 +261,8 @@ func executeSpannerStatement(ctx context.Context, connectionString string, args 
 
 // testSpannerConnection tests the Spanner connection
 func testSpannerConnection(ctx context.Context, connectionString string) (interface{}, error) {
-	client, err := getSpannerClient(ctx, connectionString)
+	actionCtx := GetActionContext(ctx)
+	client, err := getSpannerClientWithManager(ctx, connectionString, actionCtx.SpannerManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Spanner: %w", err)
 	}
@@ -294,12 +293,13 @@ func testSpannerConnection(ctx context.Context, connectionString string) (interf
 
 // closeSpannerConnection closes the Spanner connection
 func closeSpannerConnection(ctx context.Context, connectionString string) (interface{}, error) {
-	spannerManager.mutex.Lock()
-	defer spannerManager.mutex.Unlock()
+	actionCtx := GetActionContext(ctx)
+	actionCtx.SpannerManager.mutex.Lock()
+	defer actionCtx.SpannerManager.mutex.Unlock()
 
-	if client, exists := spannerManager.connections[connectionString]; exists {
+	if client, exists := actionCtx.SpannerManager.connections[connectionString]; exists {
 		client.Close()
-		delete(spannerManager.connections, connectionString)
+		delete(actionCtx.SpannerManager.connections, connectionString)
 	}
 
 	result := map[string]interface{}{
@@ -316,13 +316,14 @@ func closeSpannerConnection(ctx context.Context, connectionString string) (inter
 	return resultMap, nil
 }
 
-// getSpannerClient gets or creates a Spanner client
-func getSpannerClient(ctx context.Context, connectionString string) (*spanner.Client, error) {
-	spannerManager.mutex.Lock()
-	defer spannerManager.mutex.Unlock()
+
+// getSpannerClientWithManager gets or creates a Spanner client using a specific manager
+func getSpannerClientWithManager(ctx context.Context, connectionString string, manager *SpannerManager) (*spanner.Client, error) {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 
 	// Check if connection already exists
-	if client, exists := spannerManager.connections[connectionString]; exists {
+	if client, exists := manager.connections[connectionString]; exists {
 		return client, nil
 	}
 
@@ -349,19 +350,20 @@ func getSpannerClient(ctx context.Context, connectionString string) (*spanner.Cl
 	}
 
 	// Store the connection
-	spannerManager.connections[connectionString] = client
+	manager.connections[connectionString] = client
 
 	return client, nil
 }
 
-// CloseAllSpannerConnections closes all Spanner connections and returns an error if any close fails
-func CloseAllSpannerConnections() error {
-	spannerManager.mutex.Lock()
-	defer spannerManager.mutex.Unlock()
 
-	for connectionString, client := range spannerManager.connections {
+// CloseAll closes all Spanner connections in the manager
+func (sm *SpannerManager) CloseAll() error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	for connectionString, client := range sm.connections {
 		client.Close()
-		delete(spannerManager.connections, connectionString)
+		delete(sm.connections, connectionString)
 	}
 	return nil
 }

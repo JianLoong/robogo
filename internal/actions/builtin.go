@@ -39,7 +39,7 @@ func KafkaActionWrapper(ctx context.Context, args []interface{}, options map[str
 	return KafkaActionWithContext(ctx, args)
 }
 
-// Execute executes an action with the provided arguments and options.
-func (ae *ActionExecutor) Execute(action string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	return ae.registry.Execute(action, args, options, silent)
+// Execute executes an action with context support
+func (ae *ActionExecutor) Execute(ctx context.Context, action string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	return ae.registry.Execute(ctx, action, args, options, silent)
 }

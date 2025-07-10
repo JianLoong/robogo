@@ -35,12 +35,6 @@ variables:
 
 steps:
 
-    # Basic HTTP Response Logging
-  - name: "Basic GET request and logging"
-    action: http_get
-    args: ["${api_base_url}/get"]
-    result: basic_response
-
   - name: "S1 - Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
@@ -51,7 +45,7 @@ steps:
     args: ["TXN", "${timestamp_ms}"]
     result: transaction_id
 
-  - name: "S3 -Get current date"
+  - name: "S3 - Get current date"
     action: get_time
     args: ["date"]
     result: current_date
@@ -94,39 +88,44 @@ steps:
 
   - name: "S7 - Log Payment API Response"
     action: log
-    args: ["Payment API Respons.data:", "${payment_response}"]
+    args: ["Payment API Response:", "${payment_response.body}"]
 
   - name: "S8 - Assert Payment API Response Status"
     action: assert
     args: ["${payment_response.status_code}", "==", "200", "Payment API should return 200 OK"]
 
-  - name: "S9 - Assert Payment API Response Contains Success"
+  - name: "Extract data field from JSON response"
+    action: json_extract
+    args: ["${payment_response.body}", "data"]
+    result: response_data
+  
+  - name: "Assert Payment API Response Contains Success"
     action: assert
-    args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should indicate message was accepted"]
+    args: ["${response_data}", "contains", "${mt103_message}", "Payment API response should indicate message was accepted"]
 
-  - name: "Insert Payment Record into Spanner"
+  - name: "S10 - Insert Payment Record into Spanner"
     action: spanner
     args:
-      - execute
+      - "execute"
       - "${spanner_connection}"
       - "INSERT INTO payments (transaction_id, sender_bic, sender_account, beneficiary_account, amount) VALUES ('${transaction_id}', '${sender_bic}', '${sender_account}', '${beneficiary_account}', ${amount})"
     result: spanner_insert_result
 
-  - name: "Query Payment Record from Spanner"
+  - name: "S11 - Query Payment Record from Spanner"
     action: spanner
     args:
-      - query
+      - "query"
       - "${spanner_connection}"
       - "SELECT * FROM payments WHERE transaction_id = '${transaction_id}'"
     result: spanner_query_result
 
-  - name: "Assert Spanner Query Result"
+  - name: "S12 - Assert Spanner Query Result"
     action: assert
     args:
       - "${spanner_query_result}"
-      - contains
+      - "contains"
       - "${transaction_id}"
 
-  - name: "Log Payment Flow Completion"
+  - name: "S13 - Log Payment Flow Completion"
     action: log
     args: ["MT103 Payment Flow completed successfully"] 

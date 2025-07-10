@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -9,9 +10,9 @@ import (
 )
 
 // executeIfStatement executes an if/else block, collecting StepResults
-func executeIfStatement(tr *TestRunner, ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+func executeIfStatement(ctx context.Context, tr *TestRunner, ifBlock *parser.ConditionalBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(ifBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"if", condition}, map[string]interface{}{}, silent)
+	output, err := executor.Execute(ctx, "control", []interface{}{"if", condition}, map[string]interface{}{}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate if condition: %w", err)
 	}
@@ -31,13 +32,13 @@ func executeIfStatement(tr *TestRunner, ifBlock *parser.ConditionalBlock, execut
 	} else {
 		stepsToExecute = ifBlock.Else
 	}
-	return executeSteps(tr, stepsToExecute, executor, nil, silent, stepResults, context, testCase)
+	return executeSteps(ctx, tr, stepsToExecute, executor, nil, silent, stepResults, contextStr, testCase)
 }
 
 // executeForLoop executes a for loop, collecting StepResults
-func executeForLoop(tr *TestRunner, forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+func executeForLoop(ctx context.Context, tr *TestRunner, forBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase) error {
 	condition := tr.substituteString(forBlock.Condition)
-	output, err := executor.Execute("control", []interface{}{"for", condition}, map[string]interface{}{}, silent)
+	output, err := executor.Execute(ctx, "control", []interface{}{"for", condition}, map[string]interface{}{}, silent)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate for loop condition: %w", err)
 	}
@@ -60,7 +61,7 @@ func executeForLoop(tr *TestRunner, forBlock *parser.LoopBlock, executor *action
 	for i := 0; i < iterations; i++ {
 		tr.variableManager.SetVariable("iteration", i+1)
 		tr.variableManager.SetVariable("index", i)
-		if err := executeSteps(tr, forBlock.Steps, executor, forBlock, silent, stepResults, context, testCase); err != nil {
+		if err := executeSteps(ctx, tr, forBlock.Steps, executor, forBlock, silent, stepResults, contextStr, testCase); err != nil {
 			return fmt.Errorf("iteration %d failed: %w", i+1, err)
 		}
 	}
@@ -68,7 +69,7 @@ func executeForLoop(tr *TestRunner, forBlock *parser.LoopBlock, executor *action
 }
 
 // executeWhileLoop executes a while loop, collecting StepResults
-func executeWhileLoop(tr *TestRunner, whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, context string, testCase *parser.TestCase) error {
+func executeWhileLoop(ctx context.Context, tr *TestRunner, whileBlock *parser.LoopBlock, executor *actions.ActionExecutor, silent bool, stepResults *[]parser.StepResult, contextStr string, testCase *parser.TestCase) error {
 	iteration := 0
 	maxIterations := whileBlock.MaxIterations
 	if maxIterations <= 0 {
@@ -81,14 +82,14 @@ func executeWhileLoop(tr *TestRunner, whileBlock *parser.LoopBlock, executor *ac
 		}
 		tr.variableManager.SetVariable("iteration", iteration)
 		condition := tr.substituteString(whileBlock.Condition)
-		output, err := executor.Execute("control", []interface{}{"while", condition}, map[string]interface{}{}, silent)
+		output, err := executor.Execute(ctx, "control", []interface{}{"while", condition}, map[string]interface{}{}, silent)
 		if err != nil {
 			return fmt.Errorf("failed to evaluate while condition: %w", err)
 		}
 		if output != "true" {
 			break
 		}
-		if err := executeSteps(tr, whileBlock.Steps, executor, whileBlock, silent, stepResults, context, testCase); err != nil {
+		if err := executeSteps(ctx, tr, whileBlock.Steps, executor, whileBlock, silent, stepResults, contextStr, testCase); err != nil {
 			return fmt.Errorf("while iteration %d failed: %w", iteration, err)
 		}
 	}

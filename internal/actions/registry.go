@@ -45,14 +45,14 @@ func (ar *ActionRegistry) Get(name string) (Action, bool) {
 	return action, exists
 }
 
-// Execute executes an action by name
-func (ar *ActionRegistry) Execute(name string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+// Execute executes an action by name with context support
+func (ar *ActionRegistry) Execute(ctx context.Context, name string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	action, exists := ar.actions[name]
 	if !exists {
 		return nil, fmt.Errorf("unknown action: %s", name)
 	}
 
-	return action.Execute(args, options, silent)
+	return action.ExecuteWithContext(ctx, args, options, silent)
 }
 
 // List returns all registered actions
@@ -251,7 +251,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 
 	ar.Register(NewActionWithContext(
 		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-			return bytesToStringAction(args, options, silent)
+			return bytesToStringAction(ctx, args, options, silent)
 		},
 		ActionMetadata{
 			Name:        "bytes_to_string",
@@ -266,7 +266,7 @@ func (ar *ActionRegistry) registerBasicActions() {
 
 	ar.Register(NewActionWithContext(
 		func(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-			return jsonExtractAction(args, options, silent)
+			return jsonExtractAction(ctx, args, options, silent)
 		},
 		ActionMetadata{
 			Name:        "json_extract",
@@ -297,7 +297,7 @@ func (ar *ActionRegistry) registerHTTPActions() {
 		Returns: "HTTP response",
 	}))
 
-	ar.Register(NewActionWithContext(HTTPGetAction, ActionMetadata{
+	ar.Register(NewActionWithContext(HTTPGetActionWithContext, ActionMetadata{
 		Name:        "http_get",
 		Description: "Perform HTTP GET request",
 		Example:     `- action: http_get\n  args: ["https://api.example.com/users"]\n  result: response`,
@@ -309,7 +309,7 @@ func (ar *ActionRegistry) registerHTTPActions() {
 		Returns: "HTTP response",
 	}))
 
-	ar.Register(NewActionWithContext(HTTPPostAction, ActionMetadata{
+	ar.Register(NewActionWithContext(HTTPPostActionWithContext, ActionMetadata{
 		Name:        "http_post",
 		Description: "Perform HTTP POST request",
 		Example:     `- action: http_post\n  args: ["https://api.example.com/users", '{"name": "John"}']\n  result: response`,

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/output"
 	"github.com/JianLoong/robogo/internal/parser"
 	"github.com/JianLoong/robogo/internal/util"
 )
@@ -29,7 +30,7 @@ func NewTestSuiteRunner(runner *TestRunner) *TestSuiteRunner {
 }
 
 // RunTestSuite executes a test suite
-func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error) {
+func (tsr *TestSuiteRunner) RunTestSuite(ctx context.Context, testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error) {
 	startTime := time.Now()
 	result := &parser.TestSuiteResult{
 		TestSuite: testSuite,
@@ -63,7 +64,7 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	// Run setup if present
 	if len(testSuite.Setup) > 0 {
 		fmt.Printf("Running suite setup (%d steps)...\n", len(testSuite.Setup))
-		setupResult, err := tsr.runSetup(testSuite.Setup, testSuite.Variables)
+		setupResult, err := tsr.runSetup(ctx, testSuite.Setup, testSuite.Variables)
 		if err != nil {
 			result.Status = "skipped"
 			result.ErrorMessage = fmt.Sprintf("Setup failed: %v", err)
@@ -92,9 +93,9 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	if result.Status != "skipped" {
 		fmt.Printf("Running %d test cases...\n", len(testCases))
 		if testSuite.Parallel {
-			result.CaseResults = tsr.runTestCasesParallel(testCases, testSuite.Variables, testSuite.FailFast)
+			result.CaseResults = tsr.runTestCasesParallel(ctx, testCases, testSuite.Variables, testSuite.FailFast)
 		} else {
-			result.CaseResults = tsr.runTestCasesSequential(testCases, testSuite.Variables, testSuite.FailFast)
+			result.CaseResults = tsr.runTestCasesSequential(ctx, testCases, testSuite.Variables, testSuite.FailFast)
 		}
 	} else {
 		fmt.Printf("Skipping %d test cases due to setup failure\n", len(testCases))
@@ -140,7 +141,7 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 	// Run teardown if present (only if tests were actually run)
 	if len(testSuite.Teardown) > 0 && result.Status != "skipped" {
 		fmt.Printf("Running suite teardown (%d steps)...\n", len(testSuite.Teardown))
-		teardownResult, err := tsr.runTeardown(testSuite.Teardown, testSuite.Variables)
+		teardownResult, err := tsr.runTeardown(ctx, testSuite.Teardown, testSuite.Variables)
 		if err != nil {
 			fmt.Printf("Teardown failed: %v\n", err)
 		}
@@ -170,7 +171,7 @@ func (tsr *TestSuiteRunner) RunTestSuite(testSuite *parser.TestSuite, suiteFileP
 }
 
 // runSetup executes suite setup steps and captures results
-func (tsr *TestSuiteRunner) runSetup(steps []parser.Step, variables *parser.Variables) (*parser.TestResult, error) {
+func (tsr *TestSuiteRunner) runSetup(ctx context.Context, steps []parser.Step, variables *parser.Variables) (*parser.TestResult, error) {
 	// Create a temporary test case for setup
 	setupTestCase := &parser.TestCase{
 		Name:  "Suite Setup",
@@ -181,7 +182,7 @@ func (tsr *TestSuiteRunner) runSetup(steps []parser.Step, variables *parser.Vari
 	}
 
 	// Run setup and capture results
-	result, err := RunTestCase(setupTestCase, false, tsr.runner.executor)
+	result, err := RunTestCase(ctx, setupTestCase, false, tsr.runner.executor)
 	if err != nil {
 		return result, err
 	}
@@ -193,7 +194,7 @@ func (tsr *TestSuiteRunner) runSetup(steps []parser.Step, variables *parser.Vari
 }
 
 // runTeardown executes suite teardown steps with access to setup results
-func (tsr *TestSuiteRunner) runTeardown(steps []parser.Step, variables *parser.Variables) (*parser.TestResult, error) {
+func (tsr *TestSuiteRunner) runTeardown(ctx context.Context, steps []parser.Step, variables *parser.Variables) (*parser.TestResult, error) {
 	// Create a temporary test case for teardown
 	teardownTestCase := &parser.TestCase{
 		Name:  "Suite Teardown",
@@ -203,11 +204,11 @@ func (tsr *TestSuiteRunner) runTeardown(steps []parser.Step, variables *parser.V
 	// Merge setup results and suite variables for teardown
 	mergedTestCase := tsr.mergeSuiteVariables(teardownTestCase, variables)
 
-	return RunTestCase(mergedTestCase, false, tsr.runner.executor)
+	return RunTestCase(ctx, mergedTestCase, false, tsr.runner.executor)
 }
 
 // runTestCasesSequential runs test cases one after another
-func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase, suiteVariables *parser.Variables, failFast bool) []parser.TestCaseResult {
+func (tsr *TestSuiteRunner) runTestCasesSequential(ctx context.Context, testCases []*parser.TestCase, suiteVariables *parser.Variables, failFast bool) []parser.TestCaseResult {
 	var results []parser.TestCaseResult
 
 	failed := false
@@ -248,7 +249,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 			fmt.Printf("      %s: %v\n", k, v)
 		}
 
-		testResult, err := RunTestCase(mergedTestCase, false, tsr.runner.executor)
+		testResult, err := RunTestCase(ctx, mergedTestCase, false, tsr.runner.executor)
 		duration := time.Since(time.Now())
 
 		caseResult := parser.TestCaseResult{
@@ -305,7 +306,7 @@ func (tsr *TestSuiteRunner) runTestCasesSequential(testCases []*parser.TestCase,
 }
 
 // runTestCasesParallel runs test cases in parallel
-func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, suiteVariables *parser.Variables, failFast bool) []parser.TestCaseResult {
+func (tsr *TestSuiteRunner) runTestCasesParallel(ctx context.Context, testCases []*parser.TestCase, suiteVariables *parser.Variables, failFast bool) []parser.TestCaseResult {
 	var results []parser.TestCaseResult
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -357,7 +358,7 @@ func (tsr *TestSuiteRunner) runTestCasesParallel(testCases []*parser.TestCase, s
 			}
 
 			// Use silent=true for parallel execution to avoid stdout capture deadlocks
-			testResult, err := RunTestCase(mergedTestCase, true, tsr.runner.executor)
+			testResult, err := RunTestCase(ctx, mergedTestCase, true, tsr.runner.executor)
 			duration := time.Since(time.Now())
 
 			caseResult = parser.TestCaseResult{
@@ -528,7 +529,7 @@ func (tsr *TestSuiteRunner) printSuiteSummary(result *parser.TestSuiteResult) {
 	for _, caseResult := range result.CaseResults {
 		if caseResult.Result != nil && len(caseResult.Result.StepResults) > 0 {
 			title := "### Step Results for " + caseResult.TestCase.Name
-			PrintStepResultsMarkdown(caseResult.Result.StepResults, title)
+			output.PrintStepResultsMarkdown(caseResult.Result.StepResults, title)
 		}
 	}
 

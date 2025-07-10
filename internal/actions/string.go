@@ -127,7 +127,7 @@ func LengthAction(ctx context.Context, args []interface{}, options map[string]in
 
 // Add bytes_to_string action
 // bytesToStringAction converts a byte slice or any value to a string
-func bytesToStringAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func bytesToStringAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("bytes_to_string: missing argument")
 	}
@@ -142,7 +142,7 @@ func bytesToStringAction(args []interface{}, options map[string]interface{}, sil
 }
 
 // jsonExtractAction extracts a value by key from a JSON string
-func jsonExtractAction(args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+func jsonExtractAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	if len(args) < 2 {
 		return "", fmt.Errorf("json_extract: requires json string and key")
 	}
