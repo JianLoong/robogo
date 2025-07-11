@@ -4,20 +4,9 @@ testcase: "Spanner Integration Test"
 description: "Integration test for Google Cloud Spanner emulator using RoboGo. Inserts data, queries, and verifies connectivity."
 
 variables:
-  secrets:
-    spanner_project:
-      value: "test-project"
-    spanner_instance:
-      value: "test-instance"
-    spanner_database:
-      value: "test-database"
   vars:
-    spanner_host: "localhost:9010"
-    spanner_project_id: "${spanner_project}"
-    spanner_instance_id: "${spanner_instance}"
-    spanner_database_id: "${spanner_database}"
     test_table: "integration_test"
-    spanner_connection: "projects/${spanner_project_id}/instances/${spanner_instance_id}/databases/${spanner_database_id}"
+    spanner_connection: "projects/test-project/instances/test-instance/databases/test-database"
 
 steps:
   - name: "Connect to Spanner"

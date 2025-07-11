@@ -2,13 +2,6 @@ testcase: "TC01-MT103 Payment Flow Simulation"
 description: "Test SWIFT MT103 payment message generation and submission to mock payment system"
 
 variables:
-  secrets:
-    spanner_project:
-      value: "test-project"
-    spanner_instance:
-      value: "test-instance"
-    spanner_database:
-      value: "test-database"
   vars:
     # Mock sender details
     sender_bic: "DEUTDEFF"
@@ -27,12 +20,8 @@ variables:
     # Mock API endpoint
     payment_api_url: "https://httpbin.org/post"
     # Spanner connection string (update as needed)
-    spanner_project_id: "${SECRETS.spanner_project}"
-    spanner_instance_id: "${SECRETS.spanner_instance}"
-    spanner_database_id: "${SECRETS.spanner_database}"
     test_table: "integration_test"
-    spanner_connection: "projects/${spanner_project_id}/instances/${spanner_instance_id}/databases/${spanner_database_id}"
-
+    spanner_connection: "projects/test-project/instances/test-instance/databases/test-database"
 steps:
 
   - name: "S1 - Generate transaction timestamp"
