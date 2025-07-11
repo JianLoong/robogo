@@ -6,13 +6,6 @@ import (
 	"github.com/JianLoong/robogo/internal/parser"
 )
 
-// Format represents the output format type
-type Format string
-
-const (
-	FormatConsole Format = "console"
-)
-
 // GrandTotal represents aggregated results from multiple test suites
 type GrandTotal struct {
 	TotalCases   int
@@ -29,7 +22,7 @@ type Formatter interface {
 	FormatMultipleSuites(results []*parser.TestSuiteResult, grandTotal GrandTotal) error
 }
 
-// NewFormatter creates a new formatter based on the format type
-func NewFormatter(format Format) Formatter {
+// NewFormatter creates a new console formatter
+func NewFormatter() Formatter {
 	return &ConsoleFormatter{}
 }

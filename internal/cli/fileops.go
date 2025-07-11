@@ -126,7 +126,7 @@ func (fp *FileProcessor) processCaseFile(ctx context.Context, filePath string) (
 	results, err := runner.RunTestFilesWithConfigAndDebug(
 		ctx, 
 		[]string{filePath}, 
-		fp.options.Silent, 
+		false, 
 		fp.options.ParallelConfig, 
 		fp.executor, 
 		fp.options.VariableDebug,

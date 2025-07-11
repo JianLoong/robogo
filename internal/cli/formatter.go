@@ -7,15 +7,11 @@ import (
 )
 
 // ResultFormatter handles formatting and output of test results
-type ResultFormatter struct {
-	format string
-}
+type ResultFormatter struct{}
 
 // NewResultFormatter creates a new result formatter
-func NewResultFormatter(format string) *ResultFormatter {
-	return &ResultFormatter{
-		format: format,
-	}
+func NewResultFormatter() *ResultFormatter {
+	return &ResultFormatter{}
 }
 
 // FormatResults formats and outputs the test results based on their type
@@ -24,7 +20,7 @@ func (rf *ResultFormatter) FormatResults(results *RunResults) error {
 		return fmt.Errorf("no test results to format")
 	}
 
-	formatter := output.NewFormatter(output.Format(rf.format))
+	formatter := output.NewFormatter()
 
 	if results.HasOnlySuites() {
 		return rf.formatSuiteResults(formatter, results)
@@ -62,17 +58,14 @@ func (rf *ResultFormatter) formatSuiteResults(formatter output.Formatter, result
 func (rf *ResultFormatter) formatMixedResults(formatter output.Formatter, results *RunResults) error {
 	fmt.Println("Warning: Mixed test suites and test cases in one run. Outputting all results.")
 	
-	// Use console format for mixed results to ensure visibility
-	consoleFormatter := output.NewFormatter(output.FormatConsole)
-	
 	for _, suiteResult := range results.SuiteResults {
-		if err := consoleFormatter.FormatSuiteResult(suiteResult); err != nil {
+		if err := formatter.FormatSuiteResult(suiteResult); err != nil {
 			return err
 		}
 	}
 	
 	if len(results.CaseResults) > 0 {
-		if err := consoleFormatter.FormatTestResults(results.CaseResults); err != nil {
+		if err := formatter.FormatTestResults(results.CaseResults); err != nil {
 			return err
 		}
 	}

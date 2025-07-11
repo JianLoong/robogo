@@ -12,7 +12,7 @@ A modern, git-driven test automation framework written in Go. Robogo provides a 
 - **Template System**: SWIFT message generation and custom templating
 - **Parallel Execution**: Run tests and steps concurrently for better performance
 - **Secret Management**: Secure handling of sensitive data with output masking
-- **Console Output**: Clear, readable console output with colors and formatting
+- **Clear Output**: Readable console output with colors and formatting
 
 ## Quick Start
 
@@ -31,8 +31,8 @@ go build -o robogo.exe ./cmd/robogo
 # Run multiple tests in parallel
 ./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
 
-# Run with console output
-./robogo.exe run test.robogo --output console
+# Run a test file
+./robogo.exe run test.robogo
 
 # Run a test suite
 ./robogo.exe run-suite my-suite.robogo
@@ -414,10 +414,6 @@ robogo/
 └── docker-compose.yml      # Development services
 ```
 
-## Output Format
-
-### Console
-Human-readable output with colors and formatting (default and only option).
 
 ## Contributing
 

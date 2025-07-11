@@ -90,7 +90,6 @@ Key Features:
 
 // createRunCommand creates the run command
 func (app *App) createRunCommand() *cobra.Command {
-	var outputFormat string
 	var parallelEnabled bool
 	var maxConcurrency int
 	var variableDebug bool
@@ -102,17 +101,14 @@ func (app *App) createRunCommand() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return app.runTests(cmd.Context(), args, RunOptions{
-				OutputFormat:    outputFormat,
 				ParallelEnabled: parallelEnabled,
 				MaxConcurrency:  maxConcurrency,
 				VariableDebug:   variableDebug,
-				Silent:          false,
 				ParallelConfig:  app.createParallelConfig(parallelEnabled, maxConcurrency),
 			})
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	cmd.Flags().BoolVarP(&parallelEnabled, "parallel", "p", false, "Enable parallel execution")
 	cmd.Flags().IntVarP(&maxConcurrency, "concurrency", "c", 4, "Maximum concurrency for parallel execution")
 	cmd.Flags().BoolVarP(&variableDebug, "debug-vars", "d", false, "Enable variable resolution debugging")
@@ -122,25 +118,20 @@ func (app *App) createRunCommand() *cobra.Command {
 
 // createListCommand creates the list command
 func (app *App) createListCommand() *cobra.Command {
-	var outputFormat string
-
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available actions",
 		Long:  `List all available actions with their descriptions and examples.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return app.listActions(outputFormat)
+			return app.listActions()
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	return cmd
 }
 
 // createCompletionsCommand creates the completions command
 func (app *App) createCompletionsCommand() *cobra.Command {
-	var outputFormat string
-
 	cmd := &cobra.Command{
 		Use:   "completions [prefix]",
 		Short: "Get action completions for autocomplete",
@@ -151,11 +142,10 @@ func (app *App) createCompletionsCommand() *cobra.Command {
 			if len(args) > 0 {
 				prefix = args[0]
 			}
-			return app.getCompletions(prefix, outputFormat)
+			return app.getCompletions(prefix)
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	return cmd
 }
 
@@ -179,17 +169,15 @@ func (app *App) runTests(ctx context.Context, paths []string, options RunOptions
 	}
 
 	// Format and output results
-	formatter := NewResultFormatter(options.OutputFormat)
+	formatter := NewResultFormatter()
 	return formatter.FormatResults(results)
 }
 
 // listActions lists all available actions
-func (app *App) listActions(outputFormat string) error {
+func (app *App) listActions() error {
 	registry := actions.NewActionRegistry()
 	actionList := registry.List()
 
-
-	// Console format
 	fmt.Printf("📋 Available Actions (%d total):\n\n", len(actionList))
 	for _, action := range actionList {
 		fmt.Printf("- %s: %s\n", action.Name, action.Description)
@@ -203,12 +191,10 @@ func (app *App) listActions(outputFormat string) error {
 }
 
 // getCompletions gets action completions for autocomplete
-func (app *App) getCompletions(prefix, outputFormat string) error {
+func (app *App) getCompletions(prefix string) error {
 	registry := actions.NewActionRegistry()
 	completions := registry.GetCompletions(prefix)
 
-
-	// Console format
 	fmt.Printf("🔍 Completions for '%s':\n", prefix)
 	for _, completion := range completions {
 		fmt.Printf("  %s\n", completion)

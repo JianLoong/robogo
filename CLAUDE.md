@@ -59,8 +59,8 @@ go test ./...
 # Run with parallel execution
 ./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
 
-# Run with console output
-./robogo.exe run test.robogo --output console
+# Run a test file
+./robogo.exe run test.robogo
 ```
 
 ### Development Environment
@@ -306,7 +306,7 @@ The project includes a complete Docker Compose setup for development:
 - **Execution**: One-click test execution with integrated output
 - **Debugging**: Step-by-step execution with detailed results
 
-## Output Formats
+## Output Format
 
 - **Console**: Human-readable with colors and formatting
 - **Step-level reporting**: Detailed execution metrics and timing
