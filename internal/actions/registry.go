@@ -313,8 +313,8 @@ func (ar *ActionRegistry) registerControlActions() {
 func (ar *ActionRegistry) registerVariableActions() {
 	ar.Register(NewAction(VariableAction, ActionMetadata{
 		Name:        "variable",
-		Description: "Variable management operations (set_variable, get_variable, list_variables)",
-		Example:     `- action: variable\n  args: ["set_variable", "my_var", "my_value"]\n  result: set_result`,
+		Description: "[DEPRECATED] Legacy variable management (set_variable, get_variable, list_variables) — use 'variables:' block and step assignments instead.",
+		Example:     "# Deprecated: use 'variables:' block at the top level instead\nvariables:\n  vars:\n    my_var: 'value'\n# Or assign step outputs with 'result:'",
 		Category:    CategoryVariable,
 		Parameters: []ParameterInfo{
 			{Name: "operation", Type: ParamTypeString, Required: true, Description: "Variable operation"},

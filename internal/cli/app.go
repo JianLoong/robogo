@@ -29,11 +29,11 @@ func NewApp(version, commit, date string) *App {
 		commit:  commit,
 		date:    date,
 	}
-	
+
 	app.setupExecutor()
 	app.setupCommands()
 	app.setupGracefulShutdown()
-	
+
 	return app
 }
 
@@ -69,7 +69,7 @@ func (app *App) setupCommands() {
 It provides fast, extensible, and developer-friendly test automation with YAML-based test cases or test suites.
 
 Key Features:
-- Dynamic variable management with the 'variable' action (set_variable, get_variable, list_variables)
+- Modern variable management: define variables in a 'variables:' block and assign step outputs to variables (no 'variable' action needed)
 - Secure secret management: supports inline and file-based secrets (single value per file)
 - PostgreSQL database actions (connect, query, execute, close)
 - Control flow: if, for, while loops

@@ -189,7 +189,7 @@ func (ve *DefaultValidationEngine) ValidateStep(step parser.Step) []ValidationEr
 			"get_time", "get_random", "if", "for", "while",
 			"kafka", "rabbitmq", "tdm", "control",
 		}
-		
+
 		isValidAction := false
 		for _, validAction := range validActions {
 			if step.Action == validAction {
@@ -197,7 +197,7 @@ func (ve *DefaultValidationEngine) ValidateStep(step parser.Step) []ValidationEr
 				break
 			}
 		}
-		
+
 		if !isValidAction {
 			errors = append(errors, ValidationError{
 				Type:    "unknown_action",
@@ -224,7 +224,7 @@ func (ve *DefaultValidationEngine) ValidateStep(step parser.Step) []ValidationEr
 	if step.While != nil {
 		controlFlowCount++
 	}
-	
+
 	if controlFlowCount > 1 {
 		errors = append(errors, ValidationError{
 			Type:    "invalid_configuration",
@@ -274,20 +274,6 @@ func (ve *DefaultValidationEngine) validateActionSpecificRequirements(step parse
 					"Format: args: [actual_value, operator, expected_value]",
 					"Example: args: ['${response.status}', '==', '200']",
 					"Operators: ==, !=, <, >, <=, >=, contains, matches",
-				},
-			})
-		}
-
-	case "variable":
-		if len(step.Args) < 2 {
-			errors = append(errors, ValidationError{
-				Type:    "insufficient_arguments",
-				Message: "Variable action requires at least 2 arguments (name, value)",
-				Field:   "args",
-				Value:   len(step.Args),
-				Suggestions: []string{
-					"Format: args: [variable_name, value]",
-					"Example: args: ['user_id', '12345']",
 				},
 			})
 		}
