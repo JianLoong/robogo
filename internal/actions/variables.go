@@ -40,23 +40,44 @@ import (
 //   - Use ${variable_name} syntax to reference in other actions
 //   - Variables are shared across all steps in a test case
 func VariableAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("variable action requires at least 1 argument: operation")
+	parser := util.NewArgParser(args, options)
+
+	if err := parser.RequireMinArgs(1); err != nil {
+		return nil, util.NewArgumentCountError("variable", 1, len(args))
 	}
 
-	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
+	operation, err := parser.GetString(0)
+	if err != nil {
+		return nil, util.NewArgumentTypeError("variable", 0, "string", args[0])
+	}
+
+	operation = strings.ToLower(operation)
 
 	switch operation {
 	case "set":
-		if len(args) < 3 {
-			return nil, fmt.Errorf("set requires variable_name and value")
+		if err := parser.RequireMinArgs(3); err != nil {
+			return nil, util.NewArgumentCountError("variable set", 3, len(args))
 		}
-		variableName := fmt.Sprintf("%v", args[1])
+		variableName, err := parser.GetString(1)
+		if err != nil {
+			return nil, util.NewArgumentTypeError("variable set", 1, "string", args[1])
+		}
 		return setVariable(variableName, args[2:], silent)
+	case "get":
+		if err := parser.RequireMinArgs(2); err != nil {
+			return nil, util.NewArgumentCountError("variable get", 2, len(args))
+		}
+		variableName, err := parser.GetString(1)
+		if err != nil {
+			return nil, util.NewArgumentTypeError("variable get", 1, "string", args[1])
+		}
+		return getVariable(variableName, silent)
+	case "list":
+		return listVariables(silent)
 	case "set_variable":
-		return nil, fmt.Errorf("'set_variable' is not supported. Use 'set' instead.")
+		return nil, fmt.Errorf("'set_variable' is not supported. Use 'set' instead")
 	default:
-		return nil, fmt.Errorf("unknown variable operation: %s", operation)
+		return nil, fmt.Errorf("unknown variable operation: %s. Supported operations: set, get, list", operation)
 	}
 }
 
@@ -85,6 +106,46 @@ func setVariable(name string, args []interface{}, silent bool) (interface{}, err
 		"name":      name,
 		"value":     value,
 		"status":    "success",
+	}
+
+	resultMap, err := util.ConvertToMap(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert result to map: %w", err)
+	}
+
+	return resultMap, nil
+}
+
+// getVariable retrieves a variable value
+func getVariable(name string, silent bool) (interface{}, error) {
+	// Note: This is a placeholder implementation
+	// In a real implementation, this would retrieve from the actual variable store
+	// which is managed by the runner/execution context
+	result := map[string]interface{}{
+		"operation": "get",
+		"name":      name,
+		"status":    "error",
+		"message":   "Variable retrieval not implemented - variables are managed by the execution context",
+	}
+
+	resultMap, err := util.ConvertToMap(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert result to map: %w", err)
+	}
+
+	return resultMap, nil
+}
+
+// listVariables lists all available variables
+func listVariables(silent bool) (interface{}, error) {
+	// Note: This is a placeholder implementation
+	// In a real implementation, this would list from the actual variable store
+	// which is managed by the runner/execution context
+	result := map[string]interface{}{
+		"operation": "list",
+		"status":    "error",
+		"message":   "Variable listing not implemented - variables are managed by the execution context",
+		"variables": []interface{}{},
 	}
 
 	resultMap, err := util.ConvertToMap(result)

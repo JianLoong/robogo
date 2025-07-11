@@ -27,9 +27,6 @@ type ExecutionContext interface {
 	// Retry logic
 	Retry() RetryHandler
 	
-	// Test data management
-	TestData() TDMHandler
-	
 	// Action execution
 	Actions() ActionExecutor
 	
@@ -74,13 +71,6 @@ type RetryHandler interface {
 	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error)
 }
 
-// TDMHandler provides test data management operations
-type TDMHandler interface {
-	LoadDatasets(datasets []parser.DataSet) error
-	SetEnvironment(environment string) error
-	ValidateData(validations []parser.Validation) ([]parser.ValidationResult, error)
-	GetData(key string) (interface{}, bool)
-}
 
 // ActionExecutor provides action execution capabilities
 type ActionExecutor interface {
@@ -91,7 +81,6 @@ type ActionExecutor interface {
 type DefaultExecutionContext struct {
 	variableManager   *VariableManager
 	secretManager     *actions.SecretManager
-	tdmManager        *actions.TDMManager
 	executor          *actions.ActionExecutor
 	variableDebugger  *util.VariableResolutionDebugger
 	variableDebugging bool
@@ -105,7 +94,6 @@ func NewExecutionContext(executor *actions.ActionExecutor) ExecutionContext {
 		variableDebugger:  util.NewVariableResolutionDebugger(false, "execution", variableManager),
 		variableDebugging: false,
 		secretManager:   actions.NewSecretManager(),
-		tdmManager:      actions.NewTDMManager(),
 		executor:        executor,
 	}
 }
@@ -130,10 +118,6 @@ func (ctx *DefaultExecutionContext) Retry() RetryHandler {
 	return &simpleRetryHandler{}
 }
 
-// TestData returns the TDM handler
-func (ctx *DefaultExecutionContext) TestData() TDMHandler {
-	return &tdmHandlerAdapter{ctx.tdmManager}
-}
 
 // Actions returns the action executor
 func (ctx *DefaultExecutionContext) Actions() ActionExecutor {
@@ -297,26 +281,6 @@ func (r *simpleRetryHandler) ExecuteWithRetry(ctx context.Context, step parser.S
 	return nil, lastErr
 }
 
-type tdmHandlerAdapter struct {
-	tm *actions.TDMManager
-}
-
-func (t *tdmHandlerAdapter) LoadDatasets(datasets []parser.DataSet) error {
-	return t.tm.LoadDataSets(datasets)
-}
-
-func (t *tdmHandlerAdapter) SetEnvironment(environment string) error {
-	return t.tm.SetEnvironment(environment)
-}
-
-func (t *tdmHandlerAdapter) ValidateData(validations []parser.Validation) ([]parser.ValidationResult, error) {
-	results := t.tm.ValidateData(validations)
-	return results, nil
-}
-
-func (t *tdmHandlerAdapter) GetData(key string) (interface{}, bool) {
-	return t.tm.GetVariable(key)
-}
 
 type actionExecutorAdapter struct {
 	executor *actions.ActionExecutor

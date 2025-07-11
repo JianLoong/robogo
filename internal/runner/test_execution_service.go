@@ -67,22 +67,9 @@ func (tes *TestExecutionService) ExecuteTestCase(ctx context.Context, testCase *
 		output.PrintTestCaseSteps(len(testCase.Steps))
 	}
 	
-	// Execute TDM setup if configured
-	if err := tes.executeTDMSetup(testCase); err != nil {
-		return result, fmt.Errorf("TDM setup failed: %w", err)
-	}
-	
 	// Execute steps
 	stepResults, err := tes.executeSteps(ctx, testCase, silent)
 	result.StepResults = stepResults
-	
-	// Execute TDM teardown
-	if teardownErr := tes.executeTDMTeardown(testCase); teardownErr != nil {
-		// Log teardown error but don't fail the test
-		if !silent {
-			fmt.Printf("TDM teardown warning: %v\n", teardownErr)
-		}
-	}
 	
 	// Calculate final status
 	result.Duration = time.Since(startTime)
@@ -182,63 +169,6 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 	return nil
 }
 
-func (tes *TestExecutionService) executeTDMSetup(testCase *parser.TestCase) error {
-	if testCase.DataManagement == nil {
-		return nil
-	}
-	
-	dm := testCase.DataManagement
-	
-	if !tes.isQuiet() {
-		output.PrintTDMSetup()
-	}
-	
-	// Load datasets
-	if len(dm.DataSets) > 0 {
-		if err := tes.context.TestData().LoadDatasets(dm.DataSets); err != nil {
-			return fmt.Errorf("failed to load datasets: %w", err)
-		}
-	}
-	
-	// Set environment
-	if dm.Environment != "" {
-		if err := tes.context.TestData().SetEnvironment(dm.Environment); err != nil {
-			return fmt.Errorf("failed to set environment: %w", err)
-		}
-	}
-	
-	// Validate data
-	if len(dm.Validation) > 0 {
-		validationResults, err := tes.context.TestData().ValidateData(dm.Validation)
-		if err != nil {
-			return fmt.Errorf("data validation failed: %w", err)
-		}
-		
-		// Process validation results
-		for _, result := range validationResults {
-			if result.Severity == "error" {
-				fmt.Printf("Data validation failure - %s: %s\n", result.Name, result.Message)
-			} else if result.Severity == "warning" {
-				fmt.Printf("Data validation warning - %s: %s\n", result.Name, result.Message)
-			}
-		}
-	}
-	
-	return nil
-}
-
-func (tes *TestExecutionService) executeTDMTeardown(testCase *parser.TestCase) error {
-	if testCase.DataManagement == nil {
-		return nil
-	}
-	
-	if !tes.isQuiet() {
-		output.PrintTDMTeardown()
-	}
-	
-	// Add teardown logic here if needed
-	return nil
-}
 
 func (tes *TestExecutionService) executeSteps(ctx context.Context, testCase *parser.TestCase, silent bool) ([]parser.StepResult, error) {
 	// Check for parallel execution configuration

@@ -121,7 +121,6 @@ func (ar *ActionRegistry) registerBuiltinActions() {
 	ar.registerDatabaseActions()
 	ar.registerControlActions()
 	ar.registerVariableActions()
-	ar.registerTDMActions()
 	ar.registerMessagingActions()
 	ar.registerTemplateActions()
 	ar.registerUtilityActions()
@@ -325,20 +324,6 @@ func (ar *ActionRegistry) registerVariableActions() {
 	}))
 }
 
-func (ar *ActionRegistry) registerTDMActions() {
-	ar.Register(NewAction(TDMAction, ActionMetadata{
-		Name:        "tdm",
-		Description: "Test Data Management operations (generate, validate, load_dataset, set_environment)",
-		Example:     `- action: tdm\n  args: ["generate", "user_{index}", 5]\n  result: generated_data`,
-		Category:    CategoryTDM,
-		Parameters: []ParameterInfo{
-			{Name: "operation", Type: ParamTypeString, Required: true, Description: "TDM operation"},
-			{Name: "template", Type: ParamTypeString, Required: false, Description: "Data template"},
-			{Name: "count", Type: ParamTypeNumber, Required: false, Description: "Number of records"},
-		},
-		Returns: "TDM result",
-	}))
-}
 
 func (ar *ActionRegistry) registerMessagingActions() {
 	ar.Register(NewAction(RabbitMQAction, ActionMetadata{

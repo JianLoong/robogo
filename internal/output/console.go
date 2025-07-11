@@ -177,25 +177,6 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 
 // Console output utility functions
 
-// PrintTDMSetup prints the TDM setup message
-func PrintTDMSetup() {
-	fmt.Printf("Executing TDM setup...\n")
-}
-
-// PrintTDMTeardown prints the TDM teardown message
-func PrintTDMTeardown() {
-	fmt.Printf("Executing TDM teardown...\n")
-}
-
-// PrintDataValidationFailure prints a data validation failure message
-func PrintDataValidationFailure(name, message string) {
-	fmt.Printf("Data validation failed: %s - %s\n", name, message)
-}
-
-// PrintDataValidationWarning prints a data validation warning message
-func PrintDataValidationWarning(name, message string) {
-	fmt.Printf("Data validation warning: %s - %s\n", name, message)
-}
 
 // PrintWarning prints a general warning message
 func PrintWarning(format string, args ...interface{}) {

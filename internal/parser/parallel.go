@@ -15,7 +15,6 @@ func GetDefaultParallelConfig() *ParallelConfig {
 		Steps:          false, // Step parallelism needs careful implementation
 		HTTPRequests:   false, // HTTP parallelism needs rate limiting
 		DatabaseOps:    false, // Database parallelism needs connection pooling
-		DataValidation: false, // Data validation parallelism needs careful handling
 		FileOperations: false, // File operations parallelism needs file locking
 	}
 }

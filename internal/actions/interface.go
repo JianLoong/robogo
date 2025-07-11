@@ -67,7 +67,6 @@ const (
 	CategoryDatabase  = "database"
 	CategoryControl   = "control"
 	CategoryVariable  = "variable"
-	CategoryTDM       = "tdm"
 	CategoryMessaging = "messaging"
 	CategoryTemplate  = "template"
 	CategoryUtility   = "utility"
