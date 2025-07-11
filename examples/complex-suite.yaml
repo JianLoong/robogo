@@ -13,7 +13,7 @@ variables:
     default_user: "suiteuser"
   secrets:
     api_key:
-      file: "secret.txt"
+      file: "./secret-stub/secret.txt"
       mask_output: true
 
 setup:
@@ -31,10 +31,7 @@ testcases:
   - file: ../tests/core/test-get-time.yaml
   - file: ./test-kafka-timeout.yaml
   - file: ../tests/integration/test-kafka-integration.yaml
-  - file: ../tests/integration/test-kafka-integration.yaml
-  - file: ../tests/integration/test-kafka-integration.yaml
-  - file: ../tests/integration/test-kafka-integration.yaml
-  - file: ../tests/integration/test-kafka-integration.yaml
+
   
 
 teardown:

@@ -4,7 +4,7 @@ description: "Test variable resolution with secrets and regular variables"
 variables:
   secrets:
     db_password:
-      file: "db_secret.txt"
+      file: "./secret-stub/db_secret.txt"
       mask_output: false
   vars:
     db_host: "localhost"
