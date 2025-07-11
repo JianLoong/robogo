@@ -4,12 +4,53 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"regexp"
 
 	"github.com/JianLoong/robogo/internal/parser"
 )
 
 // ConsoleFormatter handles console output formatting
 type ConsoleFormatter struct{}
+
+// maskSecretsInArgs applies secret masking to arguments for display
+func maskSecretsInArgs(args []interface{}) []interface{} {
+	if len(args) == 0 {
+		return args
+	}
+	
+	maskedArgs := make([]interface{}, len(args))
+	copy(maskedArgs, args)
+	
+	// Common secret patterns to mask
+	secretPatterns := []*regexp.Regexp{
+		// Database URLs with passwords
+		regexp.MustCompile(`(postgresql://[^:]+:)([^@]+)(@.*)`),
+		regexp.MustCompile(`(postgres://[^:]+:)([^@]+)(@.*)`),
+		regexp.MustCompile(`(mysql://[^:]+:)([^@]+)(@.*)`),
+		// Generic protocol://user:password@host patterns
+		regexp.MustCompile(`(://[^:]+:)([^@]+)(@.*)`),
+		// Bearer tokens
+		regexp.MustCompile(`(Bearer\s+)([A-Za-z0-9\-._~+/]+=*)`),
+		// API keys and tokens (common patterns)
+		regexp.MustCompile(`([Aa]pi[_-]?[Kk]ey[=\s:]+)([A-Za-z0-9\-._~+/]{8,})`),
+		regexp.MustCompile(`([Tt]oken[=\s:]+)([A-Za-z0-9\-._~+/]{8,})`),
+		// Password fields
+		regexp.MustCompile(`([Pp]assword[=\s:]+)([^\s&]+)`),
+		regexp.MustCompile(`([Pp]ass[=\s:]+)([^\s&]+)`),
+	}
+	
+	for i, arg := range maskedArgs {
+		if argStr, ok := arg.(string); ok {
+			masked := argStr
+			for _, pattern := range secretPatterns {
+				masked = pattern.ReplaceAllString(masked, "${1}[MASKED]${3}")
+			}
+			maskedArgs[i] = masked
+		}
+	}
+	
+	return maskedArgs
+}
 
 // Utility functions for console output formatting
 
@@ -93,7 +134,8 @@ func PrintStepResultsDetailed(stepResults []parser.StepResult, title string) {
 		fmt.Printf("   Duration: %v\n", stepResult.Duration)
 		
 		if stepResult.Step.Args != nil && len(stepResult.Step.Args) > 0 {
-			fmt.Printf("   Args: %v\n", stepResult.Step.Args)
+			maskedArgs := maskSecretsInArgs(stepResult.Step.Args)
+			fmt.Printf("   Args: %v\n", maskedArgs)
 		}
 		
 		if stepResult.Output != "" {
