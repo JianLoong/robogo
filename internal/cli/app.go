@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -107,13 +106,13 @@ func (app *App) createRunCommand() *cobra.Command {
 				ParallelEnabled: parallelEnabled,
 				MaxConcurrency:  maxConcurrency,
 				VariableDebug:   variableDebug,
-				Silent:          outputFormat == "json" || outputFormat == "markdown",
+				Silent:          false,
 				ParallelConfig:  app.createParallelConfig(parallelEnabled, maxConcurrency),
 			})
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json, markdown)")
+	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	cmd.Flags().BoolVarP(&parallelEnabled, "parallel", "p", false, "Enable parallel execution")
 	cmd.Flags().IntVarP(&maxConcurrency, "concurrency", "c", 4, "Maximum concurrency for parallel execution")
 	cmd.Flags().BoolVarP(&variableDebug, "debug-vars", "d", false, "Enable variable resolution debugging")
@@ -134,7 +133,7 @@ func (app *App) createListCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
+	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	return cmd
 }
 
@@ -156,7 +155,7 @@ func (app *App) createCompletionsCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console, json)")
+	cmd.Flags().StringVarP(&outputFormat, "output", "o", "console", "Output format (console only)")
 	return cmd
 }
 
@@ -189,14 +188,6 @@ func (app *App) listActions(outputFormat string) error {
 	registry := actions.NewActionRegistry()
 	actionList := registry.List()
 
-	if outputFormat == "json" {
-		jsonData, err := json.MarshalIndent(actionList, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal actions: %w", err)
-		}
-		fmt.Println(string(jsonData))
-		return nil
-	}
 
 	// Console format
 	fmt.Printf("📋 Available Actions (%d total):\n\n", len(actionList))
@@ -216,14 +207,6 @@ func (app *App) getCompletions(prefix, outputFormat string) error {
 	registry := actions.NewActionRegistry()
 	completions := registry.GetCompletions(prefix)
 
-	if outputFormat == "json" {
-		jsonData, err := json.Marshal(completions)
-		if err != nil {
-			return fmt.Errorf("failed to marshal completions: %w", err)
-		}
-		fmt.Println(string(jsonData))
-		return nil
-	}
 
 	// Console format
 	fmt.Printf("🔍 Completions for '%s':\n", prefix)

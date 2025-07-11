@@ -10,9 +10,7 @@ import (
 type Format string
 
 const (
-	FormatConsole  Format = "console"
-	FormatJSON     Format = "json"
-	FormatMarkdown Format = "markdown"
+	FormatConsole Format = "console"
 )
 
 // GrandTotal represents aggregated results from multiple test suites
@@ -33,12 +31,5 @@ type Formatter interface {
 
 // NewFormatter creates a new formatter based on the format type
 func NewFormatter(format Format) Formatter {
-	switch format {
-	case FormatJSON:
-		return &JSONFormatter{}
-	case FormatMarkdown:
-		return &MarkdownFormatter{}
-	default:
-		return &ConsoleFormatter{}
-	}
+	return &ConsoleFormatter{}
 }

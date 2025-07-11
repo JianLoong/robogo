@@ -15,7 +15,7 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
   - `parser/`: YAML parsing, test case validation, and test suite support
   - `runner/`: Service-oriented test orchestration with dependency injection and parallel execution
   - `actions/`: Built-in actions for HTTP, database, control flow, templating, etc.
-- **CLI Interface**: `cmd/robogo/main.go` - Cobra-based CLI with multiple output formats
+- **CLI Interface**: `cmd/robogo/main.go` - Cobra-based CLI with console output
 - **VS Code Extension**: Complete extension in `.vscode/extensions/robogo/` with syntax highlighting, autocomplete, and validation
 
 ### Architecture Highlights
@@ -59,9 +59,8 @@ go test ./...
 # Run with parallel execution
 ./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
 
-# Run with different output formats
-./robogo.exe run test.robogo --output json
-./robogo.exe run test.robogo --output markdown
+# Run with console output
+./robogo.exe run test.robogo --output console
 ```
 
 ### Development Environment
@@ -310,6 +309,4 @@ The project includes a complete Docker Compose setup for development:
 ## Output Formats
 
 - **Console**: Human-readable with colors and formatting
-- **JSON**: Machine-readable for CI/CD integration
-- **Markdown**: Documentation-friendly with collapsible sections
 - **Step-level reporting**: Detailed execution metrics and timing
