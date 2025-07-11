@@ -1,8 +1,8 @@
 {
   "name": "robogo",
   "displayName": "Robogo",
-  "description": "Comprehensive support for Robogo test automation framework with rich documentation, syntax highlighting, autocomplete, validation, parallel execution, TDM, and SWIFT message support",
-  "version": "1.2.0",
+  "description": "Modern VS Code extension for Robogo test automation framework with intelligent features, real-time validation, and comprehensive documentation",
+  "version": "2.0.0",
   "publisher": "robogo",
   "engines": {
     "vscode": "^1.90.0"
@@ -88,6 +88,51 @@
       {
         "command": "robogo.generateTemplate",
         "title": "Generate Test Template",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.generateTestCase",
+        "title": "Generate Test Case",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.generateTestSuite",
+        "title": "Generate Test Suite",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.debugTest",
+        "title": "Debug Test with Variable Inspection",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.runStep",
+        "title": "Run Specific Step",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.showActionHelp",
+        "title": "Show Action Help",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.showExamples",
+        "title": "Show Examples",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.openSettings",
+        "title": "Open Robogo Settings",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.resetConfiguration",
+        "title": "Reset Configuration",
+        "category": "Robogo"
+      },
+      {
+        "command": "robogo.showConfiguration",
+        "title": "Show Current Configuration",
         "category": "Robogo"
       },
       {
