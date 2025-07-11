@@ -27,16 +27,16 @@ go build -o robogo.exe ./cmd/robogo
 
 ```bash
 # Run a single test file
-./robogo.exe run my-test.robogo
+./robogo.exe run my-test.yaml
 
 # Run multiple tests in parallel
-./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
+./robogo.exe run tests/*.yaml --parallel --max-concurrency 4
 
 # Run a test file
-./robogo.exe run test.robogo
+./robogo.exe run test.yaml
 
 # Run a test suite
-./robogo.exe run-suite my-suite.robogo
+./robogo.exe run-suite my-suite.yaml
 
 # List all available actions
 ./robogo.exe list
@@ -44,7 +44,7 @@ go build -o robogo.exe ./cmd/robogo
 
 ### Your First Test
 
-Create a file called `hello-world.robogo`:
+Create a file called `hello-world.yaml`:
 
 ```yaml
 testcase: "Hello World API Test"
@@ -71,14 +71,14 @@ steps:
 
 Run it:
 ```bash
-./robogo.exe run hello-world.robogo
+./robogo.exe run hello-world.yaml
 ```
 
 ## Test Structure
 
 ### Test Cases
 
-Test cases are individual `.robogo` files that define a single test scenario:
+Test cases are individual `.yaml` files that define a single test scenario:
 
 ```yaml
 testcase: "User Registration Test"
@@ -130,8 +130,8 @@ setup:
 
 testcases:
 
-  - file: tests/core/test-assert.robogo
-  - file: tests/core/test-control-flow.robogo
+  - file: tests/core/test-assert.yaml
+  - file: tests/core/test-control-flow.yaml
  
 teardown:
   - name: "Cleanup test environment"

@@ -25,7 +25,7 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
 - **Comprehensive Validation**: Built-in validation engine with detailed error messages and suggestions
 
 ### Supported Test Types
-- **Test Cases**: Individual `.robogo` files with YAML-based test definitions
+- **Test Cases**: Individual `.yaml` files with YAML-based test definitions
 - **Test Suites**: Collections of test cases with shared setup/teardown
 - **Parallel Execution**: Both test-level and step-level parallelism with dependency analysis
 
@@ -51,16 +51,16 @@ go build -o robogo.exe ./cmd/robogo
 go test ./...
 
 # Run a single test file
-./robogo.exe run tests/core/test-assert.robogo
+./robogo.exe run tests/core/test-assert.yaml
 
 # Run test suite
-./robogo.exe run-suite examples/test-suite.robogo
+./robogo.exe run-suite examples/test-suite.yaml
 
 # Run with parallel execution
-./robogo.exe run tests/*.robogo --parallel --max-concurrency 4
+./robogo.exe run tests/*.yaml --parallel --max-concurrency 4
 
 # Run a test file
-./robogo.exe run test.robogo
+./robogo.exe run test.yaml
 ```
 
 ### Development Environment
@@ -139,7 +139,7 @@ robogo/
 
 ## Test File Format
 
-Robogo uses YAML-based test definitions with `.robogo` extension:
+Robogo uses YAML-based test definitions with `.yaml` extension:
 
 ### Test Case Structure
 ```yaml
@@ -182,8 +182,8 @@ teardown:
     args: ["Cleaning up..."]
 
 testcases:
-  - tests/test1.robogo
-  - tests/test2.robogo
+  - tests/test1.yaml
+  - tests/test2.yaml
 ```
 
 ## Key Implementation Details
@@ -299,7 +299,7 @@ The project includes a complete Docker Compose setup for development:
 
 ## VS Code Extension Features
 
-- **Syntax Highlighting**: Custom grammar for .robogo files
+- **Syntax Highlighting**: Custom grammar for .yaml files
 - **Autocomplete**: Intelligent action and parameter suggestions
 - **Validation**: Real-time syntax and semantic validation
 - **Documentation**: Hover tooltips with action documentation
