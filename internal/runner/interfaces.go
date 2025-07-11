@@ -8,8 +8,6 @@ import (
 	"github.com/JianLoong/robogo/internal/parser"
 )
 
-// Core service interfaces for component decoupling
-
 // TestExecutor defines the interface for test case execution
 type TestExecutor interface {
 	ExecuteTestCase(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error)
@@ -27,8 +25,6 @@ type StepExecutor interface {
 	ExecuteStepsParallel(ctx context.Context, steps []parser.Step, config *parser.ParallelConfig, silent bool) ([]parser.StepResult, error)
 }
 
-// VariableStore interface is already defined in execution_context.go - keeping it there for consistency
-
 // TestSuiteExecutor defines the interface for test suite execution
 type TestSuiteExecutor interface {
 	RunTestSuite(ctx context.Context, testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error)
@@ -43,7 +39,7 @@ type VariableManagerInterface interface {
 	SubstituteString(s string) string
 	resolveDotNotation(varName string) (interface{}, bool)
 	substituteStringForDisplay(s string) string
-	
+
 	// Secret management methods
 	MaskSensitiveOutput(output string) string
 	IsSecretMasked(secretName string) bool
@@ -65,8 +61,6 @@ type RetryPolicy interface {
 	GetRetryDelay(attempt int) time.Duration
 	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error)
 }
-
-
 
 // ContextProvider interface for providing execution context
 type ContextProvider interface {
@@ -108,4 +102,3 @@ type ValidationError struct {
 	Value       interface{}
 	Suggestions []string
 }
-

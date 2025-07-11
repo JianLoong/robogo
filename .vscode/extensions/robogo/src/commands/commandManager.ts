@@ -32,8 +32,7 @@ export class CommandManager {
             vscode.commands.registerCommand('robogo.runTestParallel', () => this.runTestParallel()),
             vscode.commands.registerCommand('robogo.runTestSuite', () => this.runTestSuite()),
             vscode.commands.registerCommand('robogo.runWithOutput', () => this.runWithOutput()),
-            vscode.commands.registerCommand('robogo.debugTest', (uri?: vscode.Uri) => this.debugTest(uri)),
-            vscode.commands.registerCommand('robogo.runStep', (uri: vscode.Uri, line: number) => this.runStep(uri, line))
+            vscode.commands.registerCommand('robogo.debugTest', (uri?: vscode.Uri) => this.debugTest(uri))
         );
 
         // Utility commands
@@ -156,13 +155,6 @@ export class CommandManager {
         }
 
         await this.testExecutor.debugTest(targetUri);
-    }
-
-    /**
-     * Run specific step
-     */
-    private async runStep(uri: vscode.Uri, line: number): Promise<void> {
-        await this.testExecutor.runStep(uri, line);
     }
 
     /**

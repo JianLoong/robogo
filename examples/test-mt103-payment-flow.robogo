@@ -77,7 +77,7 @@ steps:
 
   - name: "S7 - Log Payment API Response"
     action: log
-    args: ["Payment API Response:", "${payment_response.body}"]
+    args: ["Payment API Response:", "${payment_response.status_code:502}"]
 
   - name: "S8 - Assert Payment API Response Status"
     action: assert

@@ -106,11 +106,6 @@
         "category": "Robogo"
       },
       {
-        "command": "robogo.runStep",
-        "title": "Run Specific Step",
-        "category": "Robogo"
-      },
-      {
         "command": "robogo.showActionHelp",
         "title": "Show Action Help",
         "category": "Robogo"

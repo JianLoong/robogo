@@ -230,16 +230,6 @@ export class CompletionProvider implements
                 }));
             }
 
-            // Step execution
-            if (trimmed.startsWith('- name:')) {
-                const range = new vscode.Range(i, 0, i, line.length);
-                
-                codeLenses.push(new vscode.CodeLens(range, {
-                    title: '▶️ Run Step',
-                    command: 'robogo.runStep',
-                    arguments: [document.uri, i]
-                }));
-            }
         }
 
         return codeLenses;

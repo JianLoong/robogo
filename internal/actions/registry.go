@@ -7,70 +7,61 @@ import (
 	"strings"
 )
 
-// ActionRegistry manages available actions with proper metadata
+// ActionRegistry manages available actions and their metadata.
 type ActionRegistry struct {
 	actions map[string]Action
 }
 
-// NewActionRegistry creates a new action registry and registers all built-in actions
+// NewActionRegistry creates a new ActionRegistry and registers all built-in actions.
 func NewActionRegistry() *ActionRegistry {
 	registry := &ActionRegistry{
 		actions: make(map[string]Action),
 	}
-
-	// Register all built-in actions
 	registry.registerBuiltinActions()
-
 	return registry
 }
 
-// Register adds an action to the registry
+// Register adds an action to the registry. Returns an error if the action name is empty or already registered.
 func (ar *ActionRegistry) Register(action Action) error {
 	metadata := action.GetMetadata()
 	if metadata.Name == "" {
 		return fmt.Errorf("action must have a name")
 	}
-
 	if _, exists := ar.actions[metadata.Name]; exists {
 		return fmt.Errorf("action '%s' is already registered", metadata.Name)
 	}
-
 	ar.actions[metadata.Name] = action
 	return nil
 }
 
-// Get retrieves an action by name
+// Get retrieves an action by name. Returns the action and a boolean indicating existence.
 func (ar *ActionRegistry) Get(name string) (Action, bool) {
 	action, exists := ar.actions[name]
 	return action, exists
 }
 
-// Execute executes an action by name with context support
+// Execute runs an action by name with the provided context and arguments.
 func (ar *ActionRegistry) Execute(ctx context.Context, name string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	action, exists := ar.actions[name]
 	if !exists {
 		return nil, fmt.Errorf("unknown action: %s", name)
 	}
-
 	return action.ExecuteWithContext(ctx, args, options, silent)
 }
 
-// List returns all registered actions
+// List returns metadata for all registered actions, sorted by name.
 func (ar *ActionRegistry) List() []ActionMetadata {
 	var metadata []ActionMetadata
 	for _, action := range ar.actions {
 		metadata = append(metadata, action.GetMetadata())
 	}
-
-	// Sort by name
 	sort.Slice(metadata, func(i, j int) bool {
 		return metadata[i].Name < metadata[j].Name
 	})
-
 	return metadata
 }
 
-// ListByCategory returns actions filtered by category
+// ListByCategory returns metadata for actions in the specified category, sorted by name.
 func (ar *ActionRegistry) ListByCategory(category string) []ActionMetadata {
 	var metadata []ActionMetadata
 	for _, action := range ar.actions {
@@ -79,16 +70,13 @@ func (ar *ActionRegistry) ListByCategory(category string) []ActionMetadata {
 			metadata = append(metadata, actionMeta)
 		}
 	}
-
-	// Sort by name
 	sort.Slice(metadata, func(i, j int) bool {
 		return metadata[i].Name < metadata[j].Name
 	})
-
 	return metadata
 }
 
-// Search returns actions matching a prefix
+// Search returns metadata for actions whose names start with the given prefix, sorted by name.
 func (ar *ActionRegistry) Search(prefix string) []ActionMetadata {
 	var matches []ActionMetadata
 	for _, action := range ar.actions {
@@ -97,16 +85,13 @@ func (ar *ActionRegistry) Search(prefix string) []ActionMetadata {
 			matches = append(matches, metadata)
 		}
 	}
-
-	// Sort by name
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].Name < matches[j].Name
 	})
-
 	return matches
 }
 
-// GetCompletions returns action names for autocomplete
+// GetCompletions returns a sorted list of action names that start with the given partial string.
 func (ar *ActionRegistry) GetCompletions(partial string) []string {
 	var completions []string
 	for _, action := range ar.actions {
@@ -115,12 +100,11 @@ func (ar *ActionRegistry) GetCompletions(partial string) []string {
 			completions = append(completions, metadata.Name)
 		}
 	}
-
 	sort.Strings(completions)
 	return completions
 }
 
-// GetValidActions returns a list of valid action names
+// GetValidActions returns a sorted list of all valid action names.
 func (ar *ActionRegistry) GetValidActions() []string {
 	var actions []string
 	for name := range ar.actions {
@@ -130,37 +114,20 @@ func (ar *ActionRegistry) GetValidActions() []string {
 	return actions
 }
 
-// registerBuiltinActions registers all built-in actions with proper metadata
+// registerBuiltinActions registers all built-in actions with their metadata.
 func (ar *ActionRegistry) registerBuiltinActions() {
-	// Basic actions
 	ar.registerBasicActions()
-
-	// HTTP actions
 	ar.registerHTTPActions()
-
-	// Database actions
 	ar.registerDatabaseActions()
-
-	// Control flow actions
 	ar.registerControlActions()
-
-	// Variable actions
 	ar.registerVariableActions()
-
-	// TDM actions
 	ar.registerTDMActions()
-
-	// Messaging actions
 	ar.registerMessagingActions()
-
-	// Template actions
 	ar.registerTemplateActions()
-
-	// Utility actions
 	ar.registerUtilityActions()
 }
 
-// registerBasicActions registers basic utility actions
+// The following methods register groups of related actions. Each action is registered with its metadata.
 func (ar *ActionRegistry) registerBasicActions() {
 	ar.Register(NewAction(LogAction, ActionMetadata{
 		Name:        "log",
@@ -281,7 +248,8 @@ func (ar *ActionRegistry) registerBasicActions() {
 	))
 }
 
-// registerHTTPActions registers HTTP-related actions
+// The following register*Actions methods register actions for their respective domains.
+// Each action is registered with its metadata for discoverability and documentation.
 func (ar *ActionRegistry) registerHTTPActions() {
 	ar.Register(NewAction(HTTPAction, ActionMetadata{
 		Name:        "http",
@@ -296,10 +264,8 @@ func (ar *ActionRegistry) registerHTTPActions() {
 		},
 		Returns: "HTTP response",
 	}))
-
 }
 
-// registerDatabaseActions registers database-related actions
 func (ar *ActionRegistry) registerDatabaseActions() {
 	ar.Register(NewAction(PostgresAction, ActionMetadata{
 		Name:        "postgres",
@@ -330,7 +296,6 @@ func (ar *ActionRegistry) registerDatabaseActions() {
 	}))
 }
 
-// registerControlActions registers control flow actions
 func (ar *ActionRegistry) registerControlActions() {
 	ar.Register(NewAction(ControlFlowAction, ActionMetadata{
 		Name:        "control",
@@ -345,7 +310,6 @@ func (ar *ActionRegistry) registerControlActions() {
 	}))
 }
 
-// registerVariableActions registers variable management actions
 func (ar *ActionRegistry) registerVariableActions() {
 	ar.Register(NewAction(VariableAction, ActionMetadata{
 		Name:        "variable",
@@ -361,7 +325,6 @@ func (ar *ActionRegistry) registerVariableActions() {
 	}))
 }
 
-// registerTDMActions registers Test Data Management actions
 func (ar *ActionRegistry) registerTDMActions() {
 	ar.Register(NewAction(TDMAction, ActionMetadata{
 		Name:        "tdm",
@@ -377,7 +340,6 @@ func (ar *ActionRegistry) registerTDMActions() {
 	}))
 }
 
-// registerMessagingActions registers messaging-related actions
 func (ar *ActionRegistry) registerMessagingActions() {
 	ar.Register(NewAction(RabbitMQAction, ActionMetadata{
 		Name:        "rabbitmq",
@@ -407,7 +369,6 @@ func (ar *ActionRegistry) registerMessagingActions() {
 	}))
 }
 
-// registerTemplateActions registers template-related actions
 func (ar *ActionRegistry) registerTemplateActions() {
 	ar.Register(NewAction(TemplateAction, ActionMetadata{
 		Name:        "template",
@@ -422,7 +383,6 @@ func (ar *ActionRegistry) registerTemplateActions() {
 	}))
 }
 
-// registerUtilityActions registers utility actions
 func (ar *ActionRegistry) registerUtilityActions() {
 	// Add any additional utility actions here
 }

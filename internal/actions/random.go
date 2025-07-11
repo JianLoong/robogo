@@ -127,7 +127,7 @@ func generateRandomMax(maxArg interface{}, silent bool) (interface{}, error) {
 		}
 		result := rand.Float64() * maxFloat
 		if !silent {
-			fmt.Printf("�� Random decimal (0-%.2f): %.2f\n", maxFloat, result)
+			fmt.Printf("🎲 Random decimal (0-%.2f): %.2f\n", maxFloat, result)
 		}
 		return result, nil
 	}

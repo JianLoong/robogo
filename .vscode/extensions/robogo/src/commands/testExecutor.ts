@@ -40,20 +40,6 @@ export class TestExecutor {
     }
 
     /**
-     * Run a specific step (simulated by running test with step context)
-     */
-    async runStep(uri: vscode.Uri, line: number): Promise<void> {
-        vscode.window.showInformationMessage(`Running step at line ${line + 1}...`);
-        
-        // For now, run the entire test with verbose output
-        // In a full implementation, this would extract and run just the specific step
-        await this.runTest(uri, {
-            outputFormat: 'console',
-            verbose: true
-        });
-    }
-
-    /**
      * Execute test command
      */
     private async executeTest(filePath: string, options: TestExecutionOptions, command: 'run' | 'run-suite'): Promise<void> {
@@ -105,15 +91,23 @@ export class TestExecutor {
             } else if (errorMessage.includes('timeout')) {
                 vscode.window.showErrorMessage('Test execution timed out. Consider optimizing your test or increasing timeout.');
             } else {
-                vscode.window.showErrorMessage(`Test execution failed: ${errorMessage}`);
-                
-                // Show detailed error in output channel
-                const outputChannel = vscode.window.createOutputChannel('Robogo Test Execution');
-                outputChannel.appendLine('=== Test Execution Error ===');
-                outputChannel.appendLine(`Command: ${this.buildCommand(filePath, options, command)}`);
-                outputChannel.appendLine(`Error: ${errorMessage}`);
-                outputChannel.appendLine(`Stderr: ${error.stderr || 'None'}`);
-                outputChannel.show();
+                // For test failures, show the output even though exit code is non-zero
+                if (error.stdout || error.stderr) {
+                    await this.displayResults(error.stdout || '', error.stderr || '', options.outputFormat);
+                    
+                    // Show a summary message about the failure
+                    vscode.window.showWarningMessage('Test execution completed with failures. Check output for details.');
+                } else {
+                    vscode.window.showErrorMessage(`Test execution failed: ${errorMessage}`);
+                    
+                    // Show detailed error in output channel
+                    const outputChannel = vscode.window.createOutputChannel('Robogo Test Execution');
+                    outputChannel.appendLine('=== Test Execution Error ===');
+                    outputChannel.appendLine(`Command: ${this.buildCommand(filePath, options, command)}`);
+                    outputChannel.appendLine(`Error: ${errorMessage}`);
+                    outputChannel.appendLine(`Stderr: ${error.stderr || 'None'}`);
+                    outputChannel.show();
+                }
             }
         }
     }
@@ -138,14 +132,9 @@ export class TestExecutor {
             }
         }
 
-        // Add verbose flag
-        if (options.verbose) {
-            cmd += ' --verbose';
-        }
-
-        // Add debug flag
-        if (options.debug) {
-            cmd += ' --debug';
+        // Add debug variables flag (replaces verbose)
+        if (options.verbose || options.debug) {
+            cmd += ' --debug-vars';
         }
 
         return cmd;

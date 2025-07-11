@@ -18,7 +18,7 @@ variables:
     reference: "INV-2024-001"
     
     # Mock API endpoint
-    payment_api_url: "https://mock-payment-api.example.com/api/v1/payments"
+    payment_api_url: "https://httpbin.org/post"
 
 steps:
   # --- Dynamic Initialization ---
