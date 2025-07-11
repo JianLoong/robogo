@@ -5,7 +5,8 @@ import (
 )
 
 type ActionExecutor struct {
-	registry *ActionRegistry
+	registry      *ActionRegistry
+	ActionContext *ActionContext
 }
 
 // NewActionExecutor creates a new action executor instance.
@@ -17,11 +18,16 @@ type ActionExecutor struct {
 //   - Provides unified interface for action execution
 //   - Handles argument validation and error reporting
 func NewActionExecutor(registry *ActionRegistry) *ActionExecutor {
-	return &ActionExecutor{registry: registry}
+	return &ActionExecutor{
+		registry:      registry,
+		ActionContext: NewActionContext(),
+	}
 }
 
 
 // Execute executes an action with context support
 func (ae *ActionExecutor) Execute(ctx context.Context, action string, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
+	// Add ActionContext to the context
+	ctx = WithActionContext(ctx, ae.ActionContext)
 	return ae.registry.Execute(ctx, action, args, options, silent)
 }

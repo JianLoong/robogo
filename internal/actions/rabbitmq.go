@@ -9,9 +9,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-var rabbitmqConnections = make(map[string]*amqp.Connection)
-
-// RabbitMQAction performs RabbitMQ operations with context support
+// RabbitMQAction performs RabbitMQ operations using ActionContext manager
 func RabbitMQAction(ctx context.Context, args []interface{}, options map[string]interface{}, silent bool) (interface{}, error) {
 	// Convert interface{} args to string args for compatibility
 	strArgs := make([]string, len(args))
@@ -30,6 +28,12 @@ func rabbitmqActionInternal(ctx context.Context, args []string) (interface{}, er
 		}).WithAction("rabbitmq")
 	}
 
+	// Get RabbitMQ manager from context
+	actionCtx := GetActionContext(ctx)
+	if actionCtx.RabbitMQManager == nil {
+		return nil, util.NewConfigurationError("RabbitMQ manager not initialized", "rabbit_manager", nil).WithAction("rabbitmq")
+	}
+
 	subcommand := args[0]
 
 	// Set timeout from settings or default (30s)
@@ -46,13 +50,13 @@ func rabbitmqActionInternal(ctx context.Context, args []string) (interface{}, er
 
 	switch subcommand {
 	case "connect":
-		return rabbitmqConnect(ctx, args[1:])
+		return rabbitmqConnect(ctx, actionCtx.RabbitMQManager, args[1:])
 	case "publish":
-		return rabbitmqPublish(ctx, args[1:])
+		return rabbitmqPublish(ctx, actionCtx.RabbitMQManager, args[1:])
 	case "consume":
-		return rabbitmqConsume(ctx, args[1:], timeout)
+		return rabbitmqConsume(ctx, actionCtx.RabbitMQManager, args[1:], timeout)
 	case "close":
-		return rabbitmqClose(ctx, args[1:])
+		return rabbitmqClose(ctx, actionCtx.RabbitMQManager, args[1:])
 	default:
 		return nil, util.NewValidationError("unknown rabbitmq subcommand", map[string]interface{}{
 			"subcommand":        subcommand,
@@ -61,7 +65,7 @@ func rabbitmqActionInternal(ctx context.Context, args []string) (interface{}, er
 	}
 }
 
-func rabbitmqConnect(ctx context.Context, args []string) (interface{}, error) {
+func rabbitmqConnect(ctx context.Context, manager *RabbitMQManager, args []string) (interface{}, error) {
 	if len(args) < 2 {
 		return nil, util.NewValidationError("rabbitmq connect requires a connection string and a connection name", map[string]interface{}{
 			"args_count": len(args),
@@ -71,19 +75,15 @@ func rabbitmqConnect(ctx context.Context, args []string) (interface{}, error) {
 	connStr := args[0]
 	connName := args[1]
 
-	conn, err := amqp.Dial(connStr)
+	err := manager.Connect(connName, connStr)
 	if err != nil {
-		return nil, util.NewMessagingError("failed to connect to RabbitMQ", err, "rabbitmq").WithStep("connect").WithDetails(map[string]interface{}{
-			"connection_string": connStr,
-			"connection_name":   connName,
-		})
+		return nil, err
 	}
-	rabbitmqConnections[connName] = conn
 
 	return map[string]interface{}{"status": "connected", "connection_name": connName}, nil
 }
 
-func rabbitmqPublish(ctx context.Context, args []string) (interface{}, error) {
+func rabbitmqPublish(ctx context.Context, manager *RabbitMQManager, args []string) (interface{}, error) {
 	if len(args) < 4 {
 		return nil, util.NewValidationError("rabbitmq publish requires a connection name, exchange, routing key, and message body", map[string]interface{}{
 			"args_count": len(args),
@@ -95,17 +95,11 @@ func rabbitmqPublish(ctx context.Context, args []string) (interface{}, error) {
 	routingKey := args[2]
 	body := args[3]
 
-	conn, ok := rabbitmqConnections[connName]
+	conn, ok := manager.GetConnection(connName)
 	if !ok {
 		return nil, util.NewValidationError("rabbitmq connection not found", map[string]interface{}{
-			"connection_name": connName,
-			"available_connections": func() []string {
-				keys := make([]string, 0, len(rabbitmqConnections))
-				for k := range rabbitmqConnections {
-					keys = append(keys, k)
-				}
-				return keys
-			}(),
+			"connection_name":        connName,
+			"available_connections": manager.ListConnections(),
 		}).WithAction("rabbitmq").WithStep("publish")
 	}
 
@@ -140,7 +134,7 @@ func rabbitmqPublish(ctx context.Context, args []string) (interface{}, error) {
 	return map[string]interface{}{"status": "message published"}, nil
 }
 
-func rabbitmqConsume(ctx context.Context, args []string, timeout time.Duration) (interface{}, error) {
+func rabbitmqConsume(ctx context.Context, manager *RabbitMQManager, args []string, timeout time.Duration) (interface{}, error) {
 	if len(args) < 2 {
 		return nil, util.NewValidationError("rabbitmq consume requires a connection name and a queue name", map[string]interface{}{
 			"args_count": len(args),
@@ -150,17 +144,11 @@ func rabbitmqConsume(ctx context.Context, args []string, timeout time.Duration) 
 	connName := args[0]
 	queueName := args[1]
 
-	conn, ok := rabbitmqConnections[connName]
+	conn, ok := manager.GetConnection(connName)
 	if !ok {
 		return nil, util.NewValidationError("rabbitmq connection not found", map[string]interface{}{
-			"connection_name": connName,
-			"available_connections": func() []string {
-				keys := make([]string, 0, len(rabbitmqConnections))
-				for k := range rabbitmqConnections {
-					keys = append(keys, k)
-				}
-				return keys
-			}(),
+			"connection_name":        connName,
+			"available_connections": manager.ListConnections(),
 		}).WithAction("rabbitmq").WithStep("consume")
 	}
 
@@ -201,7 +189,7 @@ func rabbitmqConsume(ctx context.Context, args []string, timeout time.Duration) 
 	}
 }
 
-func rabbitmqClose(ctx context.Context, args []string) (interface{}, error) {
+func rabbitmqClose(ctx context.Context, manager *RabbitMQManager, args []string) (interface{}, error) {
 	if len(args) < 1 {
 		return nil, util.NewValidationError("rabbitmq close requires a connection name", map[string]interface{}{
 			"args_count": len(args),
@@ -210,47 +198,10 @@ func rabbitmqClose(ctx context.Context, args []string) (interface{}, error) {
 	}
 	connName := args[0]
 
-	conn, ok := rabbitmqConnections[connName]
-	if !ok {
-		return nil, util.NewValidationError("rabbitmq connection not found", map[string]interface{}{
-			"connection_name": connName,
-			"available_connections": func() []string {
-				keys := make([]string, 0, len(rabbitmqConnections))
-				for k := range rabbitmqConnections {
-					keys = append(keys, k)
-				}
-				return keys
-			}(),
-		}).WithAction("rabbitmq").WithStep("close")
-	}
-
-	err := conn.Close()
+	err := manager.CloseConnection(connName)
 	if err != nil {
-		return nil, util.NewMessagingError("failed to close RabbitMQ connection", err, "rabbitmq").WithStep("close").WithDetails(map[string]interface{}{
-			"connection_name": connName,
-		})
+		return nil, err
 	}
-	delete(rabbitmqConnections, connName)
 
 	return map[string]interface{}{"status": "disconnected", "connection_name": connName}, nil
-}
-
-// CloseAllRabbitMQConnections closes all active RabbitMQ connections
-// This function should be called during application shutdown to prevent resource leaks
-func CloseAllRabbitMQConnections() error {
-	var lastErr error
-
-	for name, conn := range rabbitmqConnections {
-		if conn != nil && !conn.IsClosed() {
-			if err := conn.Close(); err != nil {
-				lastErr = util.NewMessagingError("failed to close RabbitMQ connection during shutdown", err, "rabbitmq").
-					WithDetails(map[string]interface{}{
-						"connection_name": name,
-					})
-			}
-		}
-		delete(rabbitmqConnections, name)
-	}
-
-	return lastErr
 }

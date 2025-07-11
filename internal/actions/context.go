@@ -12,6 +12,8 @@ import (
 type ActionContext struct {
 	PostgresManager *PostgreSQLManager
 	SpannerManager  *SpannerManager
+	RabbitMQManager *RabbitMQManager
+	TemplateManager *TemplateManager
 	ConfigManager   *util.ConfigManager
 }
 
@@ -24,7 +26,9 @@ func NewActionContext() *ActionContext {
 		SpannerManager: &SpannerManager{
 			connections: make(map[string]*spanner.Client),
 		},
-		ConfigManager: util.NewConfigManager(),
+		RabbitMQManager: NewRabbitMQManager(),
+		TemplateManager: NewTemplateManager(),
+		ConfigManager:   util.NewConfigManager(),
 	}
 }
 
@@ -54,5 +58,8 @@ func (ac *ActionContext) Cleanup() {
 	}
 	if ac.SpannerManager != nil {
 		ac.SpannerManager.CloseAll()
+	}
+	if ac.RabbitMQManager != nil {
+		ac.RabbitMQManager.CloseAll()
 	}
 }
