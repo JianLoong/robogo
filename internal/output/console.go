@@ -1,6 +1,7 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -50,6 +51,44 @@ func maskSecretsInArgs(args []interface{}) []interface{} {
 	}
 	
 	return maskedArgs
+}
+
+// formatArgsNicely formats arguments for display with better object formatting
+func formatArgsNicely(args []interface{}) string {
+	if len(args) == 0 {
+		return "[]"
+	}
+	
+	if len(args) == 1 {
+		return formatSingleArg(args[0])
+	}
+	
+	// Multiple args - format as array
+	var formatted []string
+	for _, arg := range args {
+		formatted = append(formatted, formatSingleArg(arg))
+	}
+	return "[" + strings.Join(formatted, ", ") + "]"
+}
+
+// formatSingleArg formats a single argument with nice object formatting
+func formatSingleArg(arg interface{}) string {
+	switch v := arg.(type) {
+	case map[string]interface{}:
+		if jsonBytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+			return string(jsonBytes)
+		}
+		return fmt.Sprintf("%v", v)
+	case []interface{}:
+		if jsonBytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+			return string(jsonBytes)
+		}
+		return fmt.Sprintf("%v", v)
+	case string:
+		return fmt.Sprintf("%q", v) // Quote strings for clarity
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // Utility functions for console output formatting
@@ -135,7 +174,7 @@ func PrintStepResultsDetailed(stepResults []parser.StepResult, title string) {
 		
 		if stepResult.Step.Args != nil && len(stepResult.Step.Args) > 0 {
 			maskedArgs := maskSecretsInArgs(stepResult.Step.Args)
-			fmt.Printf("   Args: %v\n", maskedArgs)
+			fmt.Printf("   Args: %s\n", formatArgsNicely(maskedArgs))
 		}
 		
 		if stepResult.Output != "" {

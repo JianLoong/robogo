@@ -93,6 +93,7 @@ func (app *App) createRunCommand() *cobra.Command {
 	var parallelEnabled bool
 	var maxConcurrency int
 	var variableDebug bool
+	var silent bool
 
 	cmd := &cobra.Command{
 		Use:   "run [test-files...]",
@@ -104,6 +105,7 @@ func (app *App) createRunCommand() *cobra.Command {
 				ParallelEnabled: parallelEnabled,
 				MaxConcurrency:  maxConcurrency,
 				VariableDebug:   variableDebug,
+				Silent:          silent,
 				ParallelConfig:  app.createParallelConfig(parallelEnabled, maxConcurrency),
 			})
 		},
@@ -112,6 +114,7 @@ func (app *App) createRunCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&parallelEnabled, "parallel", "p", false, "Enable parallel execution")
 	cmd.Flags().IntVarP(&maxConcurrency, "concurrency", "c", 4, "Maximum concurrency for parallel execution")
 	cmd.Flags().BoolVarP(&variableDebug, "debug-vars", "d", false, "Enable variable resolution debugging")
+	cmd.Flags().BoolVarP(&silent, "silent", "s", false, "Suppress output during execution")
 
 	return cmd
 }
@@ -169,7 +172,7 @@ func (app *App) runTests(ctx context.Context, paths []string, options RunOptions
 	}
 
 	// Format and output results
-	formatter := NewResultFormatter()
+	formatter := NewResultFormatter(options.Silent)
 	return formatter.FormatResults(results)
 }
 

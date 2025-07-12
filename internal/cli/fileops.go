@@ -35,7 +35,7 @@ func (fp *FileProcessor) ProcessPaths(ctx context.Context, paths []string) (*Run
 		if err != nil {
 			return nil, fmt.Errorf("failed to process path %s: %w", path, err)
 		}
-		
+
 		results.SuiteResults = append(results.SuiteResults, pathResults.SuiteResults...)
 		results.CaseResults = append(results.CaseResults, pathResults.CaseResults...)
 	}
@@ -53,7 +53,7 @@ func (fp *FileProcessor) processPath(ctx context.Context, path string) (*RunResu
 	if info.IsDir() {
 		return fp.processDirectory(ctx, path)
 	}
-	
+
 	return fp.processFile(ctx, path)
 }
 
@@ -65,7 +65,7 @@ func (fp *FileProcessor) processDirectory(ctx context.Context, dirPath string) (
 		if err != nil {
 			return err
 		}
-		
+
 		if fileInfo.IsDir() || !strings.HasSuffix(filePath, ".robogo") {
 			return nil
 		}
@@ -74,10 +74,10 @@ func (fp *FileProcessor) processDirectory(ctx context.Context, dirPath string) (
 		if err != nil {
 			return err
 		}
-		
+
 		results.SuiteResults = append(results.SuiteResults, fileResults.SuiteResults...)
 		results.CaseResults = append(results.CaseResults, fileResults.CaseResults...)
-		
+
 		return nil
 	})
 
@@ -94,7 +94,7 @@ func (fp *FileProcessor) processFile(ctx context.Context, filePath string) (*Run
 	if isSuite {
 		return fp.processSuiteFile(ctx, filePath)
 	}
-	
+
 	return fp.processCaseFile(ctx, filePath)
 }
 
@@ -111,7 +111,7 @@ func (fp *FileProcessor) processSuiteFile(ctx context.Context, filePath string) 
 	}
 
 	suiteRunner := runner.NewTestSuiteRunner(testExecutor)
-	result, err := suiteRunner.RunTestSuite(ctx, testSuite, filePath, false)
+	result, err := suiteRunner.RunTestSuite(ctx, testSuite, filePath, fp.options.Silent)
 	if err != nil {
 		return nil, err
 	}
@@ -124,11 +124,11 @@ func (fp *FileProcessor) processSuiteFile(ctx context.Context, filePath string) 
 // processCaseFile processes a test case file
 func (fp *FileProcessor) processCaseFile(ctx context.Context, filePath string) (*RunResults, error) {
 	results, err := runner.RunTestFilesWithConfigAndDebug(
-		ctx, 
-		[]string{filePath}, 
-		false, 
-		fp.options.ParallelConfig, 
-		fp.executor, 
+		ctx,
+		[]string{filePath},
+		fp.options.Silent,
+		fp.options.ParallelConfig,
+		fp.executor,
 		fp.options.VariableDebug,
 	)
 	if err != nil {
@@ -157,22 +157,22 @@ func (fp *FileProcessor) isTestSuite(filePath string) (bool, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		
+
 		if strings.HasPrefix(line, "testsuite:") {
 			return true, nil
 		}
-		
+
 		if strings.HasPrefix(line, "testcase:") {
 			return false, nil
 		}
-		
+
 		// Fallback: check for testcases array
 		if strings.HasPrefix(line, "testcases:") {
 			return true, nil
 		}
-		
+
 		break
 	}
-	
+
 	return false, nil
 }

@@ -16,45 +16,45 @@ import (
 
 // HTTPResponse represents the response from an HTTP request with debugging information
 type HTTPResponse struct {
-	StatusCode int               `json:"status_code"`
-	Headers    HTTPHeaders       `json:"headers"`
-	Body       string            `json:"body"`
-	Duration   time.Duration     `json:"duration"`
-	
+	StatusCode int           `json:"status_code"`
+	Headers    HTTPHeaders   `json:"headers"`
+	Body       string        `json:"body"`
+	Duration   time.Duration `json:"duration"`
+
 	// Enhanced debugging fields
-	Request    HTTPRequestInfo   `json:"request"`
-	Redirects  []HTTPRedirect    `json:"redirects,omitempty"`
-	TLSInfo    *TLSInfo         `json:"tls_info,omitempty"`
-	Timing     HTTPTiming       `json:"timing"`
-	Error      *HTTPError       `json:"error,omitempty"`
+	Request   HTTPRequestInfo `json:"request"`
+	Redirects []HTTPRedirect  `json:"redirects,omitempty"`
+	TLSInfo   *TLSInfo        `json:"tls_info,omitempty"`
+	Timing    HTTPTiming      `json:"timing"`
+	Error     *HTTPError      `json:"error,omitempty"`
 }
 
 // HTTPHeaders provides easy access to common headers plus raw headers
 type HTTPHeaders struct {
 	// Common headers as direct fields for easy access
-	ContentType     string `json:"content_type"`
-	ContentLength   string `json:"content_length"`
-	Authorization   string `json:"authorization"`
-	UserAgent       string `json:"user_agent"`
-	Accept          string `json:"accept"`
-	AcceptEncoding  string `json:"accept_encoding"`
-	CacheControl    string `json:"cache_control"`
-	Connection      string `json:"connection"`
-	Server          string `json:"server"`
-	Date            string `json:"date"`
-	Location        string `json:"location"`
-	SetCookie       string `json:"set_cookie"`
-	
+	ContentType    string `json:"content_type"`
+	ContentLength  string `json:"content_length"`
+	Authorization  string `json:"authorization"`
+	UserAgent      string `json:"user_agent"`
+	Accept         string `json:"accept"`
+	AcceptEncoding string `json:"accept_encoding"`
+	CacheControl   string `json:"cache_control"`
+	Connection     string `json:"connection"`
+	Server         string `json:"server"`
+	Date           string `json:"date"`
+	Location       string `json:"location"`
+	SetCookie      string `json:"set_cookie"`
+
 	// Raw headers as map for full access
 	Raw map[string]string `json:"raw"`
 }
 
 // HTTPRequestInfo contains information about the HTTP request
 type HTTPRequestInfo struct {
-	Method    string      `json:"method"`
-	URL       string      `json:"url"`
-	Headers   HTTPHeaders `json:"headers"`
-	BodySize  int64       `json:"body_size"`
+	Method   string      `json:"method"`
+	URL      string      `json:"url"`
+	Headers  HTTPHeaders `json:"headers"`
+	BodySize int64       `json:"body_size"`
 }
 
 // HTTPRedirect contains information about HTTP redirects
@@ -214,7 +214,7 @@ func newHTTPHeaders(headerMap map[string]string) HTTPHeaders {
 	headers := HTTPHeaders{
 		Raw: headerMap,
 	}
-	
+
 	// Populate common headers (case-insensitive lookup)
 	for key, value := range headerMap {
 		switch strings.ToLower(key) {
@@ -244,7 +244,7 @@ func newHTTPHeaders(headerMap map[string]string) HTTPHeaders {
 			headers.SetCookie = value
 		}
 	}
-	
+
 	return headers
 }
 
@@ -448,7 +448,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	duration := time.Since(startTime)
-	
+
 	if err != nil {
 		// Create error response map instead of returning Go error
 		// This maintains consistency with successful responses
@@ -477,7 +477,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 				},
 			},
 		}
-		
+
 		// Convert to map for template engine compatibility
 		errorMap, convertErr := util.ConvertToMap(errorResponse)
 		if convertErr != nil {
@@ -488,12 +488,12 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 				WithOptions(options).
 				Build()
 		}
-		
+
 		// Enhanced output for debugging
 		if !silent {
 			fmt.Printf("❌ %s %s → ERROR (%v): %s\n", method, url, duration, err.Error())
 		}
-		
+
 		return errorMap, nil
 	}
 	defer resp.Body.Close()
@@ -525,20 +525,20 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	for k, v := range req.Header {
 		requestHeadersMap[k] = strings.Join(v, ", ")
 	}
-	
+
 	requestInfo := HTTPRequestInfo{
 		Method:   method,
 		URL:      url,
 		Headers:  newHTTPHeaders(requestHeadersMap),
 		BodySize: int64(len(body)),
 	}
-	
+
 	// Build timing info
 	timingInfo := HTTPTiming{
 		Total: duration,
 		// TODO: Add detailed timing metrics using httptrace
 	}
-	
+
 	// Build TLS info if available
 	var tlsInfo *TLSInfo
 	if resp.TLS != nil {
@@ -547,13 +547,13 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 			CipherSuite:    getCipherSuite(resp.TLS.CipherSuite),
 			ClientCertUsed: len(resp.TLS.PeerCertificates) > 0,
 		}
-		
+
 		// Add server certificate info
 		for _, cert := range resp.TLS.PeerCertificates {
 			tlsInfo.ServerCertificates = append(tlsInfo.ServerCertificates, cert.Subject.String())
 		}
 	}
-	
+
 	// Check if this is an HTTP error status and add error information
 	var httpError *HTTPError
 	if resp.StatusCode >= 400 {
@@ -561,7 +561,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		if resp.StatusCode >= 500 {
 			errorType = "server_error"
 		}
-		
+
 		httpError = &HTTPError{
 			Message: fmt.Sprintf("HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode)),
 			Type:    errorType,
@@ -574,7 +574,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 			},
 		}
 	}
-	
+
 	// Create enhanced response object
 	httpResp := HTTPResponse{
 		StatusCode: resp.StatusCode,
@@ -609,7 +609,7 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 		} else {
 			statusIcon = "✅"
 		}
-		
+
 		fmt.Printf("%s %s %s %d (%v)\n", method, url, statusIcon, resp.StatusCode, duration)
 		if len(respBody) > 0 {
 			if len(respBody) > 500 {
@@ -629,13 +629,9 @@ func httpActionInternal(ctx context.Context, args []interface{}, options map[str
 	return responseMap, nil
 }
 
-
-
 // HTTPBatchResult represents the result of a batch HTTP operation
 type HTTPBatchResult struct {
 	URL      string       `json:"url"`
 	Response HTTPResponse `json:"response"`
 	Error    string       `json:"error,omitempty"`
 }
-
-

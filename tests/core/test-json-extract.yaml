@@ -1,0 +1,108 @@
+testcase: "JSON Extract Test"
+description: "Test JSON value extraction using json_extract action"
+
+variables:
+  vars:
+    simple_json: '{"name": "John", "age": 30, "city": "New York"}'
+    nested_json: '{"user": {"name": "Jane", "profile": {"email": "jane@example.com", "verified": true}}, "settings": {"theme": "dark"}}'
+    array_json: '{"items": ["apple", "banana", "cherry"], "count": 3, "active": true}'
+    complex_json: '{"data": {"users": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], "total": 2}}'
+
+steps:
+  - name: "Extract simple string value"
+    action: json_extract
+    args: ["${simple_json}", "name"]
+    result: extracted_name
+
+  - name: "Log extracted name"
+    action: log
+    args: ["Extracted name: ${extracted_name}"]
+
+  - name: "Extract number value"
+    action: json_extract
+    args: ["${simple_json}", "age"]
+    result: extracted_age
+
+  - name: "Log extracted age"
+    action: log
+    args: ["Extracted age: ${extracted_age}"]
+
+  - name: "Extract nested object"
+    action: json_extract
+    args: ["${nested_json}", "user"]
+    result: extracted_user
+
+  - name: "Log extracted user object"
+    action: log
+    args: ["Extracted user: ${extracted_user}"]
+
+  - name: "Extract deeply nested value"
+    action: json_extract
+    args: ["${nested_json}", "user"]
+    result: user_obj
+
+  - name: "Extract from nested object"
+    action: json_extract
+    args: ["${user_obj}", "name"]
+    result: nested_name
+
+  - name: "Log nested name"
+    action: log
+    args: ["Nested name: ${nested_name}"]
+
+  - name: "Extract array"
+    action: json_extract
+    args: ["${array_json}", "items"]
+    result: extracted_items
+
+  - name: "Log extracted items"
+    action: log
+    args: ["Extracted items: ${extracted_items}"]
+
+  - name: "Extract boolean value"
+    action: json_extract
+    args: ["${array_json}", "active"]
+    result: extracted_active
+
+  - name: "Log extracted boolean"
+    action: log
+    args: ["Extracted active: ${extracted_active}"]
+
+  - name: "Extract from HTTP response"
+    action: http
+    args: ["GET", "https://httpbin.org/json"]
+    result: http_response
+
+  - name: "Extract slideshow from HTTP response"
+    action: json_extract
+    args: ["${http_response.body}", "slideshow"]
+    result: slideshow
+
+  - name: "Log extracted slideshow"
+    action: log
+    args: ["Extracted slideshow: ${slideshow}"]
+
+  - name: "Extract author from slideshow"
+    action: json_extract
+    args: ["${slideshow}", "author"]
+    result: author
+
+  - name: "Log extracted author"
+    action: log
+    args: ["Extracted author: ${author}"]
+
+  - name: "Verify extracted values"
+    action: assert
+    args: ["${extracted_name}", "==", "John", "Name should be John"]
+
+  - name: "Verify extracted age"
+    action: assert
+    args: ["${extracted_age}", "==", "30", "Age should be 30"]
+
+  - name: "Verify nested name"
+    action: assert
+    args: ["${nested_name}", "==", "Jane", "Nested name should be Jane"]
+
+  - name: "Test completed"
+    action: log
+    args: ["✅ JSON extraction test completed"] 

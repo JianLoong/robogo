@@ -8,10 +8,11 @@ import (
 
 // RunOptions contains configuration for test execution
 type RunOptions struct {
-	ParallelEnabled  bool
-	MaxConcurrency   int
-	VariableDebug    bool
-	ParallelConfig   *parser.ParallelConfig
+	ParallelEnabled bool
+	MaxConcurrency  int
+	VariableDebug   bool
+	Silent          bool
+	ParallelConfig  *parser.ParallelConfig
 }
 
 // RunResults aggregates execution results

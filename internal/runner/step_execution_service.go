@@ -87,6 +87,21 @@ func (ses *StepExecutionService) ExecuteStep(ctx context.Context, step parser.St
 	result.Status = "PASSED"
 	result.Output = fmt.Sprintf("%v", output)
 	
+	// Check if the action result contains a variable setting instruction
+	if outputMap, ok := output.(map[string]interface{}); ok {
+		if setVarInstruction, exists := outputMap["__robogo_set_variable"]; exists {
+			if setVarMap, ok := setVarInstruction.(map[string]interface{}); ok {
+				if varName, nameOk := setVarMap["name"].(string); nameOk {
+					if varValue, valueOk := setVarMap["value"]; valueOk {
+						if err := ses.context.Variables().Set(varName, varValue); err != nil {
+							result.Error = fmt.Sprintf("Failed to set variable %s: %v", varName, err)
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	// Store result in variables if specified
 	if step.Result != "" {
 		if err := ses.context.Variables().Set(step.Result, output); err != nil {

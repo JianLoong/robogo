@@ -100,12 +100,21 @@ func setVariable(name string, args []interface{}, silent bool) (interface{}, err
 		value = strings.Join(parts, " ")
 	}
 
-	// Create result object
+	// NOTE: Variables are managed by the execution context, not by actions
+	// The variable action serves as a way to pass variable operations to the execution engine
+	// The actual storage will be handled by the step execution service when it processes the result
+	
+	// Create result object that the execution engine can use
 	result := map[string]interface{}{
 		"operation": "set",
 		"name":      name,
 		"value":     value,
 		"status":    "success",
+		// Special marker to indicate this result should trigger variable setting
+		"__robogo_set_variable": map[string]interface{}{
+			"name":  name,
+			"value": value,
+		},
 	}
 
 	resultMap, err := util.ConvertToMap(result)

@@ -8,14 +8,9 @@ variables:
 steps:
   - name: "Test 400 Bad Request"
     action: http
-    args: ["${api_base_url}/status/400"]
+    args: ["GET", "${api_base_url}/status/400"]
     result: bad_request_response
-    continue_on_error: true
-  
-  - name: "Log 400 error details"
-    action: log
-    args: ["=== 400 BAD REQUEST ==="]
-  
+    
   - name: "Log 400 status"
     action: log
     args: ["Status: ${bad_request_response.status_code}"]
@@ -30,14 +25,10 @@ steps:
 
   - name: "Test 404 Not Found"
     action: http
-    args: ["${api_base_url}/nonexistent"]
+    args: ["GET", "${api_base_url}/nonexistent"]
     result: not_found_response
     continue_on_error: true
-  
-  - name: "Log 404 error details"
-    action: log
-    args: ["=== 404 NOT FOUND ==="]
-  
+    
   - name: "Log 404 status"
     action: log
     args: ["Status: ${not_found_response.status_code}"]
@@ -48,7 +39,7 @@ steps:
 
   - name: "Test 500 Internal Server Error"
     action: http
-    args: ["${api_base_url}/status/500"]
+    args: ["GET", "${api_base_url}/status/500"]
     result: server_error_response
     continue_on_error: true
   
@@ -66,7 +57,7 @@ steps:
 
   - name: "Test connection timeout"
     action: http
-    args: ["https://httpbin.org/delay/10"]
+    args: ["GET", "https://httpbin.org/delay/10"]
     result: timeout_response
     continue_on_error: true
     options:
@@ -90,7 +81,7 @@ steps:
 
   - name: "Test invalid URL"
     action: http
-    args: ["https://invalid-domain-that-does-not-exist-12345.com"]
+    args: ["GET", "https://invalid-domain-that-does-not-exist-12345.com"]
     result: invalid_url_response
     continue_on_error: true
   
@@ -108,7 +99,7 @@ steps:
 
   - name: "Test successful request"
     action: http
-    args: ["https://httpbin.org/status/200"]
+    args: ["GET", "https://httpbin.org/status/200"]
     result: success_response
   
   - name: "Log success details"

@@ -1,0 +1,33 @@
+testcase: "TC-HTTP-001"
+description: "Test to understand HTTP response format"
+
+# Robogo variables are declared at the top
+variables:
+  vars:
+
+    base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    # Section for expected id from the endpoint
+    expected_value: "HTTPBIN is awesome"
+
+steps:
+  - name: "Make simple HTTP request"
+    action: http
+    args: ["GET", "${base_url}"]
+    result: "http_response"
+
+  - name: "Log raw response with separate args"
+    action: log
+    args: ["Raw response:", "${http_response}"]
+
+  - name: "Test status code assertion"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200", "Should be 200"]
+
+    # Variables can saved dynamically if needed
+  - name: "Save the body into results"
+    action: variable
+    args: ["set", "results", "${http_response.body}"]
+
+  - name: "Assert that the User Id is correct"
+    action: assert
+    args: ["${results}", "==", "${expected_value}"]

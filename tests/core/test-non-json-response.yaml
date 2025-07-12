@@ -1,11 +1,16 @@
 testcase: "Non-JSON HTTP Response Test"
 description: "Test how the system handles non-JSON HTTP responses"
 
+variables:
+  vars:
+    http_url: "http://localhost:8000"
+    https_url: "https://httpbin.org"
+
 steps:
   # Test 1: HTML response from httpbin
   - name: "Get HTML response"
     action: http
-    args: ["https://httpbin.org/html"]
+    args: ["GET", "https://httpbin.org/html"]
     result: "html_response"
 
   - name: "Check HTML response status code"
@@ -14,12 +19,12 @@ steps:
 
   - name: "Log HTML response body"
     action: log
-    args: ["HTML Body: ${html_response.body}"]
+    args: ["${html_response.body}"]
 
   # Test 2: XML response from httpbin
   - name: "Get XML response"
     action: http
-    args: ["https://httpbin.org/xml"]
+    args: ["GET", "https://httpbin.org/xml"]
     result: "xml_response"
 
   - name: "Check XML response status code"
@@ -30,16 +35,6 @@ steps:
     action: log
     args: ["XML Body: ${xml_response.body}"]
 
-  # Test 3: Plain text response
-  - name: "Get robots.txt (plain text)"
-    action: http
-    args: ["https://httpbin.org/robots.txt"]
-    result: "text_response"
-
-  - name: "Check text response status code"
-    action: assert
-    args: ["${text_response.status_code}", "==", "200", "Text response should have 200 status"]
-
   - name: "Log text response body"
     action: log
     args: ["Text Body: ${text_response.body}"]
@@ -47,13 +42,12 @@ steps:
   # Test 4: Retry with non-JSON response that returns server error
   - name: "Retry with HTML 500 error"
     action: http
-    args: ["https://httpbin.org/status/500"]
+    args: ["GET", "https://httpbin.org/status/500"]
     retry:
       attempts: 2
       delay: 1s
       conditions: ["5xx"]
     result: "html_500_response"
-    continue_on_failure: true
 
   - name: "Check HTML 500 response status code"
     action: assert

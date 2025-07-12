@@ -1,0 +1,45 @@
+testcase: "Unresolved Variables Test"
+description: "Test how log action handles unresolved variables"
+
+variables:
+  vars:
+    defined_var: "This variable is defined"
+    number_var: 42
+    boolean_var: true
+
+steps:
+  - name: "Log defined variable"
+    action: log
+    args: ["Defined variable: ${defined_var}"]
+
+  - name: "Log undefined variable"
+    action: log
+    args: ["Undefined variable: ${undefined_var}"]
+
+  - name: "Log mixed content"
+    action: log
+    args: ["Mixed: ${defined_var} and ${undefined_var} and ${number_var}"]
+
+  - name: "Log complex undefined"
+    action: log
+    args: ["Complex undefined: ${user.name.first}"]
+
+  - name: "Log array access undefined"
+    action: log
+    args: ["Array access: ${__robogo_steps[999].status}"]
+
+  - name: "Log with multiple undefined"
+    action: log
+    args: ["Multiple undefined: ${var1} ${var2} ${var3}"]
+
+  - name: "Log undefined in object"
+    action: log
+    args: ["Object with undefined: {\"defined\": \"${defined_var}\", \"undefined\": \"${undefined_var}\"}"]
+
+  - name: "Log undefined secret"
+    action: log
+    args: ["Undefined secret: ${SECRETS.missing_secret}"]
+
+  - name: "Test completed"
+    action: log
+    args: ["✅ Unresolved variables test completed"] 

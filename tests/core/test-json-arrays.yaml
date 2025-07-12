@@ -1,0 +1,98 @@
+testcase: "JSON Arrays Test"
+description: "Test how json_extract handles JSON arrays"
+
+variables:
+  vars:
+    array_as_value: '{"items": ["apple", "banana", "cherry"], "count": 3}'
+    nested_arrays: '{"data": {"users": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], "tags": ["admin", "user"]}}'
+    pure_array: '["first", "second", "third"]'
+    mixed_data: '{"numbers": [1, 2, 3, 4, 5], "strings": ["a", "b", "c"], "objects": [{"x": 1}, {"y": 2}]}'
+
+steps:
+  - name: "Extract array as value from object"
+    action: json_extract
+    args: ["${array_as_value}", "items"]
+    result: extracted_items
+
+  - name: "Log extracted items array"
+    action: log
+    args: ["Extracted items: ${extracted_items}"]
+
+  - name: "Extract count from same object"
+    action: json_extract
+    args: ["${array_as_value}", "count"]
+    result: extracted_count
+
+  - name: "Log extracted count"
+    action: log
+    args: ["Extracted count: ${extracted_count}"]
+
+  - name: "Extract nested array from complex object"
+    action: json_extract
+    args: ["${nested_arrays}", "data"]
+    result: extracted_data
+
+  - name: "Log extracted data object"
+    action: log
+    args: ["Extracted data: ${extracted_data}"]
+
+  - name: "Extract users array from nested data"
+    action: json_extract
+    args: ["${extracted_data}", "users"]
+    result: extracted_users
+
+  - name: "Log extracted users array"
+    action: log
+    args: ["Extracted users: ${extracted_users}"]
+
+  - name: "Extract tags array from nested data"
+    action: json_extract
+    args: ["${extracted_data}", "tags"]
+    result: extracted_tags
+
+  - name: "Log extracted tags array"
+    action: log
+    args: ["Extracted tags: ${extracted_tags}"]
+
+  - name: "Extract numbers array"
+    action: json_extract
+    args: ["${mixed_data}", "numbers"]
+    result: extracted_numbers
+
+  - name: "Log extracted numbers"
+    action: log
+    args: ["Extracted numbers: ${extracted_numbers}"]
+
+  - name: "Extract objects array"
+    action: json_extract
+    args: ["${mixed_data}", "objects"]
+    result: extracted_objects
+
+  - name: "Log extracted objects array"
+    action: log
+    args: ["Extracted objects: ${extracted_objects}"]
+
+  - name: "Test array length using length action"
+    action: length
+    args: ["${extracted_items}"]
+    result: items_length
+
+  - name: "Log array length"
+    action: log
+    args: ["Items array length: ${items_length}"]
+
+  - name: "Verify extracted items"
+    action: assert
+    args: ["${extracted_items}", "contains", "apple", "Items should contain apple"]
+
+  - name: "Verify extracted count"
+    action: assert
+    args: ["${extracted_count}", "==", "3", "Count should be 3"]
+
+  - name: "Verify array length"
+    action: assert
+    args: ["${items_length}", "==", "3", "Array should have 3 items"]
+
+  - name: "Test completed"
+    action: log
+    args: ["✅ JSON arrays test completed"] 

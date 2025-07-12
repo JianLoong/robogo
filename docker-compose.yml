@@ -71,20 +71,33 @@ services:
       retries: 3
       start_period: 30s
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
+  # rabbitmq:
+  #   image: rabbitmq:3-management
+  #   container_name: rabbitmq
+  #   ports:
+  #     - "5672:5672"
+  #     - "15672:15672"
+  #   environment:
+  #     - RABBITMQ_DEFAULT_USER=robogo_user
+  #     - RABBITMQ_DEFAULT_PASS=robogo_pass
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  httpbin:
+    image: kennethreitz/httpbin:latest
+    container_name: httpbin
     ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=robogo_user
-      - RABBITMQ_DEFAULT_PASS=robogo_pass
+      - "8000:80"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/status/200"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+
 
 volumes:
   data: 

@@ -1,0 +1,171 @@
+testcase: "TC-POSTS-LOOP-001"
+description: "Test JSONPlaceholder posts endpoint using for loops to iterate through results"
+
+variables:
+  vars:
+    base_url: "https://jsonplaceholder.typicode.com/posts"
+    max_posts_to_check: 5
+    expected_min_posts: 50
+
+steps:
+  - name: "Fetch all posts"
+    action: http
+    args: ["GET", "${base_url}"]
+    result: "posts_response"
+
+  - name: "Verify successful response"
+    action: assert
+    args: ["${posts_response.status_code}", "==", "200", "Should return 200 OK"]
+
+  - name: "Get total number of posts"
+    action: length
+    args: ["${posts_response.body}"]
+    result: "total_posts"
+
+  - name: "Log total posts found"
+    action: log
+    args: ["Total posts found: ${total_posts}"]
+
+  - name: "Verify we have enough posts"
+    action: assert
+    args: ["${total_posts}", ">=", "${expected_min_posts}", "Should have at least ${expected_min_posts} posts"]
+
+  - name: "Initialize validation counters"
+    action: variable
+    args: ["set", "valid_posts", "0"]
+
+  - name: "Initialize user tracking"
+    action: variable
+    args: ["set", "unique_users", "0"]
+
+  - name: "Loop through first few posts to validate structure"
+    for:
+      condition: "0..${max_posts_to_check}"
+      steps:
+        - name: "Get individual post by ID"
+          action: http
+          args: ["GET", "${base_url}/${__iteration_plus_1}"]
+          result: "current_post_response"
+
+        - name: "Check if post request was successful"
+          action: assert
+          args: ["${current_post_response.status_code}", "==", "200", "Post ${__iteration_plus_1} should be accessible"]
+
+        - name: "Extract post userId"
+          action: json_extract
+          args: ["${current_post_response.body}", "userId"]
+          result: "current_user_id"
+
+        - name: "Extract post id"
+          action: json_extract
+          args: ["${current_post_response.body}", "id"]
+          result: "current_post_id"
+
+        - name: "Extract post title"
+          action: json_extract
+          args: ["${current_post_response.body}", "title"]
+          result: "current_post_title"
+
+        - name: "Extract post body"
+          action: json_extract
+          args: ["${current_post_response.body}", "body"]
+          result: "current_post_body"
+
+        - name: "Validate post has required fields"
+          action: assert
+          args: ["${current_user_id}", ">", "0", "Post ${current_post_id} should have valid userId"]
+
+        - name: "Validate post ID matches expected"
+          action: assert
+          args: ["${current_post_id}", "==", "${__iteration_plus_1}", "Post ID should match requested ID"]
+
+        - name: "Validate title is not empty"
+          action: assert
+          args: ["${current_post_title}", "!=", "", "Post ${current_post_id} should have a title"]
+
+        - name: "Validate body is not empty"
+          action: assert
+          args: ["${current_post_body}", "!=", "", "Post ${current_post_id} should have a body"]
+
+        - name: "Log current post info"
+          action: log
+          args: ["Post ${current_post_id}: User ${current_user_id} - '${current_post_title}'"]
+
+        - name: "Increment valid posts counter"
+          action: variable
+          args: ["set", "valid_posts", "${valid_posts_plus_1}"]
+
+  - name: "Log validation summary"
+    action: log
+    args: ["Successfully validated ${valid_posts} out of ${max_posts_to_check} posts"]
+
+  - name: "Test filtering posts by specific user"
+    action: http
+    args: ["GET", "${base_url}?userId=1"]
+    result: "user1_posts"
+
+  - name: "Get count of user 1 posts"
+    action: length
+    args: ["${user1_posts.body}"]
+    result: "user1_post_count"
+
+  - name: "Log user 1 posts count"
+    action: log
+    args: ["User 1 has ${user1_post_count} posts"]
+
+  - name: "Verify user 1 has multiple posts"
+    action: assert
+    args: ["${user1_post_count}", ">", "5", "User 1 should have multiple posts"]
+
+  - name: "Sample user 1 posts using a loop"
+    for:
+      condition: "0..3"
+      steps:
+        - name: "Get user 1 post by calculated ID"
+          action: variable
+          args: ["set", "post_id", "${__iteration_plus_1}"]
+
+        - name: "Fetch specific user 1 post"
+          action: http
+          args: ["GET", "${base_url}/${post_id}"]
+          result: "user1_specific_post"
+
+        - name: "Verify this is indeed a user 1 post"
+          action: json_extract
+          args: ["${user1_specific_post.body}", "userId"]
+          result: "post_user_id"
+
+        - name: "Assert post belongs to user 1"
+          action: assert
+          args: ["${post_user_id}", "==", "1", "Post ${post_id} should belong to user 1"]
+
+        - name: "Extract and log post title"
+          action: json_extract
+          args: ["${user1_specific_post.body}", "title"]
+          result: "post_title"
+
+        - name: "Log user 1 post details"
+          action: log
+          args: ["User 1 Post ${post_id}: '${post_title}'"]
+
+  - name: "Test posts pagination/limiting"
+    action: http
+    args: ["GET", "${base_url}?_limit=10"]
+    result: "limited_posts"
+
+  - name: "Verify limited posts response"
+    action: assert
+    args: ["${limited_posts.status_code}", "==", "200", "Limited posts should return 200 OK"]
+
+  - name: "Check limited posts count"
+    action: length
+    args: ["${limited_posts.body}"]
+    result: "limited_count"
+
+  - name: "Verify we got exactly the requested limit"
+    action: assert
+    args: ["${limited_count}", "==", "10", "Should return exactly 10 posts when limited"]
+
+  - name: "Log final test summary"
+    action: log
+    args: ["Test completed: Validated ${valid_posts} individual posts, ${user1_post_count} user 1 posts, and ${limited_count} limited posts"]

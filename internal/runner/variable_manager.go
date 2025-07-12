@@ -265,7 +265,18 @@ func (vm *VariableManager) substituteString(s string) string {
 
 		// Simple variable lookup
 		if value, exists := vm.variables[varName]; exists {
-			return fmt.Sprintf("%v", value)
+			// For complex objects, serialize to JSON instead of Go representation
+			// This provides a more stable and parseable string format
+			switch v := value.(type) {
+			case map[string]interface{}, []interface{}:
+				if jsonBytes, err := json.Marshal(v); err == nil {
+					return string(jsonBytes)
+				}
+				// Fallback to original behavior if JSON marshal fails
+				return fmt.Sprintf("%v", v)
+			default:
+				return fmt.Sprintf("%v", v)
+			}
 		}
 
 		// Return original if variable not found

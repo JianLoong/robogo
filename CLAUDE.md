@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Robogo is a modern, git-driven test automation framework written in Go, designed for comprehensive API testing, SWIFT message generation, database operations, and Test Data Management (TDM). It provides a developer-friendly YAML-based DSL for writing test cases and test suites.
+Robogo is a modern, git-driven test automation framework written in Go, designed for comprehensive API testing, SWIFT message generation and database operations. It provides a developer-friendly YAML-based DSL for writing test cases and test suites.
 
 ## Key Features & Architecture
 
@@ -16,7 +16,7 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
   - `runner/`: Service-oriented test orchestration with dependency injection and parallel execution
   - `actions/`: Built-in actions for HTTP, database, control flow, templating, etc.
 - **CLI Interface**: `cmd/robogo/main.go` - Cobra-based CLI with console output
-- **VS Code Extension**: Complete extension in `.vscode/extensions/robogo/` with syntax highlighting, autocomplete, and validation
+
 
 ### Architecture Highlights
 - **Interface-Driven Design**: All major components use interfaces for maximum decoupling
@@ -34,7 +34,6 @@ Robogo is a modern, git-driven test automation framework written in Go, designed
 - **Database**: `postgres` operations and `spanner` (Google Cloud Spanner)
 - **Messaging**: `kafka` publish/consume and `rabbitmq` operations
 - **Control Flow**: `if`, `for`, `while` loops with conditional logic
-- **Data Management**: `tdm` (Test Data Management) with structured data sets
 - **Templating**: `template` action for SWIFT messages and SEPA XML generation
 - **Utilities**: `assert`, `log`, `get_time`, `get_random`, `concat`, `length`
 - **Variables**: `variable` action for dynamic variable management
@@ -56,9 +55,6 @@ go test ./...
 # Run test suite
 ./robogo.exe run-suite examples/test-suite.yaml
 
-# Run with parallel execution
-./robogo.exe run tests/*.yaml --parallel --max-concurrency 4
-
 # Run a test file
 ./robogo.exe run test.yaml
 ```
@@ -75,17 +71,6 @@ docker-compose up -d
 # - Google Cloud Spanner Emulator (localhost:9010, REST: localhost:9020)
 ```
 
-### VS Code Extension Development
-```bash
-# Quick launch (Windows PowerShell)
-./run-extension.ps1
-
-# Manual build and launch
-cd .vscode/extensions/robogo
-npm install
-npm run compile
-code --new-window --extensionDevelopmentPath="$(pwd)/.vscode/extensions/robogo"
-```
 
 ### Action Development
 ```bash
@@ -109,7 +94,6 @@ robogo/
 │   │   ├── kafka.go              # Kafka publish/consume operations
 │   │   ├── control.go            # Control flow (if, for, while)
 │   │   ├── template.go           # Template rendering for SWIFT/SEPA
-│   │   ├── tdm.go                # Test Data Management operations
 │   │   └── ...                   # Other action implementations
 │   ├── parser/                   # YAML parsing and validation
 │   │   ├── parser.go             # Test case and suite parsing
@@ -126,14 +110,12 @@ robogo/
 │   ├── core/                     # Core functionality tests
 │   ├── integration/              # Integration tests
 │   ├── templates/                # Template-based tests (SWIFT, SEPA)
-│   └── tdm/                      # Test Data Management tests
 ├── examples/                     # Basic examples and tutorials
 ├── templates/                    # SWIFT and SEPA message templates
 │   ├── mt103.tmpl               # SWIFT MT103 Customer Transfer
 │   ├── mt202.tmpl               # SWIFT MT202 Institution Transfer
 │   ├── sepa-credit-transfer.xml.tmpl  # SEPA Credit Transfer XML
 │   └── ...
-├── .vscode/extensions/robogo/    # Complete VS Code extension
 └── docker-compose.yml           # Development environment services
 ```
 
@@ -249,7 +231,6 @@ testcases:
 
 ### Test Writing Best Practices
 - Use descriptive test names and step names (now mandatory)
-- Leverage TDM for structured test data
 - Implement proper error handling with assertions
 - Use secrets for sensitive data
 - Consider parallel execution for performance
@@ -296,15 +277,6 @@ The project includes a complete Docker Compose setup for development:
 - **RabbitMQ**: `robogo_user` / `robogo_pass`
 - **Kafka**: No authentication (development only)
 - **Spanner**: Uses emulator (no authentication required)
-
-## VS Code Extension Features
-
-- **Syntax Highlighting**: Custom grammar for .yaml files
-- **Autocomplete**: Intelligent action and parameter suggestions
-- **Validation**: Real-time syntax and semantic validation
-- **Documentation**: Hover tooltips with action documentation
-- **Execution**: One-click test execution with integrated output
-- **Debugging**: Step-by-step execution with detailed results
 
 ## Output Format
 
