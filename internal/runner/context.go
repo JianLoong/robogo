@@ -193,7 +193,7 @@ type DefaultVariableContext struct {
 
 func NewDefaultVariableContext() VariableContext {
 	factory := NewVariableServiceFactory()
-	service := factory.CreateVariableService()
+	service := factory.CreateInMemoryService()
 
 	return &DefaultVariableContext{
 		service:  service,
