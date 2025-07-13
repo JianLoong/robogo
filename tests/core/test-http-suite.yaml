@@ -16,8 +16,8 @@ setup:
     args: ["Setting up the complex suite"]
 
 testcases:
-  - file: ./test-http-format.yaml
-
+  - file: ./test-http-get.yaml
+  - file: ./test-http-post.yaml
 teardown:
   - name: "Suite Teardown"
     action: log

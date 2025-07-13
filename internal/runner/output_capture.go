@@ -14,6 +14,10 @@ type OutputCapture struct {
 	pipeW     *os.File
 	output    string
 	capturing bool
+	// Add real-time display support
+	realTimeDisplay bool
+	teeFile         *os.File
+	teeDone         chan struct{}
 }
 
 // NewOutputCapture creates a new output capture instance
@@ -23,12 +27,18 @@ func NewOutputCapture() OutputManager {
 
 // Start begins capturing stdout
 func (oc *OutputCapture) Start() error {
+	return oc.StartWithRealTimeDisplay(true) // Enable real-time display by default
+}
+
+// StartWithRealTimeDisplay begins capturing stdout with optional real-time display
+func (oc *OutputCapture) StartWithRealTimeDisplay(realTime bool) error {
 	if oc.capturing {
 		return nil // Already capturing
 	}
 
 	// Store the original stdout
 	oc.oldStdout = os.Stdout
+	oc.realTimeDisplay = realTime
 
 	// Create a pipe
 	r, w, err := os.Pipe()
@@ -39,8 +49,32 @@ func (oc *OutputCapture) Start() error {
 	oc.pipeR = r
 	oc.pipeW = w
 
-	// Redirect stdout to the pipe
-	os.Stdout = w
+	// If real-time display is enabled, create a tee-like setup
+	if realTime {
+		// Create a temporary file to act as our new stdout
+		tempFile, err := os.CreateTemp("", "robogo_stdout_*")
+		if err != nil {
+			return err
+		}
+		oc.teeFile = tempFile
+		oc.teeDone = make(chan struct{})
+
+		// Start a goroutine to copy from temp file to both pipe and original stdout
+		go func() {
+			defer tempFile.Close()
+			defer close(oc.teeDone)
+
+			// Create a multi-writer for both destinations
+			multiWriter := io.MultiWriter(w, oc.oldStdout)
+			io.Copy(multiWriter, tempFile)
+		}()
+
+		// Redirect stdout to our temp file
+		os.Stdout = tempFile
+	} else {
+		// Traditional capture - redirect stdout to the pipe only
+		os.Stdout = w
+	}
 
 	oc.capturing = true
 	return nil
@@ -54,6 +88,12 @@ func (oc *OutputCapture) Stop() (string, error) {
 
 	// Close the write end of the pipe
 	oc.pipeW.Close()
+
+	// If using real-time display, close the tee file and wait for completion
+	if oc.realTimeDisplay && oc.teeFile != nil {
+		oc.teeFile.Close()
+		<-oc.teeDone // Wait for the tee goroutine to finish
+	}
 
 	// Read all output from the pipe
 	var buf bytes.Buffer
@@ -71,6 +111,9 @@ func (oc *OutputCapture) Stop() (string, error) {
 	// Store the captured output
 	oc.output = buf.String()
 	oc.capturing = false
+	oc.realTimeDisplay = false
+	oc.teeFile = nil
+	oc.teeDone = nil
 
 	return oc.output, nil
 }
@@ -98,4 +141,3 @@ func (oc *OutputCapture) Write(data []byte) (int, error) {
 func (oc *OutputCapture) Capture() ([]byte, error) {
 	return []byte(oc.output), nil
 }
-

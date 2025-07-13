@@ -1,4 +1,4 @@
-testcase: "MT103 Payment Flow Simulation"
+testcase: "TC01-MT103 Payment Flow Simulation"
 description: "Test SWIFT MT103 payment message generation and submission to mock payment system"
 
 variables:
@@ -14,82 +14,116 @@ variables:
     
     # Payment details
     currency: "EUR"
-    amount: "1000.00"
+    amount: 1000.00
     reference: "INV-2024-001"
     
     # Mock API endpoint
     payment_api_url: "https://httpbin.org/post"
-
+    # Spanner connection string (update as needed)
+    test_table: "integration_test"
+    spanner_connection: "projects/test-project/instances/test-instance/databases/test-database"
 steps:
-  # --- Dynamic Initialization ---
-  - name: "Generate transaction timestamp"
+
+  - name: "S1 - Generate transaction timestamp"
     action: get_time
     args: ["unix_ms"]
     result: timestamp_ms
 
-  - name: "Create unique transaction ID"
+  - name: "S2 - Create unique transaction ID"
     action: concat
     args: ["TXN", "${timestamp_ms}"]
     result: transaction_id
 
-  - name: "Get current date"
+  - name: "S3 - Get current date"
     action: get_time
     args: ["date"]
     result: current_date
 
-  # --- Main Test Steps ---
-  - name: "Generate MT103 SWIFT Message"
+  - name: "S4b - Generate MT103 SWIFT Message"
     action: template
     args:
       - "templates/mt103.tmpl"
       -
         Sender:
-          BIC: "${sender_bic}"
-          Account: "${sender_account}"
-          Name: "${sender_name}"
+          BIC: "DEUTDEFF"
+          Account: "DE89370400440532013000"
+          Name: "Deutsche Bank AG"
         Beneficiary:
-          Account: "${beneficiary_account}"
-          Name: "${beneficiary_name}"
+          Account: "GB29NWBK60161331926819"
+          Name: "Barclays Bank PLC"
         TransactionID: "${transaction_id}"
         Timestamp: "${timestamp_ms}"
         Date: "${current_date}"
-        Currency: "${currency}"
-        Amount: "${amount}"
-        Reference: "${reference}"
+        Currency: "EUR"
+        Amount: 1000.00
+        Reference: "INV-2024-001"
     result: mt103_message
 
-  - name: "Log Generated MT103 Message"
+  - name: "S5 - Log Generated MT103 Message"
     action: log
-    args: ["Generated MT103 Message:", "${mt103_message}"]
+    args: ["${mt103_message}"]
 
-  - name: "Submit MT103 to Mock Payment API"
+  - name: "S6 - Submit MT103 to Mock Payment API"
     action: http
     args:
       - "POST"
       - "${payment_api_url}"
-      -
-        Content-Type: "application/xml"
-        X-API-Key: "mock-api-key-12345"
-        X-Transaction-ID: "${transaction_id}"
       - "${mt103_message}"
     result: payment_response
 
-  - name: "Log Payment API Response"
+  - name: "S7 - Log Payment API Response"
     action: log
-    args: ["Payment API Response:", "${payment_response}"]
+    args: ["Payment API Response:", "${payment_response.status_code}"]
 
-  - name: "Assert Payment API Response Status"
+  - name: "S8 - Assert Payment API Response Status"
     action: assert
     args: ["${payment_response.status_code}", "==", "200", "Payment API should return 200 OK"]
 
+  - name: "Extract data field from JSON response"
+    action: json_extract
+    args: ["${payment_response.body}", "data"]
+    result: response_data
+  
   - name: "Assert Payment API Response Contains Success"
     action: assert
-    args: ["${payment_response.body}", "contains", "accepted", "Payment API response should indicate message was accepted"]
+    args: ["${response_data}", "contains", "${mt103_message}", "Payment API response should indicate message was accepted"]
 
-  - name: "Assert Response Contains Transaction ID"
-    action: assert
-    args: ["${payment_response.body}", "contains", "${transaction_id}", "Payment API response should contain the transaction ID"]
-
-  - name: "Log Payment Flow Completion"
+  - name: "S10 - Insert Payment Record into Spanner"
+    action: spanner
+    args:
+      - "execute"
+      - "${spanner_connection}"
+      - "INSERT INTO payments (transaction_id, sender_bic, sender_account, beneficiary_account, amount) VALUES ('${transaction_id}', '${sender_bic}', '${sender_account}', '${beneficiary_account}', ${amount})"
+    result: spanner_insert_result
+    retry:
+      attempts: 3
+      delay: 2s
+      backoff: exponential
+      conditions: [timeout, connection_error, deadline_exceeded]
+    # expect_error:
+    #   type: contains
+    #   message: "deadline_exceeded"
+    continue_on_failure: true
+  
+  - name: Continuing
     action: log
-    args: ["MT103 Payment Flow completed successfully"] 
+    args: ["Continuining....."]
+
+  # - name: "S11 - Query Payment Record from Spanner"
+  #   action: spanner
+  #   args:
+  #     - "query"
+  #     - "${spanner_connection}"
+  #     - "SELECT * FROM payments WHERE transaction_id = '${transaction_id}'"
+  #   result: spanner_query_result
+
+  # - name: "S12 - Assert Spanner Query Result"
+  #   action: assert
+  #   args:
+  #     - "${spanner_query_result}"
+  #     - "contains"
+  #     - "${transaction_id}"
+
+  # - name: "S13 - Log Payment Flow Completion"
+  #   action: log
+  #   args: ["MT103 Payment Flow completed successfully"] 

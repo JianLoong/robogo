@@ -57,7 +57,7 @@ func (fp *FileProcessor) processPath(ctx context.Context, path string) (*RunResu
 	return fp.processFile(ctx, path)
 }
 
-// processDirectory recursively processes all .robogo files in a directory
+// processDirectory recursively processes all test files in a directory
 func (fp *FileProcessor) processDirectory(ctx context.Context, dirPath string) (*RunResults, error) {
 	results := &RunResults{}
 
@@ -66,7 +66,7 @@ func (fp *FileProcessor) processDirectory(ctx context.Context, dirPath string) (
 			return err
 		}
 
-		if fileInfo.IsDir() || !strings.HasSuffix(filePath, ".robogo") {
+		if fileInfo.IsDir() || !(strings.HasSuffix(filePath, ".robogo") || strings.HasSuffix(filePath, ".yml") || strings.HasSuffix(filePath, ".yaml")) {
 			return nil
 		}
 

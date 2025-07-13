@@ -5,24 +5,31 @@ description: "Test to understand HTTP response format"
 variables:
   vars:
 
-    base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    base_url: "https://httpbin.org/post"
     # Section for expected id from the endpoint
     expected_value: "HTTPBIN is awesome"
+
+    data: "Test"
 
 steps:
   - name: "Make simple HTTP request"
     action: http
-    args: ["GET", "${base_url}"]
+    args: ["POST", "${base_url}", "${data}"]
     result: "http_response"
 
-  - name: "Log pretty formatted response"
+  - name: "Log raw response with separate args"
     action: log
-    args: ["Pretty response:", "${http_response.body}"]
+    args: ["Raw response:", "${http_response}"]
 
   - name: "Test status code assertion"
     action: assert
     args: ["${http_response.status_code}", "==", "200", "Should be 200"]
 
-  - name: "Assert that the expected value is correct"
+    # Variables can saved dynamically if needed
+  - name: "Save the body into results"
+    action: variable
+    args: ["set", "results", "${http_response.body}"]
+
+  - name: "Assert that the User Id is correct"
     action: assert
-    args: ["${http_response.body}", "==", "${expected_value}"]
+    args: ["${results.data}", "==", "${data}"]

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"regexp"
+	"strings"
 
 	"github.com/JianLoong/robogo/internal/parser"
 )
@@ -18,10 +18,10 @@ func maskSecretsInArgs(args []interface{}) []interface{} {
 	if len(args) == 0 {
 		return args
 	}
-	
+
 	maskedArgs := make([]interface{}, len(args))
 	copy(maskedArgs, args)
-	
+
 	// Common secret patterns to mask
 	secretPatterns := []*regexp.Regexp{
 		// Database URLs with passwords
@@ -39,7 +39,7 @@ func maskSecretsInArgs(args []interface{}) []interface{} {
 		regexp.MustCompile(`([Pp]assword[=\s:]+)([^\s&]+)`),
 		regexp.MustCompile(`([Pp]ass[=\s:]+)([^\s&]+)`),
 	}
-	
+
 	for i, arg := range maskedArgs {
 		if argStr, ok := arg.(string); ok {
 			masked := argStr
@@ -49,7 +49,7 @@ func maskSecretsInArgs(args []interface{}) []interface{} {
 			maskedArgs[i] = masked
 		}
 	}
-	
+
 	return maskedArgs
 }
 
@@ -58,11 +58,11 @@ func formatArgsNicely(args []interface{}) string {
 	if len(args) == 0 {
 		return "[]"
 	}
-	
+
 	if len(args) == 1 {
 		return formatSingleArg(args[0])
 	}
-	
+
 	// Multiple args - format as array
 	var formatted []string
 	for _, arg := range args {
@@ -171,16 +171,16 @@ func PrintStepResultsDetailed(stepResults []parser.StepResult, title string) {
 		fmt.Printf("   Action: %s\n", stepResult.Step.Action)
 		fmt.Printf("   Status: %s\n", status)
 		fmt.Printf("   Duration: %v\n", stepResult.Duration)
-		
+
 		if stepResult.Step.Args != nil && len(stepResult.Step.Args) > 0 {
 			maskedArgs := maskSecretsInArgs(stepResult.Step.Args)
 			fmt.Printf("   Args: %s\n", formatArgsNicely(maskedArgs))
 		}
-		
+
 		if stepResult.Output != "" {
 			fmt.Printf("   Output: %s\n", stepResult.Output)
 		}
-		
+
 		if stepResult.Error != "" {
 			fmt.Printf("   Error: %s\n", stepResult.Error)
 		}
@@ -234,6 +234,10 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 		statusWithIcon := padOrTruncate(shortStatus, 12)
 		duration := padOrTruncate(stepResult.Duration.Truncate(1e6).String(), 6)
 		output := stepResult.Output
+		// Only show the first line of output
+		if idx := strings.IndexAny(output, "\r\n"); idx != -1 {
+			output = output[:idx]
+		}
 		if len(output) > 24 {
 			output = output[:21] + "..."
 		}
@@ -257,7 +261,6 @@ func PrintStepResultsMarkdown(stepResults []parser.StepResult, title string) {
 }
 
 // Console output utility functions
-
 
 // PrintWarning prints a general warning message
 func PrintWarning(format string, args ...interface{}) {
@@ -330,7 +333,7 @@ func (f *ConsoleFormatter) FormatTestResults(results []*parser.TestResult) error
 		if len(result.StepResults) > 0 {
 			// Show detailed step breakdown for debugging
 			PrintStepResultsDetailed(result.StepResults, "## Detailed Step Results")
-			
+
 			// Also show compact table
 			fmt.Println("\nStep Results (Compact Table):")
 			PrintStepResultsMarkdown(result.StepResults, "Step Results:")

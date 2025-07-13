@@ -22,7 +22,7 @@ type TestExecutionService struct {
 func NewTestExecutionService(executor *actions.ActionExecutor) TestExecutor {
 	execContext := NewExecutionContext(executor)
 	stepService := NewStepExecutionService(execContext)
-	
+
 	return &TestExecutionService{
 		context:     execContext,
 		stepService: stepService,
@@ -32,7 +32,7 @@ func NewTestExecutionService(executor *actions.ActionExecutor) TestExecutor {
 // NewTestExecutionServiceWithContext creates a service with a custom execution context
 func NewTestExecutionServiceWithContext(context ExecutionContext) TestExecutor {
 	stepService := NewStepExecutionService(context)
-	
+
 	return &TestExecutionService{
 		context:     context,
 		stepService: stepService,
@@ -42,22 +42,26 @@ func NewTestExecutionServiceWithContext(context ExecutionContext) TestExecutor {
 // ExecuteTestCase executes a single test case with proper lifecycle management
 func (tes *TestExecutionService) ExecuteTestCase(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error) {
 	startTime := time.Now()
-	
+
 	result := &parser.TestResult{
-		TestCase:     testCase,
+		TestCase:    testCase,
 		Status:      "FAILED",
 		Duration:    0,
 		StepResults: []parser.StepResult{},
 	}
-	
+
 	// Initialize test case context
 	if err := tes.initializeTestCase(testCase); err != nil {
 		return result, fmt.Errorf("failed to initialize test case: %w", err)
 	}
-	
-	// Start output capture
-	tes.context.Output().StartCapture()
-	
+
+	// Start output capture with real-time display
+	if outputCapture, ok := tes.context.Output().(*OutputCapture); ok {
+		outputCapture.StartWithRealTimeDisplay(!silent)
+	} else {
+		tes.context.Output().StartCapture()
+	}
+
 	// Print test case info
 	if !silent {
 		output.PrintTestCaseStart(testCase.Name)
@@ -66,51 +70,51 @@ func (tes *TestExecutionService) ExecuteTestCase(ctx context.Context, testCase *
 		}
 		output.PrintTestCaseSteps(len(testCase.Steps))
 	}
-	
+
 	// Execute steps
 	stepResults, err := tes.executeSteps(ctx, testCase, silent)
 	result.StepResults = stepResults
-	
+
 	// Calculate final status
 	result.Duration = time.Since(startTime)
 	result.Status = tes.calculateTestStatus(stepResults, err)
-	
+
 	// Capture output
 	result.CapturedOutput = tes.context.Output().StopCapture()
-	
+
 	// Calculate step statistics
 	tes.calculateStepStatistics(result)
-	
+
 	return result, err
 }
 
 // ExecuteTestSuite executes a test suite with proper setup/teardown
 func (tes *TestExecutionService) ExecuteTestSuite(ctx context.Context, testSuite *parser.TestSuite, filePath string, silent bool) (*parser.TestSuiteResult, error) {
 	startTime := time.Now()
-	
+
 	result := &parser.TestSuiteResult{
 		TestSuite:   testSuite,
 		Duration:    0,
 		CaseResults: []parser.TestCaseResult{},
 	}
-	
+
 	// Execute setup if present
 	if err := tes.executeSetup(ctx, testSuite, silent); err != nil {
 		result.SetupStatus = fmt.Sprintf("FAILED: %v", err)
 		return result, fmt.Errorf("test suite setup failed: %w", err)
 	}
 	result.SetupStatus = "PASSED"
-	
+
 	// Execute test cases
 	for _, testCaseRef := range testSuite.TestCases {
 		caseResult, err := tes.executeTestCaseFromPath(ctx, testCaseRef.File, silent)
 		result.CaseResults = append(result.CaseResults, caseResult)
-		
+
 		if err != nil && !silent {
 			fmt.Printf("Test case %s failed: %v\n", testCaseRef.File, err)
 		}
 	}
-	
+
 	// Execute teardown
 	if err := tes.executeTeardown(ctx, testSuite, silent); err != nil {
 		result.TeardownStatus = fmt.Sprintf("FAILED: %v", err)
@@ -120,11 +124,11 @@ func (tes *TestExecutionService) ExecuteTestSuite(ctx context.Context, testSuite
 	} else {
 		result.TeardownStatus = "PASSED"
 	}
-	
+
 	// Calculate final results
 	result.Duration = time.Since(startTime)
 	tes.calculateSuiteStatistics(result)
-	
+
 	return result, nil
 }
 
@@ -137,12 +141,12 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 		for name := range testCase.Templates {
 			templateNames = append(templateNames, name)
 		}
-		
+
 		if !tes.isQuiet() {
 			output.PrintTemplatesLoaded(len(testCase.Templates), fmt.Sprintf("%v", templateNames))
 		}
 	}
-	
+
 	// Initialize variables using the VariableManager's proper initialization
 	// This ensures correct multi-pass substitution and cross-substitution between secrets and variables
 	if execCtx, ok := tes.context.(*DefaultExecutionContext); ok {
@@ -157,7 +161,7 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 				}
 			}
 		}
-		
+
 		// Load secrets
 		if testCase.Variables.Secrets != nil {
 			if err := tes.context.Variables().LoadSecrets(testCase.Variables.Secrets); err != nil {
@@ -165,17 +169,16 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 			}
 		}
 	}
-	
+
 	return nil
 }
-
 
 func (tes *TestExecutionService) executeSteps(ctx context.Context, testCase *parser.TestCase, silent bool) ([]parser.StepResult, error) {
 	// Check for parallel execution configuration
 	if testCase.Parallel != nil && testCase.Parallel.Steps {
 		return tes.stepService.ExecuteStepsParallel(ctx, testCase.Steps, testCase.Parallel, silent)
 	}
-	
+
 	// Sequential execution
 	return tes.stepService.ExecuteSteps(ctx, testCase.Steps, silent)
 }
@@ -184,12 +187,12 @@ func (tes *TestExecutionService) executeSetup(ctx context.Context, testSuite *pa
 	if len(testSuite.Setup) == 0 {
 		return nil
 	}
-	
+
 	setupTestCase := &parser.TestCase{
 		Name:  "Suite Setup",
 		Steps: testSuite.Setup,
 	}
-	
+
 	_, err := tes.ExecuteTestCase(ctx, setupTestCase, silent)
 	return err
 }
@@ -198,12 +201,12 @@ func (tes *TestExecutionService) executeTeardown(ctx context.Context, testSuite 
 	if len(testSuite.Teardown) == 0 {
 		return nil
 	}
-	
+
 	teardownTestCase := &parser.TestCase{
-		Name:  "Suite Teardown", 
+		Name:  "Suite Teardown",
 		Steps: testSuite.Teardown,
 	}
-	
+
 	_, err := tes.ExecuteTestCase(ctx, teardownTestCase, silent)
 	return err
 }
@@ -218,17 +221,17 @@ func (tes *TestExecutionService) executeTestCaseFromPath(ctx context.Context, pa
 			Error:    fmt.Sprintf("Failed to parse test case: %v", err),
 		}, err
 	}
-	
+
 	// Execute the test case
 	result, err := tes.ExecuteTestCase(ctx, testCase, silent)
 	if err != nil {
 		return parser.TestCaseResult{
 			TestCase: testCase,
-			Status:   "FAILED", 
+			Status:   "FAILED",
 			Error:    fmt.Sprintf("Failed to execute test case: %v", err),
 		}, err
 	}
-	
+
 	// Convert TestResult to TestCaseResult
 	return parser.TestCaseResult{
 		TestCase: testCase,
@@ -241,13 +244,13 @@ func (tes *TestExecutionService) calculateTestStatus(stepResults []parser.StepRe
 	if err != nil {
 		return "FAILED"
 	}
-	
+
 	for _, result := range stepResults {
 		if result.Status == "FAILED" {
 			return "FAILED"
 		}
 	}
-	
+
 	return "PASSED"
 }
 
@@ -306,7 +309,7 @@ func (tes *TestExecutionService) ShouldSkipTestCase(testCase *parser.TestCase, c
 	if testCase.Skip == nil {
 		return SkipInfo{ShouldSkip: false}
 	}
-	
+
 	switch v := testCase.Skip.(type) {
 	case bool:
 		if v {
