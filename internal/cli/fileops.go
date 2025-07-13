@@ -123,20 +123,23 @@ func (fp *FileProcessor) processSuiteFile(ctx context.Context, filePath string) 
 
 // processCaseFile processes a test case file
 func (fp *FileProcessor) processCaseFile(ctx context.Context, filePath string) (*RunResults, error) {
-	results, err := runner.RunTestFilesWithConfigAndDebug(
-		ctx,
-		[]string{filePath},
-		fp.options.Silent,
-		fp.options.ParallelConfig,
-		fp.executor,
-		fp.options.VariableDebug,
-	)
+	testCase, err := parser.ParseTestFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	testExecutor := runner.NewTestExecutionService(fp.executor)
+	if fp.options.VariableDebug {
+		testExecutor.GetContext().EnableVariableDebugging(true)
+	}
+
+	result, err := testExecutor.ExecuteTestCase(ctx, testCase, fp.options.Silent)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RunResults{
-		CaseResults: results,
+		CaseResults: []*parser.TestResult{result},
 	}, nil
 }
 

@@ -118,14 +118,14 @@ func (oc *OutputCapture) Stop() (string, error) {
 	return oc.output, nil
 }
 
-// StartCapture begins capturing stdout (implements OutputManager interface)
+// StartCapture begins capturing stdout
 func (oc *OutputCapture) StartCapture() {
-	oc.Start() // Ignore error for interface compatibility
+	_ = oc.Start() // Start capture, error handling done in Start()
 }
 
-// StopCapture stops capturing and returns output (implements OutputManager interface)
+// StopCapture stops capturing and returns output
 func (oc *OutputCapture) StopCapture() string {
-	output, _ := oc.Stop() // Ignore error for interface compatibility
+	output, _ := oc.Stop() // Error handling done in Stop()
 	return output
 }
 

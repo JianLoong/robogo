@@ -231,8 +231,8 @@ func (rm *RetryManager) GetRetryDelay(attempt int) time.Duration {
 	return rm.calculateDelay(config, attempt)
 }
 
-// ExecuteWithRetry implements RetryPolicy interface with ActionExecutor interface
-func (rm *RetryManager) ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error) {
+// ExecuteWithRetry implements RetryPolicy interface with ActionContext interface
+func (rm *RetryManager) ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionContext, silent bool) (interface{}, error) {
 	if step.Retry == nil {
 		return executor.Execute(ctx, step.Action, step.Args, step.Options, silent)
 	}

@@ -14,13 +14,13 @@ import (
 // This replaces the global execution functions with a proper service
 // Implements StepExecutor interface
 type StepExecutionService struct {
-	context          ExecutionContext
+	context          TestExecutionContext
 	retryExecutor    *util.RetryExecutor
 	recoveryExecutor *util.RecoveryExecutor
 }
 
 // NewStepExecutionService creates a new step execution service
-func NewStepExecutionService(ctx ExecutionContext) StepExecutor {
+func NewStepExecutionService(ctx TestExecutionContext) StepExecutor {
 	return &StepExecutionService{
 		context:          ctx,
 		retryExecutor:    util.NewRetryExecutor(nil),    // Use default config
@@ -311,13 +311,9 @@ func (ses *StepExecutionService) preprocessStep(step parser.Step, contextStr str
 	// Create a copy of the step to avoid modifying the original
 	processedStep := step
 
-	// Substitute variables in step name with debugging
+	// Substitute variables in step name
 	if step.Name != "" {
-		if execCtx, ok := ses.context.(*DefaultExecutionContext); ok {
-			processedStep.Name = execCtx.SubstituteWithDebug(step.Name)
-		} else {
-			processedStep.Name = ses.context.Variables().Substitute(step.Name)
-		}
+		processedStep.Name = ses.context.Variables().Substitute(step.Name)
 	}
 
 	// Substitute variables in arguments
@@ -346,11 +342,7 @@ func (ses *StepExecutionService) preprocessStep(step parser.Step, contextStr str
 func (ses *StepExecutionService) substituteValueRecursive(value interface{}) interface{} {
 	switch v := value.(type) {
 	case string:
-		if execCtx, ok := ses.context.(*DefaultExecutionContext); ok {
-			return execCtx.SubstituteWithDebug(v)
-		} else {
-			return ses.context.Variables().Substitute(v)
-		}
+		return ses.context.Variables().Substitute(v)
 	case map[string]interface{}:
 		substituted := make(map[string]interface{})
 		for key, val := range v {

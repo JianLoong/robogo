@@ -21,7 +21,7 @@ func (f *DefaultServiceFactory) CreateTestExecutor(executor *actions.ActionExecu
 }
 
 // CreateStepExecutor creates a new step executor instance
-func (f *DefaultServiceFactory) CreateStepExecutor(context ExecutionContext) StepExecutor {
+func (f *DefaultServiceFactory) CreateStepExecutor(context TestExecutionContext) StepExecutor {
 	return NewStepExecutionService(context)
 }
 
@@ -30,10 +30,6 @@ func (f *DefaultServiceFactory) CreateTestSuiteExecutor(runner TestExecutor) Tes
 	return NewTestSuiteRunner(runner)
 }
 
-// CreateVariableManager creates a new variable manager instance
-func (f *DefaultServiceFactory) CreateVariableManager() VariableManagerInterface {
-	return NewVariableManager()
-}
 
 // CreateOutputManager creates a new output manager instance
 func (f *DefaultServiceFactory) CreateOutputManager() OutputManager {
@@ -47,7 +43,7 @@ func (f *DefaultServiceFactory) CreateRetryPolicy() RetryPolicy {
 
 // ContextProviderImpl implements ContextProvider interface
 type ContextProviderImpl struct {
-	context ExecutionContext
+	context TestExecutionContext
 }
 
 // NewContextProvider creates a new context provider
@@ -56,19 +52,19 @@ func NewContextProvider() ContextProvider {
 }
 
 // GetExecutionContext returns the current execution context
-func (cp *ContextProviderImpl) GetExecutionContext() ExecutionContext {
+func (cp *ContextProviderImpl) GetExecutionContext() TestExecutionContext {
 	return cp.context
 }
 
 // CreateContext creates a new execution context
-func (cp *ContextProviderImpl) CreateContext(executor *actions.ActionExecutor) ExecutionContext {
-	context := NewExecutionContext(executor)
+func (cp *ContextProviderImpl) CreateContext(executor *actions.ActionExecutor) TestExecutionContext {
+	context := NewTestExecutionContext(executor)
 	cp.context = context
 	return context
 }
 
 // WithContext sets the execution context
-func (cp *ContextProviderImpl) WithContext(context ExecutionContext) ContextProvider {
+func (cp *ContextProviderImpl) WithContext(context TestExecutionContext) ContextProvider {
 	return &ContextProviderImpl{
 		context: context,
 	}

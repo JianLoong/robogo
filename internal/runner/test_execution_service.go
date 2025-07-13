@@ -14,13 +14,13 @@ import (
 // This replaces the tightly coupled TestRunner with proper separation of concerns
 // Implements TestExecutor interface
 type TestExecutionService struct {
-	context     ExecutionContext
+	context     TestExecutionContext
 	stepService StepExecutor
 }
 
 // NewTestExecutionService creates a new test execution service
 func NewTestExecutionService(executor *actions.ActionExecutor) TestExecutor {
-	execContext := NewExecutionContext(executor)
+	execContext := NewTestExecutionContext(executor)
 	stepService := NewStepExecutionService(execContext)
 
 	return &TestExecutionService{
@@ -30,7 +30,7 @@ func NewTestExecutionService(executor *actions.ActionExecutor) TestExecutor {
 }
 
 // NewTestExecutionServiceWithContext creates a service with a custom execution context
-func NewTestExecutionServiceWithContext(context ExecutionContext) TestExecutor {
+func NewTestExecutionServiceWithContext(context TestExecutionContext) TestExecutor {
 	stepService := NewStepExecutionService(context)
 
 	return &TestExecutionService{
@@ -56,11 +56,7 @@ func (tes *TestExecutionService) ExecuteTestCase(ctx context.Context, testCase *
 	}
 
 	// Start output capture with real-time display
-	if outputCapture, ok := tes.context.Output().(*OutputCapture); ok {
-		outputCapture.StartWithRealTimeDisplay(!silent)
-	} else {
-		tes.context.Output().StartCapture()
-	}
+	tes.context.Output().StartWithRealTimeDisplay(!silent)
 
 	// Print test case info
 	if !silent {
@@ -147,25 +143,19 @@ func (tes *TestExecutionService) initializeTestCase(testCase *parser.TestCase) e
 		}
 	}
 
-	// Initialize variables using the VariableManager's proper initialization
-	// This ensures correct multi-pass substitution and cross-substitution between secrets and variables
-	if execCtx, ok := tes.context.(*DefaultExecutionContext); ok {
-		execCtx.variableManager.InitializeVariables(testCase)
-	} else {
-		// Fallback for other ExecutionContext implementations
-		if testCase.Variables.Regular != nil {
-			// Load regular variables
-			for key, value := range testCase.Variables.Regular {
-				if err := tes.context.Variables().Set(key, value); err != nil {
-					return fmt.Errorf("failed to set variable %s: %w", key, err)
-				}
-			}
+	// Initialize variables and secrets using the new focused interfaces
+	if testCase.Variables.Regular != nil {
+		// Initialize regular variables
+		if err := tes.context.Variables().Initialize(testCase.Variables.Regular); err != nil {
+			return fmt.Errorf("failed to initialize variables: %w", err)
 		}
+	}
 
-		// Load secrets
-		if testCase.Variables.Secrets != nil {
-			if err := tes.context.Variables().LoadSecrets(testCase.Variables.Secrets); err != nil {
-				return fmt.Errorf("failed to load secrets: %w", err)
+	// Load secrets
+	if testCase.Variables.Secrets != nil {
+		for secretName, secretConfig := range testCase.Variables.Secrets {
+			if err := tes.context.Secrets().LoadSecret(secretName, secretConfig); err != nil {
+				return fmt.Errorf("failed to load secret %s: %w", secretName, err)
 			}
 		}
 	}
@@ -285,25 +275,24 @@ func (tes *TestExecutionService) isQuiet() bool {
 }
 
 // GetContext returns the execution context for advanced usage
-func (tes *TestExecutionService) GetContext() ExecutionContext {
+func (tes *TestExecutionService) GetContext() TestExecutionContext {
 	return tes.context
 }
 
 // Cleanup performs any necessary cleanup
 func (tes *TestExecutionService) Cleanup() error {
-	return tes.context.Cleanup()
+	return tes.context.Lifecycle().Cleanup()
 }
 
-// GetExecutor returns the action executor (for interface compatibility)
+// GetExecutor returns the action executor
 func (tes *TestExecutionService) GetExecutor() *actions.ActionExecutor {
-	// Extract executor from context - this is a workaround for interface compatibility
-	if actionExec, ok := tes.context.Actions().(*actionExecutorAdapter); ok {
-		return actionExec.executor
+	if defaultActionCtx, ok := tes.context.Actions().(*DefaultActionContext); ok {
+		return defaultActionCtx.executor
 	}
 	return nil
 }
 
-// ShouldSkipTestCase evaluates skip condition for test case (for interface compatibility)
+// ShouldSkipTestCase evaluates skip condition for test case
 func (tes *TestExecutionService) ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo {
 	// Simple skip evaluation logic
 	if testCase.Skip == nil {

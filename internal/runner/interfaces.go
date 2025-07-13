@@ -12,7 +12,7 @@ import (
 type TestExecutor interface {
 	ExecuteTestCase(ctx context.Context, testCase *parser.TestCase, silent bool) (*parser.TestResult, error)
 	ExecuteTestSuite(ctx context.Context, testSuite *parser.TestSuite, filePath string, silent bool) (*parser.TestSuiteResult, error)
-	GetContext() ExecutionContext
+	GetContext() TestExecutionContext
 	GetExecutor() *actions.ActionExecutor
 	ShouldSkipTestCase(testCase *parser.TestCase, context string) SkipInfo
 	Cleanup() error
@@ -30,22 +30,6 @@ type TestSuiteExecutor interface {
 	RunTestSuite(ctx context.Context, testSuite *parser.TestSuite, suiteFilePath string, printSummary bool) (*parser.TestSuiteResult, error)
 }
 
-// VariableManager interface for variable management operations
-type VariableManagerInterface interface {
-	InitializeVariables(testCase *parser.TestCase)
-	SetVariable(name string, value interface{})
-	GetVariable(name string) (interface{}, bool)
-	SubstituteVariables(args []interface{}) []interface{}
-	SubstituteString(s string) string
-	resolveDotNotation(varName string) (interface{}, bool)
-	substituteStringForDisplay(s string) string
-
-	// Secret management methods
-	MaskSensitiveOutput(output string) string
-	IsSecretMasked(secretName string) bool
-	GetSecretInfo(secretName string) (source string, masked bool, exists bool)
-	ListSecrets() []string
-}
 
 // OutputManager interface for output capture and management
 type OutputManager interface {
@@ -59,22 +43,21 @@ type OutputManager interface {
 type RetryPolicy interface {
 	ShouldRetry(step parser.Step, attempt int, err error) bool
 	GetRetryDelay(attempt int) time.Duration
-	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionExecutor, silent bool) (interface{}, error)
+	ExecuteWithRetry(ctx context.Context, step parser.Step, executor ActionContext, silent bool) (interface{}, error)
 }
 
 // ContextProvider interface for providing execution context
 type ContextProvider interface {
-	GetExecutionContext() ExecutionContext
-	CreateContext(executor *actions.ActionExecutor) ExecutionContext
-	WithContext(context ExecutionContext) ContextProvider
+	GetExecutionContext() TestExecutionContext
+	CreateContext(executor *actions.ActionExecutor) TestExecutionContext
+	WithContext(context TestExecutionContext) ContextProvider
 }
 
 // ServiceFactory interface for creating service instances
 type ServiceFactory interface {
 	CreateTestExecutor(executor *actions.ActionExecutor) TestExecutor
-	CreateStepExecutor(context ExecutionContext) StepExecutor
+	CreateStepExecutor(context TestExecutionContext) StepExecutor
 	CreateTestSuiteExecutor(runner TestExecutor) TestSuiteExecutor
-	CreateVariableManager() VariableManagerInterface
 	CreateOutputManager() OutputManager
 	CreateRetryPolicy() RetryPolicy
 }
@@ -87,18 +70,3 @@ type ConfigManager interface {
 	ValidateConfig() error
 }
 
-// ValidationEngine interface for data validation
-type ValidationEngine interface {
-	ValidateTestCase(testCase *parser.TestCase) []ValidationError
-	ValidateTestSuite(testSuite *parser.TestSuite) []ValidationError
-	ValidateStep(step parser.Step) []ValidationError
-}
-
-// ValidationError represents a validation error
-type ValidationError struct {
-	Type        string
-	Message     string
-	Field       string
-	Value       interface{}
-	Suggestions []string
-}

@@ -17,7 +17,7 @@ steps:
 
   - name: "Log pretty formatted response"
     action: log
-    args: ["Pretty response:", "${http_response.body}"]
+    args: ["Pretty response:", "${http_response.status_code}"]
 
   - name: "Test status code assertion"
     action: assert
