@@ -5,10 +5,12 @@ go 1.23.0
 toolchain go1.24.4
 
 require (
+	cloud.google.com/go/spanner v1.83.0
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/segmentio/kafka-go v0.4.48
-	github.com/spf13/cobra v1.9.1
+	google.golang.org/api v0.237.0
+	google.golang.org/grpc v1.73.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
