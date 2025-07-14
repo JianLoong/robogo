@@ -1,35 +1,33 @@
-testcase: "TC-HTTP-001"
-description: "Test to understand HTTP response format"
+testcase: "TC-HTTP-POST-VERIFY"
+description: "HTTP POST test with data verification"
 
-# Robogo variables are declared at the top
 variables:
   vars:
-
     base_url: "https://httpbin.org/post"
-    # Section for expected id from the endpoint
-    expected_value: "HTTPBIN is awesome"
-
-    data: "Test"
+    test_data: "MyTestData"
 
 steps:
-  - name: "Make simple HTTP request"
+  - name: "Make HTTP POST request"
     action: http
-    args: ["POST", "${base_url}", "${data}"]
-    result: "http_response"
+    args: ["POST", "${base_url}", "${test_data}"]
+    result: "response"
 
-  - name: "Log raw response with separate args"
+  - name: "Verify status code"
+    action: assert
+    args: ["${response.status_code}", "==", "200", "Should return 200 OK"]
+
+  - name: "Verify posted data in response"
+    action: assert
+    args: ["${response.json.data}", "==", "${test_data}", "Posted data should match"]
+
+  - name: "Verify URL in response"
+    action: assert
+    args: ["${response.json.url}", "==", "${base_url}", "URL should match"]
+
+  - name: "Check that origin field exists"
+    action: assert
+    args: ["${response.json.origin}", "!=", "", "Origin should not be empty"]
+
+  - name: "Log verification success"
     action: log
-    args: ["Raw response:", "${http_response}"]
-
-  - name: "Test status code assertion"
-    action: assert
-    args: ["${http_response.status_code}", "==", "200", "Should be 200"]
-
-    # Variables can saved dynamically if needed
-  - name: "Save the body into results"
-    action: variable
-    args: ["set", "results", "${http_response.body}"]
-
-  - name: "Assert that the User Id is correct"
-    action: assert
-    args: ["${results.data}", "==", "${data}"]
+    args: ["Data verification successful! Posted:", "${response.json.data}"]

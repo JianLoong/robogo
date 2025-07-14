@@ -1,8 +1,0 @@
-testsuite: "Parallel Suite Example"
-description: "Test suite with parallel test case execution"
-parallel: true
-
-testcases:
-  - file: test-mt103-payment-flow.yaml
-  - file: ../tests/core/test-assert.yaml
-  - file: ../tests/integration/test-kafka-integration.yaml

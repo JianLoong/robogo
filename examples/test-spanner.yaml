@@ -1,0 +1,29 @@
+testcase: "Spanner Connection Test"
+description: "Test Spanner with immediate connection management"
+
+# To run on Linux/Mac:
+# SPANNER_EMULATOR_HOST=localhost:9010 ./robogo run examples/test-spanner.yaml
+#
+# To run on Windows PowerShell:
+# $env:SPANNER_EMULATOR_HOST="localhost:9010"; .\robogo.exe run examples/test-spanner.yaml
+#
+# To run on Windows Command Prompt:
+# set SPANNER_EMULATOR_HOST=localhost:9010 && robogo.exe run examples/test-spanner.yaml
+
+steps:
+  - name: "Log start"
+    action: log
+    args: ["Testing Spanner connection..."]
+
+  - name: "Test simple spanner query"
+    action: spanner
+    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1 as test_value"]
+    result: spanner_result
+
+  - name: "Log result"
+    action: log
+    args: ["Spanner query completed"]
+
+  - name: "Test complete"
+    action: log
+    args: ["Test finished - should exit cleanly"]

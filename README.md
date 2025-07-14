@@ -1,193 +1,212 @@
 # Robogo
 
-A modern, git-driven test automation framework written in Go. Robogo provides a YAML-based DSL for writing comprehensive test cases with support for HTTP APIs, databases, messaging systems, and more.
+A simple, modern test automation framework written in Go. Robogo provides a clean YAML-based DSL for writing test cases with support for HTTP APIs, databases, messaging systems, and more.
 
 ## Features
 
-- **YAML-based Test Definition**: Write tests in simple, readable YAML format
-- **HTTP Testing**: Full HTTP client with mTLS, custom headers, and response validation
-- **Database Support**: PostgreSQL and Google Cloud Spanner integration
-- **Messaging**: Kafka and RabbitMQ publish/consume operations
-- **Control Flow**: Conditional execution, loops, and branching logic
-- **Template System**: SWIFT message generation and custom templating
-- **Parallel Execution**: Run tests and steps concurrently for better performance
-- **Secret Management**: Secure handling of sensitive data with output masking
-- **Clear Output**: Readable console output with colors and formatting
+- **Simple YAML Tests**: Write tests in clean, readable YAML format
+- **HTTP Testing**: Full HTTP client with JSON parsing and response validation
+- **Database Support**: PostgreSQL and Google Cloud Spanner with immediate connections
+- **Messaging**: Kafka and RabbitMQ operations with proper connection management
+- **Variable Substitution**: Dynamic variables with dot notation support
+- **Clean CLI Tool**: Immediate connection handling - no hanging processes
+- **Formatted Output**: Clean markdown table summaries
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-# Build it for your OS
-go build -o robogo.exe ./cmd/robogo
+# Build for your platform
+go build -o robogo ./cmd/robogo
 ```
 
 ### Basic Usage
 
 ```bash
-# Run a single test file
-./robogo.exe run my-test.yaml
-
-# Run multiple tests in parallel
-./robogo.exe run tests/*.yaml --parallel --max-concurrency 4
-
-# Run a test file
-./robogo.exe run test.yaml
+# Run a single test
+./robogo run my-test.yaml
 
 # Run a test suite
-./robogo.exe run-suite my-suite.yaml
+./robogo run-suite my-suite.yaml
 
-# List all available actions
-./robogo.exe list
+# List available actions
+./robogo list
+
+# Show version
+./robogo version
 ```
 
 ### Your First Test
 
-Create a file called `hello-world.yaml`:
+Create `hello-world.yaml`:
 
 ```yaml
-testcase: "Hello World API Test"
-description: "A simple test to verify API health"
-
-variables:
-  vars:
-    api_url: "https://jsonplaceholder.typicode.com"
+testcase: "Hello World Test"
+description: "A simple API test"
 
 steps:
-  - name: "Check API health"
+  - name: "Make HTTP request"
     action: http
-    args: ["GET", "${api_url}"]
+    args: ["GET", "https://httpbin.org/json"]
     result: response
     
-  - name: "Verify response code"
+  - name: "Verify response"
     action: assert
     args: ["${response.status_code}", "==", "200"]
     
   - name: "Log success"
     action: log
-    args: ["API is healthy!"]
+    args: ["Test passed!"]
 ```
 
 Run it:
 ```bash
-./robogo.exe run hello-world.yaml
+./robogo run hello-world.yaml
 ```
+
+## Available Actions
+
+### Core Actions
+- `log` - Print messages
+- `assert` - Verify conditions 
+- `variable` - Set variables
+
+### HTTP Actions  
+- `http` - HTTP requests (GET, POST, PUT, DELETE, etc.)
+  - Automatic JSON parsing available as `${response.json}`
+  - Status code: `${response.status_code}`
+  - Response body: `${response.body}`
+
+### Database Actions
+- `postgres` - PostgreSQL operations (query, execute)
+- `spanner` - Google Cloud Spanner operations (query, execute)
+
+### Messaging Actions
+- `kafka` - Kafka publish/consume
+- `rabbitmq` - RabbitMQ publish/consume
 
 ## Test Structure
 
-### Test Cases
-
-Test cases are individual `.yaml` files that define a single test scenario:
+### Basic Test Case
 
 ```yaml
-testcase: "User Registration Test"
-description: "Test user registration flow"
+testcase: "User API Test"
+description: "Test user registration"
 
 variables:
   vars:
-    base_url: "https://api.example.com"
+    api_url: "https://api.example.com"
     user_email: "test@example.com"
-  secrets:
-    api_key:
-      file: "secrets/api_key.txt"
-      mask_output: true
 
 steps:
-  - name: "Register new user"
+  - name: "Create user"
     action: http
-    args: ["POST", "${base_url}/users", '{"email": "${user_email}"}']
-    options:
-      headers:
-        Authorization: "Bearer ${SECRETS.api_key}"
-        Content-Type: "application/json"
-    result: registration_response
+    args: ["POST", "${api_url}/users", '{"email": "${user_email}"}']
+    result: response
     
-  - name: "Verify registration success"
+  - name: "Verify creation"
     action: assert
-    args: ["${registration_response.status_code}", "==", "201"]
+    args: ["${response.status_code}", "==", "201"]
     
-  - name: "Verify user data"
+  - name: "Check user email"
     action: assert
-    args: ["${registration_response.body.email}", "==", "${user_email}"]
+    args: ["${response.json.email}", "==", "${user_email}"]
 ```
 
-### Test Suites
-
-Test suites run multiple test cases with shared setup and teardown:
+### Test Suite
 
 ```yaml
-testsuite: "API Integration Tests"
-description: "Complete API test suite"
-parallel:
-options:
-  max_concurrency: 3
-
-setup:
-  - name: "Initialize test environment"
-    action: log
-    args: ["Starting test suite"]
+testsuite: "API Tests"
 
 testcases:
-
-  - file: tests/core/test-assert.yaml
-  - file: tests/core/test-control-flow.yaml
- 
-teardown:
-  - name: "Cleanup test environment"
-    action: log
-    args: ["Test suite completed"]
-
+  - examples/test-http-get.yaml
+  - examples/test-database-basic.yaml
 ```
-
-## Examples
-
-Examples can be found under tests and integration directories
-
 
 ## Development Environment
 
 ### Prerequisites
+- Go 1.21+
+- Docker & Docker Compose (for services)
 
-- Go 1.21 or later
-- Docker and Docker Compose (for development services)
-
-### Setting up Development Services
+### Development Services
 
 ```bash
-# Start all development services
+# Start all services
 docker-compose up -d
 
-# This starts:
-# - PostgreSQL (localhost:5432)
-# - Kafka (localhost:9092)  
-# - RabbitMQ (localhost:5672, management UI: localhost:15672)
-# - Google Cloud Spanner Emulator (localhost:9010)
+# Services available:
+# - PostgreSQL: localhost:5432
+# - Kafka: localhost:9092  
+# - Spanner Emulator: localhost:9010
+# - HTTPBin: localhost:8000
+```
+
+### Database Setup
+
+**PostgreSQL** - Ready to use:
+```yaml
+- action: postgres
+  args: ["query", "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable", "SELECT 1"]
+```
+
+**Spanner** - Run setup first:
+```bash
+# Linux/Mac
+SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
+
+# Windows PowerShell  
+.\setup-spanner.ps1
+```
+
+### Kafka Setup
+
+```bash
+# Create topic
+docker exec kafka kafka-topics.sh --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 ## Project Structure
 
 ```
 robogo/
-├── cmd/robogo/              # CLI application entry point
+├── cmd/robogo/                  # CLI entry point
 ├── internal/
-│   ├── actions/             # Built-in action implementations
-│   │   ├── http.go          # HTTP operations
-│   │   ├── postgres.go      # PostgreSQL database
-│   │   ├── spanner.go       # Google Cloud Spanner
-│   │   ├── kafka.go         # Kafka messaging
-│   │   ├── rabbitmq.go      # RabbitMQ messaging
-│   │   ├── control.go       # Control flow (if/for/while)
-│   │   ├── template.go      # Template rendering
-│   │   └── registry.go      # Action registry
-│   ├── parser/              # YAML parsing and validation
-│   ├── runner/              # Test execution engine
-│   └── util/                # Utility functions
-├── tests/                   # Test examples and integration tests
-├── examples/                # Example test files
-├── templates/               # SWIFT and SEPA message templates
-└── docker-compose.yml      # Development services
+│   ├── actions/                 # Action implementations
+│   │   ├── core.go             # assert, log, variable
+│   │   ├── http.go             # HTTP operations
+│   │   ├── database.go         # postgres, spanner
+│   │   ├── messaging.go        # kafka, rabbitmq
+│   │   └── registry.go         # action registry
+│   ├── common/                  # shared types
+│   │   └── variables.go        # variable management
+│   ├── cli.go                   # CLI interface
+│   ├── runner.go                # test execution
+│   ├── parser.go                # YAML parsing
+│   └── types.go                 # data structures
+├── examples/                    # example tests
+├── setup-spanner.sh            # Spanner setup script
+├── setup-spanner.ps1           # Spanner setup (Windows)
+└── docker-compose.yml         # development services
 ```
+
+## Architecture Principles
+
+- **Simple & Direct**: No over-engineering, interfaces, or dependency injection
+- **Immediate Connections**: Database and messaging connections open/close per operation
+- **CLI Tool Design**: Clean exit, no hanging processes
+- **Minimal Dependencies**: Only essential libraries
+- **KISS Principle**: Keep it simple and straightforward
+
+## Example Tests
+
+See `examples/` directory for:
+- `test-http-get.yaml` - HTTP GET requests
+- `test-http-post.yaml` - HTTP POST with JSON
+- `test-database-basic.yaml` - PostgreSQL operations
+- `test-spanner.yaml` - Spanner operations
+- `test-kafka.yaml` - Kafka messaging
 
 ## License
 

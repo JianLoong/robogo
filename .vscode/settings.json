@@ -1,5 +1,0 @@
-{
-    "yaml.schemas": {
-        "./robogo.schema.json": "*.robogo"
-    }
-}

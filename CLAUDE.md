@@ -4,59 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Robogo is a modern, git-driven test automation framework written in Go, designed for comprehensive API testing, SWIFT message generation and database operations. It provides a developer-friendly YAML-based DSL for writing test cases and test suites.
+Robogo is a simple, modern test automation framework written in Go, designed for API testing, database operations, and messaging system verification. It provides a clean YAML-based DSL for writing test cases and test suites.
 
 ## Key Features & Architecture
 
-> **📋 Architecture Documentation**: For detailed information about Robogo's architecture, interfaces, and design patterns, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
 ### Core Components
-- **Test Engine**: Located in `internal/` with modern, interface-driven architecture:
-  - `parser/`: YAML parsing, test case validation, and test suite support
-  - `runner/`: Service-oriented test orchestration with dependency injection and parallel execution
-  - `actions/`: Built-in actions for HTTP, database, control flow, templating, etc.
-- **CLI Interface**: `cmd/robogo/main.go` - Cobra-based CLI with console output
-
+- **Test Engine**: Located in `internal/` with simplified, direct architecture:
+  - `actions/`: Built-in actions for HTTP, database, messaging, core operations
+  - `common/`: Shared types and variable management
+  - `cli.go`: Simple CLI interface with direct command handling
+  - `runner.go`: Direct test execution without abstraction layers
+  - `parser.go`: YAML parsing and test case validation
+  - `types.go`: Core data structures
 
 ### Architecture Highlights
-- **Interface-Driven Design**: All major components use interfaces for maximum decoupling
-- **Dependency Injection**: Clean separation of concerns with context-aware execution
-- **Service Factory Pattern**: Centralized service creation with proper dependency wiring
-- **Comprehensive Validation**: Built-in validation engine with detailed error messages and suggestions
+- **Simple & Direct**: No interfaces, dependency injection, or over-engineering
+- **Immediate Connections**: Database and messaging connections open/close per operation
+- **CLI Tool Design**: Clean exit, no hanging processes or persistent connections
+- **KISS Principle**: Keep it simple and straightforward
+- **Minimal Dependencies**: Only essential libraries
 
 ### Supported Test Types
 - **Test Cases**: Individual `.yaml` files with YAML-based test definitions
 - **Test Suites**: Collections of test cases with shared setup/teardown
-- **Parallel Execution**: Both test-level and step-level parallelism with dependency analysis
 
 ### Built-in Actions
-- **HTTP Operations**: `http` with mTLS support (supports GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
-- **Database**: `postgres` operations and `spanner` (Google Cloud Spanner)
-- **Messaging**: `kafka` publish/consume and `rabbitmq` operations
-- **Control Flow**: `if`, `for`, `while` loops with conditional logic
-- **Templating**: `template` action for SWIFT messages and SEPA XML generation
-- **Utilities**: `assert`, `log`, `get_time`, `get_random`, `concat`, `length`
-- **Variables**: `variable` action for dynamic variable management
-- **Secrets**: Secure credential handling with file-based secrets and output masking
+- **HTTP Operations**: `http` with automatic JSON parsing (GET, POST, PUT, DELETE, etc.)
+- **Database**: `postgres` and `spanner` operations with immediate connection management
+- **Messaging**: `kafka` and `rabbitmq` publish/consume operations
+- **Core Utilities**: `assert`, `log`, `variable` for basic test operations
 
 ## Development Commands
 
 ### Building and Running
 ```bash
 # Build the main binary
-go build -o robogo.exe ./cmd/robogo
-
-# Run Go tests
-go test ./...
+go build -o robogo ./cmd/robogo
 
 # Run a single test file
-./robogo.exe run tests/core/test-assert.yaml
+./robogo run test.yaml
 
 # Run test suite
-./robogo.exe run-suite examples/test-suite.yaml
+./robogo run-suite suite.yaml
 
-# Run a test file
-./robogo.exe run test.yaml
+# List available actions
+./robogo list
+
+# Show version
+./robogo version
 ```
 
 ### Development Environment
@@ -65,20 +60,19 @@ go test ./...
 docker-compose up -d
 
 # This starts:
-# - Kafka (localhost:9092)
-# - PostgreSQL (localhost:5432)
-# - RabbitMQ (localhost:5672, management: localhost:15672)
-# - Google Cloud Spanner Emulator (localhost:9010, REST: localhost:9020)
+# - PostgreSQL (localhost:5432) - ready to use
+# - Kafka (localhost:9092) - needs topic creation
+# - Spanner Emulator (localhost:9010) - needs setup
+# - HTTPBin (localhost:8000) - ready to use
 ```
 
-
-### Action Development
+### Service Setup
 ```bash
-# List available actions
-./robogo.exe list
+# Spanner setup
+SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
 
-# Get action completions for autocomplete
-./robogo.exe completions get_random
+# Kafka topic creation
+docker exec kafka kafka-topics.sh --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 ## Project Structure
@@ -87,35 +81,21 @@ docker-compose up -d
 robogo/
 ├── cmd/robogo/                    # CLI entry point and main.go
 ├── internal/
-│   ├── actions/                   # Built-in actions (HTTP, DB, control flow, etc.)
-│   │   ├── http.go               # HTTP operations with mTLS support
-│   │   ├── postgres.go           # PostgreSQL database operations
-│   │   ├── spanner.go            # Google Cloud Spanner operations
-│   │   ├── kafka.go              # Kafka publish/consume operations
-│   │   ├── control.go            # Control flow (if, for, while)
-│   │   ├── template.go           # Template rendering for SWIFT/SEPA
-│   │   └── ...                   # Other action implementations
-│   ├── parser/                   # YAML parsing and validation
-│   │   ├── parser.go             # Test case and suite parsing
-│   │   ├── types.go              # Data structures and types
-│   │   ├── parallel.go           # Parallel execution configuration
-│   │   └── testsuite.go          # Test suite support
-│   ├── runner/                   # Test execution engine
-│   │   ├── runner.go             # Main test runner
-│   │   ├── execution_engine.go   # Step execution logic
-│   │   ├── testsuite_runner.go   # Test suite orchestration
-│   │   └── variable_manager.go   # Variable and secret management
-│   └── util/                     # Utility functions
-├── tests/                        # Comprehensive test examples
-│   ├── core/                     # Core functionality tests
-│   ├── integration/              # Integration tests
-│   ├── templates/                # Template-based tests (SWIFT, SEPA)
-├── examples/                     # Basic examples and tutorials
-├── templates/                    # SWIFT and SEPA message templates
-│   ├── mt103.tmpl               # SWIFT MT103 Customer Transfer
-│   ├── mt202.tmpl               # SWIFT MT202 Institution Transfer
-│   ├── sepa-credit-transfer.xml.tmpl  # SEPA Credit Transfer XML
-│   └── ...
+│   ├── actions/                   # Action implementations
+│   │   ├── core.go               # assert, log, variable actions
+│   │   ├── http.go               # HTTP operations with JSON parsing
+│   │   ├── database.go           # PostgreSQL and Spanner operations
+│   │   ├── messaging.go          # Kafka and RabbitMQ operations
+│   │   └── registry.go           # Action registration and lookup
+│   ├── common/                   # Shared types
+│   │   └── variables.go          # Variable management with dot notation
+│   ├── cli.go                    # Simple CLI interface
+│   ├── runner.go                 # Direct test execution
+│   ├── parser.go                 # YAML parsing and validation
+│   └── types.go                  # Core data structures
+├── examples/                     # Example test files
+├── setup-spanner.sh             # Spanner emulator setup (Linux/Mac)
+├── setup-spanner.ps1            # Spanner emulator setup (Windows)
 └── docker-compose.yml           # Development environment services
 ```
 
@@ -132,10 +112,6 @@ variables:
   vars:
     api_url: "https://api.example.com"
     timeout: 30
-  secrets:
-    api_key:
-      file: "secret.txt"
-      mask_output: true
 
 steps:
   - name: "HTTP GET request"
@@ -146,139 +122,162 @@ steps:
   - name: "Assert response"
     action: assert
     args: ["${response.status_code}", "==", "200"]
+    
+  - name: "Check JSON data"
+    action: assert
+    args: ["${response.json.data[0].id}", "==", "1"]
 ```
 
 ### Test Suite Structure
 ```yaml
 testsuite: "Suite Name"
-description: "Suite description"
-
-setup:
-  - name: "Setup step"
-    action: log
-    args: ["Setting up..."]
-
-teardown:
-  - name: "Cleanup step"
-    action: log
-    args: ["Cleaning up..."]
 
 testcases:
-  - tests/test1.yaml
-  - tests/test2.yaml
+  - examples/test-http-get.yaml
+  - examples/test-database-basic.yaml
 ```
 
 ## Key Implementation Details
 
-### Service-Oriented Architecture
-- **TestExecutionService**: Main service for test case execution with proper lifecycle management
-- **StepExecutionService**: Handles step execution, control flow (if/for/while), and parallel processing
-- **ServiceFactory**: Creates and wires services with proper dependency injection
-- **ExecutionContext**: Provides dependency injection container with resource management
+### Simple Architecture
+- **No Interfaces**: Direct function calls instead of interface abstractions
+- **No Dependency Injection**: Services created directly when needed
+- **Direct Execution**: TestRunner struct with simple methods
+- **Immediate Connections**: All database/messaging connections open/close per operation
 
 ### Variable Management
-- **VariableManagerInterface**: Interface-based variable management for better testability
-- Support for both regular variables and secrets with secure handling
-- Secrets can be loaded from files with automatic output masking
-- Reserved `__robogo_steps` variable contains step execution history
-- Dot notation support for nested property access
+- **Simple Variables struct**: `map[string]interface{}` storage
+- **Dot notation support**: Access nested properties like `${response.json.data[0].id}`
+- **Variable substitution**: Template-style replacement with `${variable_name}`
 
-### Parallel Execution
-- Configured via `ParallelConfig` in `internal/parser/parallel.go`
-- Supports test-level and step-level parallelism
-- Automatic dependency analysis for step execution order
-- Configurable concurrency limits
-
-### Template System
-- Go template engine with file-based and inline templates
-- Pre-built templates for SWIFT messages (MT103, MT202, MT900, MT910)
-- SEPA XML templates for payment processing
-- Variable substitution and complex data structures
-
-### Database Integration
-- PostgreSQL support with connection pooling
-- Google Cloud Spanner with emulator support
-- Secure credential management with URL encoding
-- Parameterized queries for security
+### Connection Management (Key Principle)
+- **PostgreSQL**: Opens connection, executes query, closes immediately
+- **Spanner**: Creates client, executes operation, closes client immediately  
+- **Kafka**: Creates writer/reader, sends/receives message, closes immediately
+- **RabbitMQ**: Dials connection, creates channel, operates, closes immediately
+- **No persistent pools**: Prevents hanging processes for CLI tool design
 
 ### Action Registry
-- Extensible action system in `internal/actions/registry.go`
-- Each action implements the `Action` interface
-- Support for autocomplete and documentation
-- Built-in validation and error handling
+- **Simple map**: `map[string]ActionFunc` for action lookup
+- **ActionFunc signature**: `func(args []interface{}, options map[string]interface{}, vars *Variables) (interface{}, error)`
+- **Direct registration**: Actions registered in `registry.go`
 
 ## Development Guidelines
 
-### Architecture Best Practices
-- **Use Interfaces**: Always depend on interfaces, not concrete implementations
-- **Dependency Injection**: Use ServiceFactory for creating services with proper dependencies
-- **Context Management**: Use ExecutionContext for resource management and cleanup
-- **Service Boundaries**: Keep services focused on single responsibilities
-
-### Adding New Services
-1. Define interface in `internal/runner/interfaces.go`
-2. Implement service with proper dependency injection
-3. Register with ServiceFactory if needed
-4. Add comprehensive unit tests with mocks
-5. Update architecture documentation
+### Architecture Principles
+- **Keep It Simple**: Avoid over-engineering, interfaces, or complex patterns
+- **Direct Approach**: Use direct function calls and simple structs
+- **CLI Tool Design**: Ensure clean exit and no hanging processes
+- **Immediate Resources**: Open/use/close resources immediately
 
 ### Adding New Actions
-1. Implement the `Action` interface in `internal/actions/`
-2. Register the action in `registry.go`
-3. Add validation rules to ValidationEngine if needed
-4. Add comprehensive tests in `tests/`
-5. Update VS Code extension completions
+1. Implement `ActionFunc` signature in appropriate file (`core.go`, `http.go`, etc.)
+2. Register action in `registry.go`
+3. Follow immediate connection pattern for external resources
+4. Add example test to `examples/` directory
 
-### Test Writing Best Practices
-- Use descriptive test names and step names (now mandatory)
-- Implement proper error handling with assertions
-- Use secrets for sensitive data
-- Consider parallel execution for performance
-- Use ValidationEngine to catch errors early
-
-### Service Development Patterns
+### Connection Management Pattern
 ```go
-// Creating services with proper dependency injection
-factory := runner.NewServiceFactory()
-testExecutor := factory.CreateTestExecutor(actionExecutor)
-
-// Using ExecutionContext for resource management  
-context := runner.NewExecutionContext(executor)
-defer context.Cleanup()
-
-// Implementing new services
-type MyService struct {
-    context runner.ExecutionContext
-}
-
-func (s *MyService) Execute() error {
-    // Use context.Variables(), context.Actions(), etc.
-    return nil
+// CORRECT: Immediate connection pattern
+func myDatabaseAction(args []interface{}, options map[string]interface{}, vars *Variables) (interface{}, error) {
+    // Open connection
+    db, err := sql.Open("driver", connectionString)
+    if err != nil {
+        return nil, err
+    }
+    defer db.Close() // Always close immediately
+    
+    // Use connection
+    result, err := db.Query("SELECT 1")
+    if err != nil {
+        return nil, err
+    }
+    defer result.Close()
+    
+    // Return result
+    return data, nil
 }
 ```
 
-### Common Patterns
-- **SWIFT Message Testing**: Use template action with pre-built templates
-- **API Testing**: Combine HTTP actions with assertions
-- **Database Testing**: Use TDM with PostgreSQL actions
-- **Control Flow**: Implement retry logic with while loops
-- **Data Validation**: Use assert action with various operators
+### Testing Best Practices
+- Use descriptive test and step names
+- Leverage variable substitution for reusability
+- Use `${response.json}` for JSON response data access
+- Test connection management with timeout to ensure clean exit
 
-## Docker Services Configuration
+### Output Format
+- **Step output**: Simple PASSED/FAILED per step
+- **Summary**: Clean markdown table with test results
+- **No emojis**: Plain text output for universal compatibility
 
-The project includes a complete Docker Compose setup for development:
-- **Kafka**: Message streaming (port 9092)
-- **PostgreSQL**: Database testing (port 5432)
-- **RabbitMQ**: Message queuing (port 5672, management: 15672)
-- **Spanner Emulator**: Cloud Spanner testing (port 9010)
+## Service Credentials
 
-### Service Credentials
-- **PostgreSQL**: `robogo_testuser` / `robogo_testpass` / `robogo_testdb`
-- **RabbitMQ**: `robogo_user` / `robogo_pass`
-- **Kafka**: No authentication (development only)
-- **Spanner**: Uses emulator (no authentication required)
+### PostgreSQL (Ready to use)
+- **Connection**: `postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable`
+- **Usage**: Direct in test files
 
-## Output Format
+### Spanner (Requires setup)
+- **Setup**: Run `./setup-spanner.sh` or `.\setup-spanner.ps1`
+- **Connection**: `projects/test-project/instances/test-instance/databases/test-database`
+- **Environment**: Set `SPANNER_EMULATOR_HOST=localhost:9010`
 
-- **Console**: Human-readable with colors and formatting
-- **Step-level reporting**: Detailed execution metrics and timing
+### Kafka (Requires topic creation)
+- **Broker**: `localhost:9092`
+- **Setup**: Create topics using docker exec commands
+- **Usage**: Direct in test files
+
+## Common Patterns
+
+### HTTP Testing
+```yaml
+- name: "API call"
+  action: http
+  args: ["POST", "https://api.example.com/users", '{"name": "test"}']
+  result: response
+
+- name: "Check status"
+  action: assert
+  args: ["${response.status_code}", "==", "201"]
+
+- name: "Check JSON response"
+  action: assert
+  args: ["${response.json.user.name}", "==", "test"]
+```
+
+### Database Testing
+```yaml
+- name: "Query database"
+  action: postgres
+  args: ["query", "postgres://user:pass@localhost:5432/db", "SELECT * FROM users"]
+  result: db_result
+
+- name: "Check result count"
+  action: assert
+  args: ["${db_result.rows|length}", ">", "0"]
+```
+
+### Messaging Testing
+```yaml
+- name: "Publish message"
+  action: kafka
+  args: ["publish", "localhost:9092", "test-topic", "Hello World"]
+  result: publish_result
+
+- name: "Consume message"
+  action: kafka
+  args: ["consume", "localhost:9092", "test-topic"]
+  result: message
+
+- name: "Verify message"
+  action: assert
+  args: ["${message.message}", "==", "Hello World"]
+```
+
+## Important Reminders
+
+- **No emojis**: Never add emojis to code or output
+- **No legacy code**: Remove old patterns, don't keep deprecated functions
+- **No quick fixes**: Write proper, clean solutions
+- **Resource management**: Always address potential resource leaks
+- **Binary naming**: Use only `robogo` as binary name
+- **Simple approach**: Follow Linux philosophy - do one thing and do it well

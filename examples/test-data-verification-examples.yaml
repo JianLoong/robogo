@@ -1,0 +1,53 @@
+testcase: "TC-DATA-VERIFICATION"
+description: "Examples of different data verification patterns"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org/post"
+    test_message: "Hello World"
+
+steps:
+  - name: "Make HTTP POST request"
+    action: http
+    args: ["POST", "${base_url}", "${test_message}"]
+    result: "response"
+
+  # Basic verifications
+  - name: "Verify response status"
+    action: assert
+    args: ["${response.status_code}", "==", "200"]
+
+  # JSON field verifications
+  - name: "Verify exact data match"
+    action: assert
+    args: ["${response.json.data}", "==", "${test_message}"]
+
+  - name: "Verify URL contains post"
+    action: assert
+    args: ["${response.json.url}", "contains", "post"]
+
+  - name: "Verify method is POST (from headers)"
+    action: assert
+    args: ["${response.json.url}", "contains", "httpbin.org"]
+
+  # String-based verifications on raw body
+  - name: "Verify raw body contains our data"
+    action: assert
+    args: ["${response.body}", "contains", "${test_message}"]
+
+  - name: "Verify response body contains JSON structure"
+    action: assert
+    args: ["${response.body}", "contains", "\"data\""]
+
+  # Store and verify individual fields
+  - name: "Store origin for later verification"
+    action: variable
+    args: ["user_origin", "${response.json.origin}"]
+
+  - name: "Verify stored origin is not empty"
+    action: assert
+    args: ["${user_origin}", "!=", ""]
+
+  - name: "Log all verifications passed"
+    action: log
+    args: ["All data verifications passed for:", "${test_message}"]

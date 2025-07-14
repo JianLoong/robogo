@@ -1,0 +1,15 @@
+testcase: "TC-DEBUG"
+description: "Debug test without database"
+
+steps:
+  - name: "Simple log test"
+    action: log
+    args: ["Starting test"]
+
+  - name: "Simple assert test"
+    action: assert
+    args: ["hello", "==", "hello"]
+
+  - name: "End test"
+    action: log
+    args: ["Test completed"]

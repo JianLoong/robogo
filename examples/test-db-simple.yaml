@@ -1,0 +1,20 @@
+testcase: "TC-DB-SIMPLE"
+description: "Simple database connectivity test"
+
+variables:
+  vars:
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+
+steps:
+  - name: "Test basic query"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT 1 as test"]
+    result: "result"
+
+  - name: "Check result"
+    action: assert
+    args: ["${result.rows[0][0]}", "==", "1"]
+
+  - name: "Log success"
+    action: log
+    args: ["Database test passed"]

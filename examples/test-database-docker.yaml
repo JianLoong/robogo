@@ -1,0 +1,44 @@
+testcase: "TC-DATABASE-DOCKER"
+description: "Simple database test for Docker Compose setup"
+
+variables:
+  vars:
+    # Using the credentials from docker-compose.yml
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+
+steps:
+  # Test basic connectivity
+  - name: "Test database connection"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT 1 as test_value"]
+    result: "connection_test"
+
+  - name: "Verify connection worked"
+    action: assert
+    args: ["${connection_test.rows[0][0]}", "==", "1", "Connection test should return 1"]
+
+  # Simple table operations
+  - name: "Create simple test table"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE TABLE IF NOT EXISTS simple_test (id INTEGER, message TEXT)"]
+
+  - name: "Insert test record"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO simple_test (id, message) VALUES (1, 'Hello Database')"]
+
+  - name: "Query test record"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT message FROM simple_test WHERE id = 1"]
+    result: "test_data"
+
+  - name: "Verify message"
+    action: assert
+    args: ["${test_data.rows[0][0]}", "==", "Hello Database", "Message should match"]
+
+  - name: "Clean up test table"
+    action: postgres
+    args: ["execute", "${db_url}", "DROP TABLE simple_test"]
+
+  - name: "Log success"
+    action: log
+    args: ["Docker database test completed successfully!"]

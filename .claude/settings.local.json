@@ -16,7 +16,9 @@
       "Bash(./robogo.exe --help)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "Bash(./robogo_new.exe run examples/simple-secrets-demo.robogo --output console)"
+      "Bash(./robogo_new.exe run examples/simple-secrets-demo.robogo --output console)",
+      "Bash(./robogo-simple:*)",
+      "Bash(./robogo:*)"
     ],
     "deny": []
   }
