@@ -2,6 +2,8 @@ package actions
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/JianLoong/robogo/internal/common"
@@ -34,6 +36,26 @@ func assertAction(args []interface{}, options map[string]interface{}, vars *comm
 		result = strings.HasPrefix(actual, expected)
 	case "ends_with":
 		result = strings.HasSuffix(actual, expected)
+	case ">", "<", ">=", "<=":
+		// Try numeric comparison first
+		if actualNum, err1 := strconv.ParseFloat(actual, 64); err1 == nil {
+			if expectedNum, err2 := strconv.ParseFloat(expected, 64); err2 == nil {
+				switch operator {
+				case ">":
+					result = actualNum > expectedNum
+				case "<":
+					result = actualNum < expectedNum
+				case ">=":
+					result = actualNum >= expectedNum
+				case "<=":
+					result = actualNum <= expectedNum
+				}
+			} else {
+				return nil, fmt.Errorf("cannot compare numeric value with non-numeric: %s", expected)
+			}
+		} else {
+			return nil, fmt.Errorf("cannot perform numeric comparison with non-numeric value: %s", actual)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", operator)
 	}
@@ -63,6 +85,7 @@ func logAction(args []interface{}, options map[string]interface{}, vars *common.
 
 	message := strings.Join(parts, " ")
 	fmt.Println(message)
+	os.Stdout.Sync() // Flush output immediately
 
 	return message, nil
 }
@@ -72,19 +95,8 @@ func variableAction(args []interface{}, options map[string]interface{}, vars *co
 		return nil, fmt.Errorf("variable action requires at least 2 arguments")
 	}
 
-	var name string
-	var value interface{}
-
-	// Handle old format: ["set", "name", "value"] or new format: ["name", "value"]
-	if len(args) >= 3 && fmt.Sprintf("%v", args[0]) == "set" {
-		// Old format
-		name = fmt.Sprintf("%v", args[1])
-		value = args[2]
-	} else {
-		// New format
-		name = fmt.Sprintf("%v", args[0])
-		value = args[1]
-	}
+	name := fmt.Sprintf("%v", args[0])
+	value := args[1]
 
 	vars.Set(name, value)
 

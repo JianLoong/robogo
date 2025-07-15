@@ -20,9 +20,9 @@ steps:
     args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1 as test_value"]
     result: spanner_result
 
-  - name: "Log result"
+  - name: "Show result as JSON"
     action: log
-    args: ["Spanner query completed"]
+    args: ["JSON result: ${spanner_result}"]
 
   - name: "Test complete"
     action: log

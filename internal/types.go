@@ -20,6 +20,9 @@ type Step struct {
 	Args    []interface{}          `yaml:"args"`
 	Options map[string]interface{} `yaml:"options,omitempty"`
 	Result  string                 `yaml:"result,omitempty"`
+	If      string                 `yaml:"if,omitempty"`
+	For     string                 `yaml:"for,omitempty"`
+	While   string                 `yaml:"while,omitempty"`
 }
 
 type TestSuite struct {

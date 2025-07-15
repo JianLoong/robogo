@@ -30,8 +30,10 @@ Robogo is a simple, modern test automation framework written in Go, designed for
 
 ### Built-in Actions
 - **HTTP Operations**: `http` with automatic JSON parsing (GET, POST, PUT, DELETE, etc.)
-- **Database**: `postgres` and `spanner` operations with immediate connection management
-- **Messaging**: `kafka` and `rabbitmq` publish/consume operations
+- **PostgreSQL**: `postgres` operations with immediate connection management
+- **Spanner**: `spanner` operations with immediate connection management
+- **Kafka**: `kafka` publish/consume operations with immediate connection management
+- **RabbitMQ**: `rabbitmq` publish/consume operations with immediate connection management
 - **Core Utilities**: `assert`, `log`, `variable` for basic test operations
 
 ## Development Commands
@@ -84,8 +86,10 @@ robogo/
 │   ├── actions/                   # Action implementations
 │   │   ├── core.go               # assert, log, variable actions
 │   │   ├── http.go               # HTTP operations with JSON parsing
-│   │   ├── database.go           # PostgreSQL and Spanner operations
-│   │   ├── messaging.go          # Kafka and RabbitMQ operations
+│   │   ├── postgres.go           # PostgreSQL operations
+│   │   ├── spanner.go            # Spanner operations
+│   │   ├── kafka.go              # Kafka operations
+│   │   ├── rabbitmq.go           # RabbitMQ operations
 │   │   └── registry.go           # Action registration and lookup
 │   ├── common/                   # Shared types
 │   │   └── variables.go          # Variable management with dot notation
@@ -136,6 +140,92 @@ testcases:
   - examples/test-http-get.yaml
   - examples/test-database-basic.yaml
 ```
+
+### Control Flow Properties
+
+Robogo supports control flow as step properties for conditional execution and loops:
+
+#### Conditional Execution with `if`
+```yaml
+steps:
+  - name: "Conditional step"
+    if: "${value} > 5"
+    action: log
+    args: ["Value is greater than 5"]
+    
+  - name: "String condition"
+    if: "${status} == success"
+    action: log
+    args: ["Operation succeeded"]
+    
+  - name: "Boolean condition"
+    if: "true"
+    action: log
+    args: ["Always runs"]
+```
+
+#### Loop Execution with `for`
+```yaml
+steps:
+  # Range loop
+  - name: "Process range"
+    for: "1..3"
+    action: log
+    args: ["Iteration ${iteration}: ${item}"]
+    
+  # Array loop
+  - name: "Process items"
+    for: "[apple,banana,cherry]"
+    action: log
+    args: ["Processing ${item} at index ${index}"]
+    
+  # Count loop
+  - name: "Count iterations"
+    for: "5"
+    action: log
+    args: ["Count iteration ${iteration}"]
+```
+
+#### Conditional Loop with `while`
+```yaml
+steps:
+  - name: "While loop"
+    while: "${iteration} <= 3"
+    action: log
+    args: ["While iteration: ${iteration}"]
+```
+
+#### Nested Control Flow
+```yaml
+steps:
+  - name: "Conditional in loop"
+    for: "1..5"
+    if: "${iteration} == 3"
+    action: log
+    args: ["Only runs on iteration 3"]
+```
+
+#### Property Order Convention
+```yaml
+- name: "Step description"          # What it is
+  if: "condition"                   # When to execute  
+  for: "1..3"                       # How many times
+  while: "condition"                # Loop condition
+  action: log                       # What action
+  args: ["message"]                 # Action parameters
+  options: {}                       # Action options (optional)
+  result: variable_name             # Store result (optional)
+```
+
+#### Loop Variables
+- **`${iteration}`**: Current iteration number (1-based)
+- **`${index}`**: Current array index (0-based)
+- **`${item}`**: Current item value
+
+#### Condition Operators
+- **Comparison**: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- **String**: `contains`, `starts_with`, `ends_with`
+- **Boolean**: `true`, `false`, `1`, `0`
 
 ## Key Implementation Details
 
@@ -271,6 +361,36 @@ func myDatabaseAction(args []interface{}, options map[string]interface{}, vars *
 - name: "Verify message"
   action: assert
   args: ["${message.message}", "==", "Hello World"]
+```
+
+### Control Flow Testing
+```yaml
+# Conditional execution
+- name: "Check if response is successful"
+  if: "${response.status_code} == 200"
+  action: log
+  args: ["Response was successful"]
+
+# Loop through test data
+- name: "Test multiple users"
+  for: "[alice,bob,charlie]"
+  action: http
+  args: ["GET", "https://api.example.com/users/${item}"]
+  result: user_response
+
+# Conditional loop execution
+- name: "Retry until success"
+  while: "${response.status_code} != 200"
+  action: http
+  args: ["GET", "https://api.example.com/health"]
+  result: response
+
+# Nested: loop with condition
+- name: "Process even iterations only"
+  for: "1..10"
+  if: "${iteration} % 2 == 0"
+  action: log
+  args: ["Processing even iteration: ${iteration}"]
 ```
 
 ## Important Reminders

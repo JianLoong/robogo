@@ -82,6 +82,13 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 			"body":        respBodyStr,
 			"headers":     resp.Header,
 		}
+		
+		// Return JSON string for consistency with other actions
+		if jsonBytes, err := json.Marshal(result); err == nil {
+			return string(jsonBytes), nil
+		}
+		
+		// Fallback to map if JSON fails
 		return result, nil
 	}
 }

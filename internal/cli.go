@@ -114,7 +114,26 @@ func printTestSummary(result *TestResult) {
 		}
 	}
 
+	// Print step details table
 	fmt.Printf("\n")
+	fmt.Printf("## Step Results\n\n")
+	fmt.Printf("| %-3s | %-40s | %-8s | %-12s |\n", "#", "Step Name", "Status", "Duration")
+	fmt.Printf("|-----|------------------------------------------|----------|-------------|\n")
+	
+	for i, step := range result.Steps {
+		stepName := step.Name
+		if len(stepName) > 40 {
+			stepName = stepName[:37] + "..."
+		}
+		fmt.Printf("| %-3d | %-40s | %-8s | %-12s |\n", 
+			i+1, 
+			stepName,
+			step.Status,
+			step.Duration.String())
+	}
+
+	// Print test summary table
+	fmt.Printf("\n## Test Summary\n\n")
 	fmt.Printf("| %-11s | %-20s |\n", "Field", "Value")
 	fmt.Printf("|-------------|----------------------|\n")
 	fmt.Printf("| %-11s | %-20s |\n", "Test", result.Name)

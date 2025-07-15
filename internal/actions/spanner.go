@@ -2,13 +2,12 @@ package actions
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -17,91 +16,6 @@ import (
 
 	"github.com/JianLoong/robogo/internal/common"
 )
-
-// No persistent connections - open, use, close immediately for CLI tool simplicity
-
-// PostgreSQL action - simplified implementation with proper resource management
-func postgresAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (interface{}, error) {
-	if len(args) < 3 {
-		return nil, fmt.Errorf("postgres action requires at least 3 arguments: operation, connection_string, query")
-	}
-
-	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
-	connectionString := fmt.Sprintf("%v", args[1])
-	query := fmt.Sprintf("%v", args[2])
-
-	// Open connection for this operation only
-	db, err := sql.Open("postgres", connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
-	}
-	// Ensure connection is closed immediately after use
-	defer func() {
-		db.Close()
-	}()
-	
-	// Set aggressive connection limits to ensure cleanup
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(0)
-	db.SetConnMaxLifetime(1 * time.Second)
-	
-	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	switch operation {
-	case "query", "select":
-		rows, err := db.QueryContext(ctx, query)
-		if err != nil {
-			return nil, fmt.Errorf("query failed: %w", err)
-		}
-		defer func() {
-			if closeErr := rows.Close(); closeErr != nil {
-				// Log but don't override original error
-				fmt.Printf("Warning: failed to close rows: %v\n", closeErr)
-			}
-		}()
-
-		columns, err := rows.Columns()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get columns: %w", err)
-		}
-
-		var results [][]interface{}
-		for rows.Next() {
-			values := make([]interface{}, len(columns))
-			valuePtrs := make([]interface{}, len(columns))
-			for i := range values {
-				valuePtrs[i] = &values[i]
-			}
-			if err := rows.Scan(valuePtrs...); err != nil {
-				return nil, fmt.Errorf("failed to scan row: %w", err)
-			}
-			results = append(results, values)
-		}
-
-		return map[string]interface{}{
-			"columns": columns,
-			"rows":    results,
-		}, nil
-
-	case "execute", "insert", "update", "delete":
-		result, err := db.ExecContext(ctx, query)
-		if err != nil {
-			return nil, fmt.Errorf("execute failed: %w", err)
-		}
-		rowsAffected, _ := result.RowsAffected()
-		return map[string]interface{}{
-			"rows_affected": rowsAffected,
-		}, nil
-
-	default:
-		return nil, fmt.Errorf("unknown postgres operation: %s", operation)
-	}
-}
 
 // Spanner action - simplified implementation with proper resource management
 func spannerAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (interface{}, error) {
@@ -186,10 +100,18 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			results = append(results, rowMap)
 		}
 
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"columns": columns,
 			"rows":    results,
-		}, nil
+		}
+		
+		// Return JSON string directly  
+		if jsonBytes, err := json.Marshal(result); err == nil {
+			return string(jsonBytes), nil
+		}
+		
+		// Fallback to map if JSON fails
+		return result, nil
 
 	case "execute", "insert", "update", "delete":
 		stmt := spanner.Statement{SQL: query}
@@ -207,13 +129,19 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			return nil, fmt.Errorf("execute failed: %w", err)
 		}
 
-		return map[string]interface{}{
+		execResult := map[string]interface{}{
 			"rows_affected": rowsAffected,
-		}, nil
+		}
+		
+		// Return JSON string directly
+		if jsonBytes, err := json.Marshal(execResult); err == nil {
+			return string(jsonBytes), nil
+		}
+		
+		// Fallback to map if JSON fails
+		return execResult, nil
 
 	default:
 		return nil, fmt.Errorf("unknown spanner operation: %s", operation)
 	}
 }
-
-// No cleanup needed - connections are closed after each operation

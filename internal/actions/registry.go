@@ -22,6 +22,7 @@ var ActionRegistry = map[string]ActionFunc{
 	// Messaging actions
 	"kafka":    kafkaAction,
 	"rabbitmq": rabbitmqAction,
+	
 }
 
 // Helper function to get action

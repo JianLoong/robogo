@@ -1,7 +1,9 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -17,6 +19,14 @@ func NewVariables() *Variables {
 }
 
 func (v *Variables) Set(key string, value interface{}) {
+	// If value is a JSON string, try to parse it
+	if str, ok := value.(string); ok {
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(str), &parsed); err == nil {
+			v.data[key] = parsed
+			return
+		}
+	}
 	v.data[key] = value
 }
 
@@ -68,9 +78,9 @@ func (v *Variables) Substitute(template string) string {
 	return result
 }
 
-// Simple dot notation resolver
+// Enhanced dot notation resolver with array indexing support
 func (v *Variables) resolveDotNotation(varName string) interface{} {
-	if !strings.Contains(varName, ".") {
+	if !strings.Contains(varName, ".") && !strings.Contains(varName, "[") {
 		// Simple variable
 		if val, exists := v.data[varName]; exists {
 			return val
@@ -78,27 +88,102 @@ func (v *Variables) resolveDotNotation(varName string) interface{} {
 		return fmt.Sprintf("${%s}", varName) // Return unresolved
 	}
 	
-	parts := strings.Split(varName, ".")
-	baseVar := parts[0]
+	// Parse the variable path with array indices
+	path := v.parsePath(varName)
+	if len(path) == 0 {
+		return fmt.Sprintf("${%s}", varName)
+	}
 	
+	baseVar := path[0]
 	current, exists := v.data[baseVar]
 	if !exists {
 		return fmt.Sprintf("${%s}", varName) // Return unresolved
 	}
 	
-	// Navigate through properties
-	for _, part := range parts[1:] {
-		if m, ok := current.(map[string]interface{}); ok {
-			if val, exists := m[part]; exists {
-				current = val
-				continue
-			}
+	// Navigate through the path
+	for _, segment := range path[1:] {
+		current = v.navigateSegment(current, segment)
+		if current == nil {
+			return fmt.Sprintf("${%s}", varName)
 		}
-		// Property not found
-		return fmt.Sprintf("${%s}", varName)
 	}
 	
 	return current
+}
+
+// Parse path with array indices like "response.rows[0][1]"
+func (v *Variables) parsePath(varName string) []string {
+	var path []string
+	current := ""
+	
+	i := 0
+	for i < len(varName) {
+		char := varName[i]
+		switch char {
+		case '.':
+			if current != "" {
+				path = append(path, current)
+				current = ""
+			}
+			i++
+		case '[':
+			if current != "" {
+				path = append(path, current)
+				current = ""
+			}
+			// Find the closing bracket
+			j := i + 1
+			for j < len(varName) && varName[j] != ']' {
+				j++
+			}
+			if j < len(varName) {
+				index := varName[i+1 : j]
+				path = append(path, "["+index+"]")
+				i = j + 1
+			} else {
+				i++
+			}
+		case ']':
+			// Skip, handled in '[' case
+			i++
+		default:
+			current += string(char)
+			i++
+		}
+	}
+	
+	if current != "" {
+		path = append(path, current)
+	}
+	
+	return path
+}
+
+// Navigate a single segment (property or array index)
+func (v *Variables) navigateSegment(current interface{}, segment string) interface{} {
+	if strings.HasPrefix(segment, "[") && strings.HasSuffix(segment, "]") {
+		// Array index
+		indexStr := segment[1 : len(segment)-1]
+		index, err := strconv.Atoi(indexStr)
+		if err != nil {
+			return nil
+		}
+		
+		if arr, ok := current.([]interface{}); ok {
+			if index >= 0 && index < len(arr) {
+				return arr[index]
+			}
+		}
+		return nil
+	} else {
+		// Property access
+		if m, ok := current.(map[string]interface{}); ok {
+			if val, exists := m[segment]; exists {
+				return val
+			}
+		}
+		return nil
+	}
 }
 
 // Substitute variables in arguments

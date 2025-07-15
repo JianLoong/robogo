@@ -18,7 +18,9 @@
       "Bash(git add:*)",
       "Bash(./robogo_new.exe run examples/simple-secrets-demo.robogo --output console)",
       "Bash(./robogo-simple:*)",
-      "Bash(./robogo:*)"
+      "Bash(./robogo:*)",
+      "Bash(SPANNER_EMULATOR_HOST=localhost:9010 timeout 15s ./robogo run debug-spanner.yaml)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }
