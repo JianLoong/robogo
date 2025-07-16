@@ -11,12 +11,7 @@ import (
 
 func logAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) == 0 {
-		msg := "log action requires at least 1 argument"
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("log action requires at least 1 argument")
 	}
 
 	parts := make([]string, len(args))
@@ -29,7 +24,7 @@ func logAction(args []interface{}, options map[string]interface{}, vars *common.
 	os.Stdout.Sync() // Flush output immediately
 
 	return types.ActionResult{
-		Status: types.ActionStatusSuccess,
+		Status: types.ActionStatusPassed,
 		Data:   message,
 		Output: message,
 	}, nil

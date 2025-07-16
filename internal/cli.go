@@ -58,13 +58,13 @@ func runTest(filename string) {
 	result, err := runner.RunTest(filename)
 
 	if err != nil {
-		fmt.Printf("\nFAILED: Test execution failed: %s\n", err.Error())
-		os.Exit(1)
+		fmt.Printf("\nERROR: Test execution failed: %s\n", err.Error())
+		os.Exit(2)
 	}
 
 	printTestSummary(result)
 
-	if result.Status == "FAILED" {
+	if result.Status == "FAILED" || result.Status == "failed" || result.Status == "error" || result.Status == "ERROR" {
 		os.Exit(1)
 	}
 }
@@ -84,59 +84,21 @@ func printUsage() {
 }
 
 func printTestSummary(result *types.TestResult) {
-	passed := 0
-	failed := 0
-	for _, step := range result.Steps {
-		if step.Result.Status == types.ActionStatusSuccess {
-			passed++
-		} else if step.Result.Status == types.ActionStatusError {
-			failed++
-		}
+	fmt.Println("\nTest Summary:")
+	fmt.Printf("  Name: %s\n", result.Name)
+	fmt.Printf("  Status: %s\n", result.Status)
+	fmt.Printf("  Duration: %s\n", result.Duration)
+	if result.Error != "" {
+		fmt.Printf("  Error: %s\n", result.Error)
 	}
-
-	// Print step details table
-	fmt.Print("\n")
-	fmt.Print("## Step Results\n\n")
-	fmt.Printf("| %-3s | %-40s | %-8s | %-12s | %-40s |\n", "#", "Step Name", "Status", "Duration", "Output")
-	fmt.Print("|-----|------------------------------------------|----------|-------------|------------------------------------------|\n")
-
+	fmt.Println("  Steps:")
 	for i, step := range result.Steps {
-		stepName := step.Name
-		if len(stepName) > 40 {
-			stepName = stepName[:37] + "..."
+		fmt.Printf("    %d. %s - %s\n", i+1, step.Name, step.Result.Status)
+		if step.Result.Status == "error" || step.Result.Status == "failed" {
+			fmt.Printf("       Error: %s\n", step.Result.Error)
 		}
-		output := step.Result.Output
-		if len(output) > 40 {
-			output = output[:37] + "..."
+		if step.Result.Output != "" {
+			fmt.Printf("       Output: %s\n", step.Result.Output)
 		}
-		fmt.Printf("| %-3d | %-40s | %-8s | %-12s | %-40s |\n",
-			i+1,
-			stepName,
-			step.Result.Status,
-			step.Duration.String(),
-			output)
-	}
-
-	// After the step results table, print detailed errors for failed steps
-	fmt.Print("\n## Step Errors\n\n")
-	for i, step := range result.Steps {
-		if step.Result.Status == types.ActionStatusError && step.Result.Error != "" {
-			fmt.Printf("Step %d (%s):\n  Error: %s\n  Output: %s\n\n", i+1, step.Name, step.Result.Error, step.Result.Output)
-		}
-	}
-
-	// Print test summary table
-	fmt.Print("\n## Test Summary\n\n")
-	fmt.Printf("| %-11s | %-20s |\n", "Field", "Value")
-	fmt.Print("|-------------|----------------------|\n")
-	fmt.Printf("| %-11s | %-20s |\n", "Test", result.Name)
-	fmt.Printf("| %-11s | %-20s |\n", "Status", result.Status)
-	fmt.Printf("| %-11s | %-20s |\n", "Duration", result.Duration.String())
-	fmt.Printf("| %-11s | %-20d |\n", "Total Steps", len(result.Steps))
-	fmt.Printf("| %-11s | %-20d |\n", "Passed", passed)
-	fmt.Printf("| %-11s | %-20d |\n", "Failed", failed)
-
-	if result.Status == "FAILED" && result.Error != "" {
-		fmt.Printf("| %-11s | %-20s |\n", "Error", result.Error)
 	}
 }

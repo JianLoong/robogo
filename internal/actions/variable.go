@@ -9,12 +9,7 @@ import (
 
 func variableAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 2 {
-		msg := "variable action requires at least 2 arguments"
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("variable action requires at least 2 arguments")
 	}
 
 	name := fmt.Sprintf("%v", args[0])
@@ -24,7 +19,7 @@ func variableAction(args []interface{}, options map[string]interface{}, vars *co
 
 	msg := fmt.Sprintf("Set variable %s = %v", name, value)
 	return types.ActionResult{
-		Status: types.ActionStatusSuccess,
+		Status: types.ActionStatusPassed,
 		Data:   msg,
 		Output: msg,
 	}, nil

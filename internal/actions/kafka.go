@@ -14,10 +14,7 @@ import (
 // Kafka action - simplified implementation with immediate connection management
 func kafkaAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 2 {
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  "kafka action requires at least 2 arguments: operation, broker",
-		}, fmt.Errorf("kafka action requires at least 2 arguments: operation, broker")
+		return types.NewErrorResult("kafka action requires at least 2 arguments: operation, broker")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -29,10 +26,7 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 	switch operation {
 	case "publish":
 		if len(args) < 4 {
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  "kafka publish requires: operation, broker, topic, message",
-			}, fmt.Errorf("kafka publish requires: operation, broker, topic, message")
+			return types.NewErrorResult("kafka publish requires: operation, broker, topic, message")
 		}
 		topic := fmt.Sprintf("%v", args[2])
 		message := fmt.Sprintf("%v", args[3])
@@ -48,22 +42,16 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 			Value: []byte(message),
 		})
 		if err != nil {
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  fmt.Sprintf("failed to publish message: %v", err),
-			}, fmt.Errorf("failed to publish message: %w", err)
+			return types.NewErrorResult("failed to publish message: %v", err)
 		}
 		return types.ActionResult{
-			Status: types.ActionStatusSuccess,
+			Status: types.ActionStatusPassed,
 			Data:   map[string]interface{}{"status": "published"},
 		}, nil
 
 	case "consume":
 		if len(args) < 3 {
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  "kafka consume requires: operation, broker, topic",
-			}, fmt.Errorf("kafka consume requires: operation, broker, topic")
+			return types.NewErrorResult("kafka consume requires: operation, broker, topic")
 		}
 		topic := fmt.Sprintf("%v", args[2])
 
@@ -78,14 +66,11 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 
 		m, err := r.ReadMessage(ctx)
 		if err != nil {
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  fmt.Sprintf("failed to consume message: %v", err),
-			}, fmt.Errorf("failed to consume message: %w", err)
+			return types.NewErrorResult("failed to consume message: %v", err)
 		}
 
 		return types.ActionResult{
-			Status: types.ActionStatusSuccess,
+			Status: types.ActionStatusPassed,
 			Data: map[string]interface{}{
 				"message":   string(m.Value),
 				"partition": m.Partition,
@@ -94,9 +79,6 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 		}, nil
 
 	default:
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  fmt.Sprintf("unknown kafka operation: %s", operation),
-		}, fmt.Errorf("unknown kafka operation: %s", operation)
+		return types.NewErrorResult("unknown kafka operation: %s", operation)
 	}
 }

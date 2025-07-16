@@ -11,12 +11,7 @@ import (
 
 func assertAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
-		msg := "assert action requires 3 arguments: actual, operator, expected"
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("assert action requires 3 arguments: actual, operator, expected")
 	}
 
 	actual := fmt.Sprintf("%v", args[0])
@@ -54,58 +49,43 @@ func assertAction(args []interface{}, options map[string]interface{}, vars *comm
 					result = actualNum <= expectedNum
 				}
 			} else {
-				msg := fmt.Sprintf("cannot compare numeric value with non-numeric: %s", expected)
-				return types.ActionResult{
-					Status: types.ActionStatusError,
-					Error:  msg,
-					Output: msg,
-				}, fmt.Errorf(msg)
+				return types.NewErrorResult("cannot compare numeric value with non-numeric: %s", expected)
 			}
 		} else {
-			msg := fmt.Sprintf("cannot perform numeric comparison with non-numeric value: %s", actual)
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  msg,
-				Output: msg,
-			}, fmt.Errorf(msg)
+			return types.NewErrorResult("cannot perform numeric comparison with non-numeric value: %s", actual)
 		}
 	default:
-		msg := fmt.Sprintf("unsupported operator: %s", operator)
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("unsupported operator: %s", operator)
 	}
 
 	if !result {
 		if message != "" {
 			msg := fmt.Sprintf("assertion failed: %s (actual: %s, expected: %s)", message, actual, expected)
 			return types.ActionResult{
-				Status: types.ActionStatusError,
+				Status: types.ActionStatusFailed,
 				Error:  msg,
 				Output: msg,
-			}, fmt.Errorf(msg)
+			}, nil
 		}
 		msg := fmt.Sprintf("assertion failed: %s %s %s", actual, operator, expected)
 		return types.ActionResult{
-			Status: types.ActionStatusError,
+			Status: types.ActionStatusFailed,
 			Error:  msg,
 			Output: msg,
-		}, fmt.Errorf(msg)
+		}, nil
 	}
 
 	if message != "" {
 		msg := fmt.Sprintf("Success: %s", message)
 		return types.ActionResult{
-			Status: types.ActionStatusSuccess,
+			Status: types.ActionStatusPassed,
 			Data:   msg,
 			Output: msg,
 		}, nil
 	}
 	msg := "Assertion passed"
 	return types.ActionResult{
-		Status: types.ActionStatusSuccess,
+		Status: types.ActionStatusPassed,
 		Data:   msg,
 		Output: msg,
 	}, nil

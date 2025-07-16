@@ -17,10 +17,7 @@ import (
 // spannerAction executes Spanner queries generically, returning results as JSON-compatible maps.
 func spannerAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  "spanner action requires at least 3 arguments: operation, database_path, query",
-		}, fmt.Errorf("spanner action requires at least 3 arguments: operation, database_path, query")
+		return types.NewErrorResult("spanner action requires at least 3 arguments: operation, database_path, query")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -32,10 +29,7 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 
 	client, err := spanner.NewClient(ctx, databasePath)
 	if err != nil {
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  fmt.Sprintf("failed to create spanner client: %v", err),
-		}, fmt.Errorf("failed to create spanner client: %w", err)
+		return types.NewErrorResult("failed to create spanner client: %v", err)
 	}
 	defer client.Close()
 
@@ -53,10 +47,7 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 				break
 			}
 			if err != nil {
-				return types.ActionResult{
-					Status: types.ActionStatusError,
-					Error:  fmt.Sprintf("failed to iterate results: %v", err),
-				}, fmt.Errorf("failed to iterate results: %w", err)
+				return types.NewErrorResult("failed to iterate results: %v", err)
 			}
 
 			if firstRow {
@@ -67,14 +58,8 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			rowVals := make([]interface{}, len(columns))
 			for i := range columns {
 				var val interface{}
-				if err := row.Column(i, &val); err != nil {
-					// fallback: try Null types for common Spanner types
-					if err := trySpannerNullTypes(row, i, &val); err != nil {
-						return types.ActionResult{
-							Status: types.ActionStatusError,
-							Error:  fmt.Sprintf("failed to decode column %s: %v", columns[i], err),
-						}, fmt.Errorf("failed to decode column %s: %w", columns[i], err)
-					}
+				if err := trySpannerNullTypes(row, i, &val); err != nil {
+					return types.NewErrorResult("failed to decode column %s: %v", columns[i], err)
 				}
 				rowVals[i] = val
 			}
@@ -88,12 +73,12 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 
 		if jsonBytes, err := json.Marshal(result); err == nil {
 			return types.ActionResult{
-				Status: types.ActionStatusSuccess,
+				Status: types.ActionStatusPassed,
 				Data:   string(jsonBytes),
 			}, nil
 		}
 		return types.ActionResult{
-			Status: types.ActionStatusSuccess,
+			Status: types.ActionStatusPassed,
 			Data:   result,
 		}, nil
 
@@ -103,21 +88,15 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			return err
 		})
 		if err != nil {
-			return types.ActionResult{
-				Status: types.ActionStatusError,
-				Error:  fmt.Sprintf("failed to execute statement: %v", err),
-			}, fmt.Errorf("failed to execute statement: %w", err)
+			return types.NewErrorResult("failed to execute statement: %v", err)
 		}
 		return types.ActionResult{
-			Status: types.ActionStatusSuccess,
+			Status: types.ActionStatusPassed,
 			Data:   map[string]interface{}{"result": "ok"},
 		}, nil
 
 	default:
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  fmt.Sprintf("unknown spanner operation: %s", operation),
-		}, fmt.Errorf("unknown spanner operation: %s", operation)
+		return types.NewErrorResult("unknown spanner operation: %s", operation)
 	}
 }
 

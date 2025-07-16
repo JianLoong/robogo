@@ -245,15 +245,26 @@ func (cfe *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (*type
 	result.Duration = time.Since(start)
 
 	if err != nil {
+		// If the action returned an ActionResult with Status 'error', propagate as error
+		if output.Status == types.ActionStatusError {
+			result.Result = output
+			return result, err
+		}
+		// If the action returned an ActionResult with Status 'failed', propagate as failed
+		if output.Status == types.ActionStatusFailed {
+			result.Result = output
+			return result, nil
+		}
+		// Otherwise, treat as error
 		result.Result = types.ActionResult{Status: types.ActionStatusError, Error: err.Error()}
 		return result, err
 	}
 
-	result.Result = types.ActionResult{Status: types.ActionStatusSuccess, Data: fmt.Sprintf("%v", output)}
+	// Use the ActionResult as is
+	result.Result = output
 
 	// Store result variable if specified
 	if step.Result != "" {
-		// output is types.ActionResult, store only Data field
 		cfe.variables.Set(step.Result, output.Data)
 	}
 

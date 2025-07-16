@@ -17,12 +17,7 @@ import (
 func httpAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	fmt.Println("[DEBUG] Entered httpAction")
 	if len(args) < 2 {
-		msg := "http action requires at least 2 arguments: method and URL"
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("http action requires at least 2 arguments: method and URL")
 	}
 
 	method := fmt.Sprintf("%v", args[0])
@@ -42,12 +37,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		msg := fmt.Sprintf("failed to create request: %v", err)
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("failed to create request: %v", err)
 	}
 
 	if headers, ok := options["headers"].(map[string]interface{}); ok {
@@ -68,23 +58,13 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 	resp, err := client.Do(req)
 	fmt.Println("[DEBUG] HTTP request completed")
 	if err != nil {
-		msg := fmt.Sprintf("HTTP request failed: %v", err)
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("HTTP request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		msg := fmt.Sprintf("failed to read response body: %v", err)
-		return types.ActionResult{
-			Status: types.ActionStatusError,
-			Error:  msg,
-			Output: msg,
-		}, fmt.Errorf(msg)
+		return types.NewErrorResult("failed to read response body: %v", err)
 	}
 
 	respBodyStr := string(responseBody)
@@ -104,7 +84,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 
 	output := fmt.Sprintf("HTTP %s %s -> %d", method, url, resp.StatusCode)
 	return types.ActionResult{
-		Status: types.ActionStatusSuccess,
+		Status: types.ActionStatusPassed,
 		Data:   result,
 		Output: output,
 	}, nil
