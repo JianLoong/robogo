@@ -48,33 +48,38 @@ func (v *Variables) Substitute(template string) string {
 	if template == "" {
 		return template
 	}
-	
+
 	result := template
 	for {
 		start := strings.Index(result, "${")
 		if start == -1 {
 			break
 		}
-		
+
 		end := strings.Index(result[start:], "}")
 		if end == -1 {
 			break
 		}
 		end += start
-		
+
 		varName := result[start+2 : end]
 		if varName == "" {
 			result = result[:start] + result[end+1:]
 			continue
 		}
-		
+
 		// Handle dot notation (simple version)
 		value := v.resolveDotNotation(varName)
 		replacement := fmt.Sprintf("%v", value)
-		
+		if replacement == fmt.Sprintf("${%s}", varName) {
+			replacement = "__UNRESOLVED__"
+		}
 		result = result[:start] + replacement + result[end+1:]
 	}
-	
+	// Warn if unresolved marker remains
+	if strings.Contains(result, "__UNRESOLVED__") {
+		fmt.Printf("[WARN] Unresolved variable in template: %q\n", result)
+	}
 	return result
 }
 
@@ -87,19 +92,19 @@ func (v *Variables) resolveDotNotation(varName string) interface{} {
 		}
 		return fmt.Sprintf("${%s}", varName) // Return unresolved
 	}
-	
+
 	// Parse the variable path with array indices
 	path := v.parsePath(varName)
 	if len(path) == 0 {
 		return fmt.Sprintf("${%s}", varName)
 	}
-	
+
 	baseVar := path[0]
 	current, exists := v.data[baseVar]
 	if !exists {
 		return fmt.Sprintf("${%s}", varName) // Return unresolved
 	}
-	
+
 	// Navigate through the path
 	for _, segment := range path[1:] {
 		current = v.navigateSegment(current, segment)
@@ -107,7 +112,7 @@ func (v *Variables) resolveDotNotation(varName string) interface{} {
 			return fmt.Sprintf("${%s}", varName)
 		}
 	}
-	
+
 	return current
 }
 
@@ -115,7 +120,7 @@ func (v *Variables) resolveDotNotation(varName string) interface{} {
 func (v *Variables) parsePath(varName string) []string {
 	var path []string
 	current := ""
-	
+
 	i := 0
 	for i < len(varName) {
 		char := varName[i]
@@ -151,11 +156,11 @@ func (v *Variables) parsePath(varName string) []string {
 			i++
 		}
 	}
-	
+
 	if current != "" {
 		path = append(path, current)
 	}
-	
+
 	return path
 }
 
@@ -168,7 +173,7 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 		if err != nil {
 			return nil
 		}
-		
+
 		if arr, ok := current.([]interface{}); ok {
 			if index >= 0 && index < len(arr) {
 				return arr[index]

@@ -10,24 +10,30 @@ steps:
   - name: "Make HTTP POST request"
     action: http
     args: ["POST", "${base_url}", "${test_data}"]
-    result: "response"
+    options:
+      parse_json: true
+    result: "http_response"
 
   - name: "Verify status code"
     action: assert
-    args: ["${response.data}", "==", "200", "Should return 200 OK"]
+    args: ["${http_response.status_code}", "==", "200", "Should return 200 OK"]
 
-  # - name: "Verify posted data in response"
-  #   action: assert
-  #   args: ["${response.json.data}", "==", "${test_data}", "Posted data should match"]
+  - name: "Log pretty formatted response"
+    action: log
+    args: ["${http_response.json.data}"]
 
-  # - name: "Verify URL in response"
-  #   action: assert
-  #   args: ["${response.json.url}", "==", "${base_url}", "URL should match"]
+  - name: "Verify posted data in response"
+    action: assert
+    args: ["${http_response.json.dta}", "==", "${test_data}", "Posted data should match"]
 
-  # - name: "Check that origin field exists"
-  #   action: assert
-  #   args: ["${response.json.origin}", "!=", "", "Origin should not be empty"]
+  - name: "Verify URL in response"
+    action: assert
+    args: ["${http_response.json.url}", "==", "${base_url}", "URL should match"]
 
-  # - name: "Log verification success"
-  #   action: log
-  #   args: ["Data verification successful! Posted:", "${response.json.data}"]
+  - name: "Check that origin field exists"
+    action: assert
+    args: ["${http_response.json.origin}", "!=", "", "Origin should not be empty"]
+
+  - name: "Log verification success"
+    action: log
+    args: ["Data verification successful! Posted:", "${http_response.json.data}"]

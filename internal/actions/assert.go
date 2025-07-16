@@ -18,6 +18,17 @@ func assertAction(args []interface{}, options map[string]interface{}, vars *comm
 	operator := fmt.Sprintf("%v", args[1])
 	expected := fmt.Sprintf("%v", args[2])
 
+	// Warn and fail gracefully if actual or expected is unresolved
+	if strings.Contains(actual, "__UNRESOLVED__") || strings.Contains(expected, "__UNRESOLVED__") {
+		msg := fmt.Sprintf("assertion failed due to unresolved variable: actual=%q, expected=%q", actual, expected)
+		fmt.Println("[WARN] " + msg)
+		return types.ActionResult{
+			Status: types.ActionStatusFailed,
+			Error:  msg,
+			Output: msg,
+		}, nil
+	}
+
 	var message string
 	if len(args) > 3 {
 		message = fmt.Sprintf("%v", args[3])

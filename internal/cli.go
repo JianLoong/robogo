@@ -91,14 +91,26 @@ func printTestSummary(result *types.TestResult) {
 	if result.Error != "" {
 		fmt.Printf("  Error: %s\n", result.Error)
 	}
-	fmt.Println("  Steps:")
+	fmt.Println("\n|  #  | Step Name                        | Status   | Duration   | Output                        | Error                         | Reason                        |")
+	fmt.Println("|-----|----------------------------------|----------|------------|-------------------------------|-------------------------------|-------------------------------|")
 	for i, step := range result.Steps {
-		fmt.Printf("    %d. %s - %s\n", i+1, step.Name, step.Result.Status)
-		if step.Result.Status == "error" || step.Result.Status == "failed" {
-			fmt.Printf("       Error: %s\n", step.Result.Error)
+		stepName := step.Name
+		if len(stepName) > 32 {
+			stepName = stepName[:29] + "..."
 		}
-		if step.Result.Output != "" {
-			fmt.Printf("       Output: %s\n", step.Result.Output)
+		output := step.Result.Output
+		if len(output) > 29 {
+			output = output[:26] + "..."
 		}
+		errorMsg := step.Result.Error
+		if len(errorMsg) > 29 {
+			errorMsg = errorMsg[:26] + "..."
+		}
+		reason := step.Result.Reason
+		if len(reason) > 29 {
+			reason = reason[:26] + "..."
+		}
+		fmt.Printf("| %3d | %-32s | %-8s | %-10s | %-29s | %-29s | %-29s |\n",
+			i+1, stepName, step.Result.Status, step.Duration.String(), output, errorMsg, reason)
 	}
 }
