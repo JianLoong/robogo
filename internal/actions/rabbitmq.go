@@ -6,34 +6,45 @@ import (
 	"strings"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/types"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // RabbitMQ action - simplified implementation with proper resource management
-func rabbitmqAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (interface{}, error) {
+func rabbitmqAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
-		return nil, fmt.Errorf("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange")
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  "rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange",
+		}, fmt.Errorf("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
 	connectionString := fmt.Sprintf("%v", args[1])
 
-	// Open connection for this operation only
 	conn, err := amqp.Dial(connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("failed to connect to RabbitMQ: %v", err),
+		}, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
-	defer conn.Close() // Always close connection when done
-	
-	// Check connection health
+	defer conn.Close()
+
 	if conn.IsClosed() {
-		return nil, fmt.Errorf("RabbitMQ connection closed immediately")
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  "RabbitMQ connection closed immediately",
+		}, fmt.Errorf("RabbitMQ connection closed immediately")
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open channel: %w", err)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("failed to open channel: %v", err),
+		}, fmt.Errorf("failed to open channel: %w", err)
 	}
 	defer func() {
 		if closeErr := ch.Close(); closeErr != nil {
@@ -46,37 +57,40 @@ func rabbitmqAction(args []interface{}, options map[string]interface{}, vars *co
 
 	switch operation {
 	case "publish":
-		if len(args) < 5 {
-			return nil, fmt.Errorf("rabbitmq publish requires: operation, connection, exchange, routing_key, message")
+		if len(args) < 4 {
+			return types.ActionResult{
+				Status: types.ActionStatusError,
+				Error:  "rabbitmq publish requires: operation, connection_string, queue/exchange, message",
+			}, fmt.Errorf("rabbitmq publish requires: operation, connection_string, queue/exchange, message")
 		}
-		exchange := fmt.Sprintf("%v", args[2])
-		routingKey := fmt.Sprintf("%v", args[3])
-		message := fmt.Sprintf("%v", args[4])
+		queueOrExchange := fmt.Sprintf("%v", args[2])
+		message := fmt.Sprintf("%v", args[3])
 
-		err = ch.PublishWithContext(ctx, exchange, routingKey, false, false, amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(message),
-		})
+		err := ch.PublishWithContext(ctx,
+			"",              // exchange
+			queueOrExchange, // routing key (queue)
+			false,           // mandatory
+			false,           // immediate
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte(message),
+			},
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to publish message: %w", err)
+			return types.ActionResult{
+				Status: types.ActionStatusError,
+				Error:  fmt.Sprintf("failed to publish message: %v", err),
+			}, fmt.Errorf("failed to publish message: %w", err)
 		}
-		return map[string]interface{}{"status": "published"}, nil
-
-	case "consume":
-		queueName := fmt.Sprintf("%v", args[2])
-		msgs, err := ch.Consume(queueName, "", true, false, false, false, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to register consumer: %w", err)
-		}
-
-		select {
-		case d := <-msgs:
-			return map[string]interface{}{"message": string(d.Body)}, nil
-		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout waiting for message")
-		}
+		return types.ActionResult{
+			Status: types.ActionStatusSuccess,
+			Data:   map[string]interface{}{"status": "published"},
+		}, nil
 
 	default:
-		return nil, fmt.Errorf("unknown rabbitmq operation: %s", operation)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("unknown rabbitmq operation: %s", operation),
+		}, fmt.Errorf("unknown rabbitmq operation: %s", operation)
 	}
 }

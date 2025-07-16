@@ -1,5 +1,0 @@
-testsuite: "Simple Example Suite"
-
-testcases:
-  - test-debug.yaml
-  - test-http-get.yaml

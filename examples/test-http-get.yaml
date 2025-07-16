@@ -13,6 +13,8 @@ steps:
   - name: "Make simple HTTP request"
     action: http
     args: ["GET", "${base_url}"]
+    options:
+      timeout: "5s"
     result: "http_response"
 
   - name: "Log pretty formatted response"

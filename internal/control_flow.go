@@ -8,24 +8,25 @@ import (
 
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/types"
 )
 
 // ControlFlowExecutor handles control flow execution for test steps
 type ControlFlowExecutor struct {
-	variables         *common.Variables
+	variables          *common.Variables
 	conditionEvaluator *ConditionEvaluator
 }
 
 // NewControlFlowExecutor creates a new control flow executor
 func NewControlFlowExecutor(variables *common.Variables) *ControlFlowExecutor {
 	return &ControlFlowExecutor{
-		variables:         variables,
+		variables:          variables,
 		conditionEvaluator: NewConditionEvaluator(variables),
 	}
 }
 
 // ExecuteStepWithControlFlow executes a step with if/for/while support
-func (cfe *ControlFlowExecutor) ExecuteStepWithControlFlow(step Step, stepNum int) ([]StepResult, error) {
+func (cfe *ControlFlowExecutor) ExecuteStepWithControlFlow(step types.Step, stepNum int) ([]types.StepResult, error) {
 	// Handle for loop first (if with for will be handled inside the loop)
 	if step.For != "" {
 		return cfe.executeStepForLoop(step, stepNum)
@@ -41,33 +42,31 @@ func (cfe *ControlFlowExecutor) ExecuteStepWithControlFlow(step Step, stepNum in
 		condition := cfe.variables.Substitute(step.If)
 		shouldExecute, err := cfe.conditionEvaluator.Evaluate(condition)
 		if err != nil {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("if condition evaluation failed: %v", err),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("if condition evaluation failed: %v", err)},
 			}
-			return []StepResult{*stepResult}, err
+			return []types.StepResult{*stepResult}, err
 		}
 		if !shouldExecute {
 			// Skip step
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "SKIPPED",
-				Output: fmt.Sprintf("Skipped due to if condition: %s", condition),
+				Result: types.ActionResult{Status: types.ActionStatusSkipped, Reason: fmt.Sprintf("Skipped due to if condition: %s", condition)},
 			}
-			return []StepResult{*stepResult}, nil
+			return []types.StepResult{*stepResult}, nil
 		}
 	}
 
 	// Regular execution
 	stepResult, err := cfe.executeStep(step, stepNum)
-	return []StepResult{*stepResult}, err
+	return []types.StepResult{*stepResult}, err
 }
 
 // executeStepForLoop executes a step in a for loop
-func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]StepResult, error) {
+func (cfe *ControlFlowExecutor) executeStepForLoop(step types.Step, stepNum int) ([]types.StepResult, error) {
 	rangeOrArray := cfe.variables.Substitute(step.For)
 	var iterations []interface{}
 
@@ -76,33 +75,30 @@ func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]St
 		// Range: "1..5"
 		parts := strings.Split(rangeOrArray, "..")
 		if len(parts) != 2 {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("invalid range format: %s", rangeOrArray),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("invalid range format: %s", rangeOrArray)},
 			}
-			return []StepResult{*stepResult}, fmt.Errorf("invalid range format: %s", rangeOrArray)
+			return []types.StepResult{*stepResult}, fmt.Errorf("invalid range format: %s", rangeOrArray)
 		}
 		start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
 		if err != nil {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("invalid start value in range: %s", parts[0]),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("invalid start value in range: %s", parts[0])},
 			}
-			return []StepResult{*stepResult}, err
+			return []types.StepResult{*stepResult}, err
 		}
 		end, err := strconv.Atoi(strings.TrimSpace(parts[1]))
 		if err != nil {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("invalid end value in range: %s", parts[1]),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("invalid end value in range: %s", parts[1])},
 			}
-			return []StepResult{*stepResult}, err
+			return []types.StepResult{*stepResult}, err
 		}
 		for i := start; i <= end; i++ {
 			iterations = append(iterations, i)
@@ -118,13 +114,12 @@ func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]St
 		// Count: "3"
 		count, err := strconv.Atoi(rangeOrArray)
 		if err != nil {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("invalid count format: %s", rangeOrArray),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("invalid count format: %s", rangeOrArray)},
 			}
-			return []StepResult{*stepResult}, err
+			return []types.StepResult{*stepResult}, err
 		}
 		for i := 1; i <= count; i++ {
 			iterations = append(iterations, i)
@@ -132,7 +127,7 @@ func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]St
 	}
 
 	// Execute step for each iteration
-	var results []StepResult
+	var results []types.StepResult
 	for i, item := range iterations {
 		// Set loop variables
 		cfe.variables.Set("iteration", i+1)
@@ -144,22 +139,20 @@ func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]St
 			condition := cfe.variables.Substitute(step.If)
 			shouldExecute, err := cfe.conditionEvaluator.Evaluate(condition)
 			if err != nil {
-				stepResult := &StepResult{
+				stepResult := &types.StepResult{
 					Name:   fmt.Sprintf("%s (iteration %d)", step.Name, i+1),
 					Action: step.Action,
-					Status: "FAILED",
-					Error:  fmt.Sprintf("if condition evaluation failed: %v", err),
+					Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("if condition evaluation failed: %v", err)},
 				}
 				results = append(results, *stepResult)
 				return results, err
 			}
 			if !shouldExecute {
 				// Skip this iteration
-				stepResult := &StepResult{
+				stepResult := &types.StepResult{
 					Name:   fmt.Sprintf("%s (iteration %d)", step.Name, i+1),
 					Action: step.Action,
-					Status: "SKIPPED",
-					Output: fmt.Sprintf("Skipped due to if condition: %s", condition),
+					Result: types.ActionResult{Status: types.ActionStatusSkipped, Reason: fmt.Sprintf("Skipped due to if condition: %s", condition)},
 				}
 				results = append(results, *stepResult)
 				continue
@@ -179,10 +172,10 @@ func (cfe *ControlFlowExecutor) executeStepForLoop(step Step, stepNum int) ([]St
 }
 
 // executeStepWhileLoop executes a step in a while loop
-func (cfe *ControlFlowExecutor) executeStepWhileLoop(step Step, stepNum int) ([]StepResult, error) {
+func (cfe *ControlFlowExecutor) executeStepWhileLoop(step types.Step, stepNum int) ([]types.StepResult, error) {
 	maxIterations := 10 // Default max iterations
 	iterations := 0
-	var results []StepResult
+	var results []types.StepResult
 
 	for iterations < maxIterations {
 		iterations++
@@ -192,11 +185,10 @@ func (cfe *ControlFlowExecutor) executeStepWhileLoop(step Step, stepNum int) ([]
 		condition := cfe.variables.Substitute(step.While)
 		shouldContinue, err := cfe.conditionEvaluator.Evaluate(condition)
 		if err != nil {
-			stepResult := &StepResult{
+			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Status: "FAILED",
-				Error:  fmt.Sprintf("while condition evaluation failed: %v", err),
+				Result: types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("while condition evaluation failed: %v", err)},
 			}
 			return append(results, *stepResult), err
 		}
@@ -218,19 +210,19 @@ func (cfe *ControlFlowExecutor) executeStepWhileLoop(step Step, stepNum int) ([]
 }
 
 // executeStep executes a single step (extracted from TestRunner)
-func (cfe *ControlFlowExecutor) executeStep(step Step, stepNum int) (*StepResult, error) {
+func (cfe *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (*types.StepResult, error) {
 	start := time.Now()
 
-	result := &StepResult{
+	result := &types.StepResult{
 		Name:   step.Name,
 		Action: step.Action,
-		Status: "FAILED",
+		Result: types.ActionResult{Status: types.ActionStatusError},
 	}
 
 	// Get action
 	action, exists := actions.GetAction(step.Action)
 	if !exists {
-		result.Error = fmt.Sprintf("unknown action: %s", step.Action)
+		result.Result = types.ActionResult{Status: types.ActionStatusError, Error: fmt.Sprintf("unknown action: %s", step.Action)}
 		result.Duration = time.Since(start)
 		return result, fmt.Errorf("unknown action: %s", step.Action)
 	}
@@ -253,16 +245,16 @@ func (cfe *ControlFlowExecutor) executeStep(step Step, stepNum int) (*StepResult
 	result.Duration = time.Since(start)
 
 	if err != nil {
-		result.Error = err.Error()
+		result.Result = types.ActionResult{Status: types.ActionStatusError, Error: err.Error()}
 		return result, err
 	}
 
-	result.Status = "PASSED"
-	result.Output = fmt.Sprintf("%v", output)
+	result.Result = types.ActionResult{Status: types.ActionStatusSuccess, Data: fmt.Sprintf("%v", output)}
 
 	// Store result variable if specified
 	if step.Result != "" {
-		cfe.variables.Set(step.Result, output) // Store actual output, not string representation
+		// output is types.ActionResult, store only Data field
+		cfe.variables.Set(step.Result, output.Data)
 	}
 
 	return result, nil

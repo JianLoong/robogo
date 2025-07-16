@@ -8,14 +8,18 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/types"
+	_ "github.com/lib/pq"
 )
 
 // PostgreSQL action - simplified implementation with proper resource management
-func postgresAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (interface{}, error) {
+func postgresAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
-		return nil, fmt.Errorf("postgres action requires at least 3 arguments: operation, connection_string, query")
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  "postgres action requires at least 3 arguments: operation, connection_string, query",
+		}, fmt.Errorf("postgres action requires at least 3 arguments: operation, connection_string, query")
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -25,20 +29,22 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 	// Open connection for this operation only
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("failed to open postgres connection: %v", err),
+		}, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
-	// Ensure connection is closed immediately after use
-	defer func() {
-		db.Close()
-	}()
-	
-	// Set aggressive connection limits to ensure cleanup
+	defer db.Close()
+
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(0)
 	db.SetConnMaxLifetime(1 * time.Second)
-	
+
 	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("failed to ping postgres database: %v", err),
+		}, fmt.Errorf("failed to ping postgres database: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -48,18 +54,19 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 	case "query", "select":
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			return nil, fmt.Errorf("query failed: %w", err)
+			return types.ActionResult{
+				Status: types.ActionStatusError,
+				Error:  fmt.Sprintf("failed to execute query: %v", err),
+			}, fmt.Errorf("failed to execute query: %w", err)
 		}
-		defer func() {
-			if closeErr := rows.Close(); closeErr != nil {
-				// Log but don't override original error
-				fmt.Printf("Warning: failed to close rows: %v\n", closeErr)
-			}
-		}()
+		defer rows.Close()
 
 		columns, err := rows.Columns()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get columns: %w", err)
+			return types.ActionResult{
+				Status: types.ActionStatusError,
+				Error:  fmt.Sprintf("failed to get columns: %v", err),
+			}, fmt.Errorf("failed to get columns: %w", err)
 		}
 
 		var results [][]interface{}
@@ -70,7 +77,10 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 				valuePtrs[i] = &values[i]
 			}
 			if err := rows.Scan(valuePtrs...); err != nil {
-				return nil, fmt.Errorf("failed to scan row: %w", err)
+				return types.ActionResult{
+					Status: types.ActionStatusError,
+					Error:  fmt.Sprintf("failed to scan row: %v", err),
+				}, fmt.Errorf("failed to scan row: %w", err)
 			}
 			results = append(results, values)
 		}
@@ -79,35 +89,36 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 			"columns": columns,
 			"rows":    results,
 		}
-		
-		// Return JSON string directly  
+
 		if jsonBytes, err := json.Marshal(result); err == nil {
-			return string(jsonBytes), nil
+			return types.ActionResult{
+				Status: types.ActionStatusSuccess,
+				Data:   string(jsonBytes),
+			}, nil
 		}
-		
-		// Fallback to map if JSON fails
-		return result, nil
+		return types.ActionResult{
+			Status: types.ActionStatusSuccess,
+			Data:   result,
+		}, nil
 
 	case "execute", "insert", "update", "delete":
 		result, err := db.ExecContext(ctx, query)
 		if err != nil {
-			return nil, fmt.Errorf("execute failed: %w", err)
+			return types.ActionResult{
+				Status: types.ActionStatusError,
+				Error:  fmt.Sprintf("failed to execute statement: %v", err),
+			}, fmt.Errorf("failed to execute statement: %w", err)
 		}
 		rowsAffected, _ := result.RowsAffected()
-		
-		execResult := map[string]interface{}{
-			"rows_affected": rowsAffected,
-		}
-		
-		// Return JSON string directly
-		if jsonBytes, err := json.Marshal(execResult); err == nil {
-			return string(jsonBytes), nil
-		}
-		
-		// Fallback to map if JSON fails
-		return execResult, nil
+		return types.ActionResult{
+			Status: types.ActionStatusSuccess,
+			Data:   map[string]interface{}{"rows_affected": rowsAffected},
+		}, nil
 
 	default:
-		return nil, fmt.Errorf("unknown postgres operation: %s", operation)
+		return types.ActionResult{
+			Status: types.ActionStatusError,
+			Error:  fmt.Sprintf("unknown postgres operation: %s", operation),
+		}, fmt.Errorf("unknown postgres operation: %s", operation)
 	}
 }

@@ -17,7 +17,7 @@ steps:
 
   - name: "Test simple spanner query"
     action: spanner
-    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1 as test_value"]
+    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1;"]
     result: spanner_result
 
   - name: "Show result as JSON"

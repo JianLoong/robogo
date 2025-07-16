@@ -1,9 +1,12 @@
 package actions
 
-import "github.com/JianLoong/robogo/internal/common"
+import (
+	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/types"
+)
 
 // Action function signature
-type ActionFunc func(args []interface{}, options map[string]interface{}, vars *common.Variables) (interface{}, error)
+type ActionFunc func(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error)
 
 // Action registry - centralized registration of all actions
 var ActionRegistry = map[string]ActionFunc{
@@ -11,18 +14,17 @@ var ActionRegistry = map[string]ActionFunc{
 	"assert":   assertAction,
 	"log":      logAction,
 	"variable": variableAction,
-	
+
 	// HTTP actions
 	"http": httpAction,
-	
+
 	// Database actions
 	"postgres": postgresAction,
 	"spanner":  spannerAction,
-	
+
 	// Messaging actions
 	"kafka":    kafkaAction,
 	"rabbitmq": rabbitmqAction,
-	
 }
 
 // Helper function to get action

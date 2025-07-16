@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/types"
 )
 
 // SimpleCLI - direct, no-abstraction CLI
@@ -20,9 +21,9 @@ func RunCLI() {
 		// No cleanup needed - connections close automatically
 		os.Exit(0)
 	}()
-	
+
 	// No cleanup needed - connections close automatically
-	
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -38,14 +39,6 @@ func RunCLI() {
 			os.Exit(1)
 		}
 		runTest(os.Args[2])
-
-	case "run-suite":
-		if len(os.Args) < 3 {
-			fmt.Println("Error: run-suite command requires a suite file")
-			printUsage()
-			os.Exit(1)
-		}
-		runSuite(os.Args[2])
 
 	case "list":
 		listActions()
@@ -76,18 +69,6 @@ func runTest(filename string) {
 	}
 }
 
-func runSuite(filename string) {
-	runner := NewTestRunner()
-	err := runner.RunSuite(filename)
-
-	if err != nil {
-		fmt.Printf("\nFAILED: Suite execution failed: %s\n", err.Error())
-		os.Exit(1)
-	}
-
-	fmt.Println("\nSUCCESS: Suite execution completed successfully")
-}
-
 func listActions() {
 	fmt.Println("Available actions:")
 	for _, action := range actions.ListActions() {
@@ -98,44 +79,56 @@ func listActions() {
 func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  robogo run <test-file>        Run a single test")
-	fmt.Println("  robogo run-suite <suite-file> Run a test suite")
 	fmt.Println("  robogo list                   List available actions")
 	fmt.Println("  robogo version                Show version")
 }
 
-func printTestSummary(result *TestResult) {
+func printTestSummary(result *types.TestResult) {
 	passed := 0
 	failed := 0
 	for _, step := range result.Steps {
-		if step.Status == "PASSED" {
+		if step.Result.Status == types.ActionStatusSuccess {
 			passed++
-		} else {
+		} else if step.Result.Status == types.ActionStatusError {
 			failed++
 		}
 	}
 
 	// Print step details table
-	fmt.Printf("\n")
-	fmt.Printf("## Step Results\n\n")
-	fmt.Printf("| %-3s | %-40s | %-8s | %-12s |\n", "#", "Step Name", "Status", "Duration")
-	fmt.Printf("|-----|------------------------------------------|----------|-------------|\n")
-	
+	fmt.Print("\n")
+	fmt.Print("## Step Results\n\n")
+	fmt.Printf("| %-3s | %-40s | %-8s | %-12s | %-40s |\n", "#", "Step Name", "Status", "Duration", "Output")
+	fmt.Print("|-----|------------------------------------------|----------|-------------|------------------------------------------|\n")
+
 	for i, step := range result.Steps {
 		stepName := step.Name
 		if len(stepName) > 40 {
 			stepName = stepName[:37] + "..."
 		}
-		fmt.Printf("| %-3d | %-40s | %-8s | %-12s |\n", 
-			i+1, 
+		output := step.Result.Output
+		if len(output) > 40 {
+			output = output[:37] + "..."
+		}
+		fmt.Printf("| %-3d | %-40s | %-8s | %-12s | %-40s |\n",
+			i+1,
 			stepName,
-			step.Status,
-			step.Duration.String())
+			step.Result.Status,
+			step.Duration.String(),
+			output)
+	}
+
+	// After the step results table, print detailed errors for failed steps
+	fmt.Print("\n## Step Errors\n\n")
+	for i, step := range result.Steps {
+		if step.Result.Status == types.ActionStatusError && step.Result.Error != "" {
+			fmt.Printf("Step %d (%s):\n  Error: %s\n  Output: %s\n\n", i+1, step.Name, step.Result.Error, step.Result.Output)
+		}
 	}
 
 	// Print test summary table
-	fmt.Printf("\n## Test Summary\n\n")
+	fmt.Print("\n## Test Summary\n\n")
 	fmt.Printf("| %-11s | %-20s |\n", "Field", "Value")
-	fmt.Printf("|-------------|----------------------|\n")
+	fmt.Print("|-------------|----------------------|\n")
 	fmt.Printf("| %-11s | %-20s |\n", "Test", result.Name)
 	fmt.Printf("| %-11s | %-20s |\n", "Status", result.Status)
 	fmt.Printf("| %-11s | %-20s |\n", "Duration", result.Duration.String())
