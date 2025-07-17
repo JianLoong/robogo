@@ -17,10 +17,9 @@ func variableAction(args []interface{}, options map[string]interface{}, vars *co
 
 	vars.Set(name, value)
 
-	msg := fmt.Sprintf("Set variable %s = %v", name, value)
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
-		Data:   msg,
-		Output: msg,
+		Data:   value,
+		Output: fmt.Sprintf("%v", value),
 	}, nil
 }

@@ -15,6 +15,10 @@ var ActionRegistry = map[string]ActionFunc{
 	"log":      logAction,
 	"variable": variableAction,
 
+	// Utility actions
+	"uuid": uuidAction,
+	"time": timeAction,
+
 	// HTTP actions
 	"http": httpAction,
 

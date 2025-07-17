@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,18 +65,50 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 		})
 		defer r.Close()
 
-		m, err := r.ReadMessage(ctx)
-		if err != nil {
-			return types.NewErrorResult("failed to consume message: %v", err)
+		count := 1
+		if c, ok := options["count"]; ok {
+			switch v := c.(type) {
+			case int:
+				count = v
+			case int64:
+				count = int(v)
+			case float64:
+				count = int(v)
+			case string:
+				if parsed, err := strconv.Atoi(v); err == nil {
+					count = parsed
+				}
+			}
+			if count < 1 {
+				count = 1
+			}
+		}
+
+		var messages []string
+		var lastPartition int
+		var lastOffset int64
+		for i := 0; i < count; i++ {
+			m, err := r.ReadMessage(ctx)
+			if err != nil {
+				if i == 0 {
+					return types.NewErrorResult("failed to consume message: %v", err)
+				}
+				break // return what we have so far
+			}
+			messages = append(messages, string(m.Value))
+			lastPartition = m.Partition
+			lastOffset = m.Offset
 		}
 
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data: map[string]interface{}{
-				"message":   string(m.Value),
-				"partition": m.Partition,
-				"offset":    m.Offset,
+				"messages":  messages,
+				"count":     len(messages),
+				"partition": lastPartition,
+				"offset":    lastOffset,
 			},
+			Output: fmt.Sprintf("Consumed %d Kafka message(s): %v", len(messages), messages),
 		}, nil
 
 	default:

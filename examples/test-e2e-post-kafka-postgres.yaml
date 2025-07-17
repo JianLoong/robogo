@@ -1,0 +1,71 @@
+testcase: "TC-E2E-POST-KAFKA-POSTGRES"
+description: "E2E test: HTTP POST triggers Kafka and Postgres entry"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org/post"
+    test_data: '{"name": "E2E User", "email": "e2e-test@example.com"}'
+    kafka_broker: "localhost:9092"
+    kafka_topic: "test-topic"
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+    expected_email: "e2e-test@example.com"
+    expected_name: "E2E User"
+
+steps:
+  - name: "Create users table if not exists"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE)"]
+
+  - name: "Delete any existing E2E user"
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM users WHERE email = '${expected_email}'"]
+
+  - name: "POST to API"
+    action: http
+    args: ["POST", "${base_url}", "${test_data}"]
+    options:
+      parse_json: true
+    result: "http_response"
+
+  - name: "Assert HTTP 200"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200"]
+
+  - name: "Produce Kafka message"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${kafka_topic}", "${test_data}"]
+    result: "kafka_produce"
+
+  - name: "Consume 2 Kafka messages"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${kafka_topic}"]
+    options:
+      count: 2
+      timeout: "10s"
+    result: "kafka_msgs"
+
+  - name: "Assert first Kafka message contains email"
+    action: assert
+    args: ["${kafka_msgs.messages[0]}", "contains", "${expected_email}"]
+
+  - name: "Assert second Kafka message contains email"
+    action: assert
+    args: ["${kafka_msgs.messages[1]}", "contains", "${expected_email}"]
+
+  - name: "Insert user into Postgres"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO users (name, email) VALUES ('${expected_name}', '${expected_email}') ON CONFLICT DO NOTHING"]
+    result: "pg_insert"
+
+  - name: "Query Postgres for record"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT name, email FROM users WHERE email = '${expected_email}' LIMIT 1"]
+    result: "pg_result"
+
+  - name: "Assert Postgres record exists"
+    action: assert
+    args: ["${pg_result.rows[0][1]}", "==", "${expected_email}"]
+
+  - name: "Assert Postgres name"
+    action: assert
+    args: ["${pg_result.rows[0][0]}", "==", "${expected_name}"] 

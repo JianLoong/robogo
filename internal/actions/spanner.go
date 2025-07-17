@@ -2,191 +2,118 @@ package actions
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
-	"cloud.google.com/go/spanner"
-
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/types"
-	"google.golang.org/api/iterator"
+	_ "github.com/googleapis/go-sql-spanner"
 )
 
-// spannerAction executes Spanner queries generically, returning results as JSON-compatible maps.
 func spannerAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
-		return types.NewErrorResult("spanner action requires at least 3 arguments: operation, database_path, query")
+		result, _ := types.NewErrorResult("spanner action requires at least 3 arguments: operation, database_path, query")
+		return result, nil
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
-	databasePath := fmt.Sprintf("%v", args[1])
+	dbPath := fmt.Sprintf("%v", args[1])
 	query := fmt.Sprintf("%v", args[2])
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client, err := spanner.NewClient(ctx, databasePath)
+	db, err := sql.Open("spanner", dbPath)
 	if err != nil {
-		return types.NewErrorResult("failed to create spanner client: %v", err)
+		log.Printf("[spanner/sql] failed to open database: %v", err)
+		result, _ := types.NewErrorResult("failed to open spanner database: %v", err)
+		return result, nil
 	}
-	defer client.Close()
+	defer db.Close()
 
 	switch operation {
 	case "query", "select":
-		iter := client.Single().Query(ctx, spanner.NewStatement(query))
-		defer iter.Stop()
+		rows, err := db.QueryContext(ctx, query)
+		if err != nil {
+			log.Printf("[spanner/sql] query failed: %v", err)
+			result, _ := types.NewErrorResult("query failed: %v", err)
+			return result, nil
+		}
+		defer rows.Close()
 
-		var columns []string
+		columns, err := rows.Columns()
+		if err != nil {
+			result, _ := types.NewErrorResult("failed to get columns: %v", err)
+			return result, nil
+		}
+
 		var results [][]interface{}
-		firstRow := true
-		for {
-			row, err := iter.Next()
-			if err == iterator.Done {
-				break
+		rowCount := 0
+		for rows.Next() {
+			values := make([]interface{}, len(columns))
+			valuePtrs := make([]interface{}, len(columns))
+			for i := range values {
+				valuePtrs[i] = &values[i]
 			}
-			if err != nil {
-				return types.NewErrorResult("failed to iterate results: %v", err)
+			if err := rows.Scan(valuePtrs...); err != nil {
+				log.Printf("[spanner/sql] failed to scan row: %v", err)
+				result, _ := types.NewErrorResult("failed to scan row: %v", err)
+				return result, nil
 			}
-
-			if firstRow {
-				columns = row.ColumnNames()
-				firstRow = false
-			}
-
-			rowVals := make([]interface{}, len(columns))
-			for i := range columns {
-				var val interface{}
-				if err := trySpannerNullTypes(row, i, &val); err != nil {
-					return types.NewErrorResult("failed to decode column %s: %v", columns[i], err)
+			for i, v := range values {
+				if b, ok := v.([]byte); ok {
+					values[i] = string(b)
 				}
-				rowVals[i] = val
 			}
-			results = append(results, rowVals)
+			results = append(results, values)
+			rowCount++
+		}
+		if err := rows.Err(); err != nil {
+			result, _ := types.NewErrorResult("row iteration error: %v", err)
+			return result, nil
 		}
 
 		result := map[string]interface{}{
 			"columns": columns,
 			"rows":    results,
 		}
-
-		if jsonBytes, err := json.Marshal(result); err == nil {
-			return types.ActionResult{
-				Status: types.ActionStatusPassed,
-				Data:   string(jsonBytes),
-			}, nil
+		if asJSON, ok := options["as_json"].(bool); ok && asJSON {
+			jsonBytes, err := json.Marshal(result)
+			if err == nil {
+				return types.ActionResult{
+					Status: types.ActionStatusPassed,
+					Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+					Output: string(jsonBytes),
+				}, nil
+			}
+			// If marshaling fails, fall through to structured result
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   result,
+			Output: fmt.Sprintf("%d rows returned", rowCount),
 		}, nil
 
-	case "execute", "insert", "update", "delete":
-		_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			_, err := txn.Update(ctx, spanner.NewStatement(query))
-			return err
-		})
+	case "insert", "update", "delete", "execute":
+		res, err := db.ExecContext(ctx, query)
 		if err != nil {
-			return types.NewErrorResult("failed to execute statement: %v", err)
+			log.Printf("[spanner/sql] DML failed: %v", err)
+			result, _ := types.NewErrorResult("DML failed: %v", err)
+			return result, nil
 		}
+		affected, _ := res.RowsAffected()
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data:   map[string]interface{}{"result": "ok"},
+			Data:   map[string]interface{}{"rows_affected": affected},
+			Output: fmt.Sprintf("DML executed successfully, %d rows affected", affected),
 		}, nil
 
 	default:
-		return types.NewErrorResult("unknown spanner operation: %s", operation)
+		result, _ := types.NewErrorResult("unsupported spanner operation: %s", operation)
+		return result, nil
 	}
-}
-
-// trySpannerNullTypes attempts to decode a Spanner column into a supported Null type, then assigns the value to *out.
-func trySpannerNullTypes(row *spanner.Row, i int, out *interface{}) error {
-	// Try NullInt64
-	var nInt spanner.NullInt64
-	if err := row.Column(i, &nInt); err == nil {
-		if nInt.Valid {
-			*out = nInt.Int64
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullString
-	var nStr spanner.NullString
-	if err := row.Column(i, &nStr); err == nil {
-		if nStr.Valid {
-			*out = nStr.StringVal
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullBool
-	var nBool spanner.NullBool
-	if err := row.Column(i, &nBool); err == nil {
-		if nBool.Valid {
-			*out = nBool.Bool
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullFloat64
-	var nFloat spanner.NullFloat64
-	if err := row.Column(i, &nFloat); err == nil {
-		if nFloat.Valid {
-			*out = nFloat.Float64
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullTime
-	var nTime spanner.NullTime
-	if err := row.Column(i, &nTime); err == nil {
-		if nTime.Valid {
-			*out = nTime.Time
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullDate
-	var nDate spanner.NullDate
-	if err := row.Column(i, &nDate); err == nil {
-		if nDate.Valid {
-			*out = nDate.Date
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullNumeric
-	var nNum spanner.NullNumeric
-	if err := row.Column(i, &nNum); err == nil {
-		if nNum.Valid {
-			*out = nNum.Numeric.String()
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try NullJSON
-	var nJSON spanner.NullJSON
-	if err := row.Column(i, &nJSON); err == nil {
-		if nJSON.Valid {
-			*out = nJSON.Value
-		} else {
-			*out = nil
-		}
-		return nil
-	}
-	// Try []byte (for BYTES)
-	var b []byte
-	if err := row.Column(i, &b); err == nil {
-		*out = b
-		return nil
-	}
-	return fmt.Errorf("unsupported or unknown Spanner type")
 }

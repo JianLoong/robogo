@@ -79,6 +79,17 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 		var parsedBody interface{}
 		if err := json.Unmarshal(responseBody, &parsedBody); err == nil {
 			result["json"] = parsedBody
+			if asJSON, ok := options["as_json"].(bool); ok && asJSON {
+				jsonBytes, err := json.Marshal(parsedBody)
+				if err == nil {
+					return types.ActionResult{
+						Status: types.ActionStatusPassed,
+						Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+						Output: string(jsonBytes),
+					}, nil
+				}
+				// If marshaling fails, fall through to structured result
+			}
 		}
 	}
 

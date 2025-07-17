@@ -1,0 +1,157 @@
+testcase: "TC-SPANNER-VERIFY"
+description: "Spanner test with data verification using database/sql driver"
+
+# To run on Linux/Mac:
+# SPANNER_EMULATOR_HOST=localhost:9010 ./robogo run examples/test-spanner-verify.yaml
+#
+# To run on Windows PowerShell:
+# $env:SPANNER_EMULATOR_HOST="localhost:9010"; .\robogo.exe run examples/test-spanner-verify.yaml
+#
+# To run on Windows Command Prompt:
+# set SPANNER_EMULATOR_HOST=localhost:9010 && robogo.exe run examples/test-spanner-verify.yaml
+
+variables:
+  vars:
+    db_path: "projects/test-project/instances/test-instance/databases/test-database"
+    user_name: "Alice Smith"
+    user_email: "alice@test.com"
+    user_age: "30"
+
+steps:
+  # Setup test table
+  - name: "Create test table with multiple columns"
+    action: spanner
+    args: ["execute", "${db_path}", "CREATE TABLE IF NOT EXISTS test_users (id INT64, name STRING(100), email STRING(100), age INT64, created_at TIMESTAMP) PRIMARY KEY (id)"]
+
+  # Insert test data
+  - name: "Insert user with multiple fields"
+    action: spanner
+    args: ["execute", "${db_path}", "INSERT INTO test_users (id, name, email, age, created_at) VALUES (1, '${user_name}', '${user_email}', ${user_age}, CURRENT_TIMESTAMP())"]
+    result: "insert_result"
+
+  # Query back the inserted data
+  - name: "Query inserted user by email"
+    action: spanner
+    args: ["query", "${db_path}", "SELECT id, name, email, age FROM test_users WHERE email = '${user_email}'"]
+    result: "user_data"
+
+  # Store the first row data for verification
+  - name: "Store user ID for later use"
+    action: variable
+    args: ["set", "user_id", "${user_data.rows[0][0]}"]
+
+  - name: "Store retrieved name"
+    action: variable
+    args: ["set", "retrieved_name", "${user_data.rows[0][1]}"]
+
+  - name: "Store retrieved email"
+    action: variable
+    args: ["set", "retrieved_email", "${user_data.rows[0][2]}"]
+
+  - name: "Store retrieved age"
+    action: variable
+    args: ["set", "retrieved_age", "${user_data.rows[0][3]}"]
+
+  # Verify all the data matches what we inserted
+  - name: "Verify name matches"
+    action: assert
+    args: ["${retrieved_name}", "==", "${user_name}", "Name should match inserted value"]
+
+  - name: "Verify email matches"
+    action: assert
+    args: ["${retrieved_email}", "==", "${user_email}", "Email should match inserted value"]
+
+  - name: "Verify age matches"
+    action: assert
+    args: ["${retrieved_age}", "==", "${user_age}", "Age should match inserted value"]
+
+  - name: "Verify user ID is valid"
+    action: assert
+    args: ["${user_id}", "==", "1", "User ID should be 1"]
+
+  # Test UPDATE operation
+  - name: "Update user age"
+    action: spanner
+    args: ["execute", "${db_path}", "UPDATE test_users SET age = 31 WHERE id = ${user_id}"]
+    result: "update_result"
+
+  - name: "Verify update affected one row"
+    action: assert
+    args: ["${update_result.rows_affected}", "==", "1", "Update should affect exactly 1 row"]
+
+  # Verify the update worked
+  - name: "Query updated user"
+    action: spanner
+    args: ["query", "${db_path}", "SELECT age FROM test_users WHERE id = ${user_id}"]
+    result: "updated_data"
+
+  - name: "Store updated age"
+    action: variable
+    args: ["set", "new_age", "${updated_data.rows[0][0]}"]
+
+  - name: "Verify age was updated"
+    action: assert
+    args: ["${new_age}", "==", "31", "Age should be updated to 31"]
+
+  # Test aggregate functions
+  - name: "Count users"
+    action: spanner
+    args: ["query", "${db_path}", "SELECT COUNT(*) FROM test_users"]
+    result: "count_data"
+
+  - name: "Store user count"
+    action: variable
+    args: ["set", "total_users", "${count_data.rows[0][0]}"]
+
+  - name: "Verify we have at least our test user"
+    action: assert
+    args: ["${total_users}", "!=", "0", "Should have at least 1 user"]
+
+  # Test complex query with JOIN
+  - name: "Insert another user for JOIN test"
+    action: spanner
+    args: ["execute", "${db_path}", "INSERT INTO test_users (id, name, email, age, created_at) VALUES (2, 'Bob Johnson', 'bob@test.com', 25, CURRENT_TIMESTAMP())"]
+
+  - name: "Test JOIN query"
+    action: spanner
+    args: ["query", "${db_path}", "SELECT u1.name, u2.name FROM test_users u1 JOIN test_users u2 ON u1.id < u2.id WHERE u1.email = '${user_email}'"]
+    result: "join_data"
+
+  - name: "Verify JOIN returned results"
+    action: assert
+    args: ["${join_data.rows[0][0]}", "==", "${user_name}", "First user name should match"]
+
+  - name: "Verify JOIN second user"
+    action: assert
+    args: ["${join_data.rows[0][1]}", "==", "Bob Johnson", "Second user name should be Bob Johnson"]
+
+  # Test data types
+  - name: "Test different data types"
+    action: spanner
+    args: ["query", "${db_path}", "SELECT 42 as int_val, 3.14 as float_val, true as bool_val, 'test string' as string_val, CURRENT_TIMESTAMP() as timestamp_val"]
+    result: "type_test_data"
+
+  - name: "Verify integer value"
+    action: assert
+    args: ["${type_test_data.rows[0][0]}", "==", "42", "Integer value should be 42"]
+
+  - name: "Verify float value"
+    action: assert
+    args: ["${type_test_data.rows[0][1]}", "==", "3.14", "Float value should be 3.14"]
+
+  - name: "Verify boolean value"
+    action: assert
+    args: ["${type_test_data.rows[0][2]}", "==", "true", "Boolean value should be true"]
+
+  - name: "Verify string value"
+    action: assert
+    args: ["${type_test_data.rows[0][3]}", "==", "test string", "String value should match"]
+
+  # Cleanup
+  - name: "Delete test users"
+    action: spanner
+    args: ["execute", "${db_path}", "DELETE FROM test_users WHERE id IN (1, 2)"]
+
+  - name: "Log successful completion"
+    action: log
+    args: ["Spanner verification test completed successfully!"] 

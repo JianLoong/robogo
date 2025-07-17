@@ -1,5 +1,5 @@
 testcase: "Spanner Connection Test"
-description: "Test Spanner with immediate connection management"
+description: "Test Spanner with immediate connection management and basic verification"
 
 # To run on Linux/Mac:
 # SPANNER_EMULATOR_HOST=localhost:9010 ./robogo run examples/test-spanner.yaml
@@ -15,15 +15,58 @@ steps:
     action: log
     args: ["Testing Spanner connection..."]
 
-  - name: "Test simple spanner query"
+  - name: "Generate timestamp"
+    action: time
+    args: ["2006_01_02_15_04_05"]
+    result: current_time
+
+  - name: "Create test table"
     action: spanner
-    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1;"]
+    args: ["execute", "projects/test-project/instances/test-instance/databases/test-database", "CREATE TABLE t_${current_time} (id INT64, name STRING(100)) PRIMARY KEY (id)"]
+
+  - name: "Test information_schema query"
+    action: spanner
+    args: ["select", "projects/test-project/instances/test-instance/databases/test-database", "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''"]
     result: spanner_result
 
-  # - name: "Show result as JSON"
-  #   action: log
-  #   args: ["JSON result: ${spanner_result}"]
+  - name: "Test information_schema query as JSON"
+    action: spanner
+    args: ["select", "projects/test-project/instances/test-instance/databases/test-database", "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''"]
+    options:
+      as_json: true
+    result: spanner_json_result
 
-  # - name: "Test complete"
-  #   action: log
-  #   args: ["Test finished - should exit cleanly"]
+  - name: "Show JSON result"
+    action: log
+    args: ["JSON result: ${spanner_json_result}"]
+
+  - name: "Show JSON result as string"
+    action: log
+    args: ["JSON string: ${spanner_json_result.json_string}"]
+
+  - name: "Debug: Show full result"
+    action: log
+    args: ["Full result: ${spanner_result}"]
+
+  - name: "Show columns"
+    action: log
+    args: ["Columns: ${spanner_result.columns}"]
+
+  - name: "Show Rows"
+    action: log
+    args: ["Rows: ${spanner_result.rows}"]
+
+  - name: "Verify we got results"
+    action: assert
+    args: ["${spanner_result.rows.length}", ">", "0", "Should have at least one row"]
+
+  - name: "Test simple SELECT 1 query"
+    action: spanner
+    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1 as test_value, 'hello' as test_string, true as test_bool"]
+    options:
+      as_json: true
+    result: simple_result
+
+  - name: "Test complete"
+    action: log
+    args: ["Test finished - all verifications passed!"]

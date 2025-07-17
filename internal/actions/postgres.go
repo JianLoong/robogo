@@ -71,12 +71,16 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 			"columns": columns,
 			"rows":    results,
 		}
-
-		if jsonBytes, err := json.Marshal(result); err == nil {
-			return types.ActionResult{
-				Status: types.ActionStatusPassed,
-				Data:   string(jsonBytes),
-			}, nil
+		if asJSON, ok := options["as_json"].(bool); ok && asJSON {
+			jsonBytes, err := json.Marshal(result)
+			if err == nil {
+				return types.ActionResult{
+					Status: types.ActionStatusPassed,
+					Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+					Output: string(jsonBytes),
+				}, nil
+			}
+			// If marshaling fails, fall through to structured result
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,

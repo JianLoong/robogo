@@ -174,13 +174,37 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 			return nil
 		}
 
+		// Support []interface{}
 		if arr, ok := current.([]interface{}); ok {
+			if index >= 0 && index < len(arr) {
+				return arr[index]
+			}
+		}
+		// Support [][]interface{} (slice of slices)
+		if arr, ok := current.([][]interface{}); ok {
 			if index >= 0 && index < len(arr) {
 				return arr[index]
 			}
 		}
 		return nil
 	} else {
+		// Special property: length
+		if segment == "length" {
+			if arr, ok := current.([]interface{}); ok {
+				return len(arr)
+			}
+			// Also support length on string
+			if str, ok := current.(string); ok {
+				return len(str)
+			}
+			// Support length on [][]interface{} (slice of slices)
+			if arr, ok := current.([][]interface{}); ok {
+				return len(arr)
+			}
+			fmt.Printf("[DEBUG] Length requested on type: %T, value: %v\n", current, current)
+			return 0
+		}
+
 		// Property access
 		if m, ok := current.(map[string]interface{}); ok {
 			if val, exists := m[segment]; exists {
