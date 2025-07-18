@@ -4,100 +4,100 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
+	
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
 func assertAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
-	if len(args) < 3 {
-		return types.NewErrorResult("assert action requires 3 arguments: actual, operator, expected")
+	if len(args) < 1 {
+		return types.NewErrorResult("assert action requires at least 1 argument")
 	}
-
-	actual := fmt.Sprintf("%v", args[0])
-	operator := fmt.Sprintf("%v", args[1])
-	expected := fmt.Sprintf("%v", args[2])
-
-	// Warn and fail gracefully if actual or expected is unresolved
-	if strings.Contains(actual, "__UNRESOLVED__") || strings.Contains(expected, "__UNRESOLVED__") {
-		msg := fmt.Sprintf("assertion failed due to unresolved variable: actual=%q, expected=%q", actual, expected)
-		fmt.Println("[WARN] " + msg)
-		return types.ActionResult{
-			Status: types.ActionStatusFailed,
-			Error:  msg,
-			Output: msg,
-		}, nil
-	}
-
-	var message string
-	if len(args) > 3 {
-		message = fmt.Sprintf("%v", args[3])
-	}
-
-	var result bool
-	switch operator {
-	case "==", "=", "equals":
-		result = actual == expected
-	case "!=", "not_equals":
-		result = actual != expected
-	case "contains":
-		result = strings.Contains(actual, expected)
-	case "starts_with":
-		result = strings.HasPrefix(actual, expected)
-	case "ends_with":
-		result = strings.HasSuffix(actual, expected)
-	case ">", "<", ">=", "<=":
-		if actualNum, err1 := strconv.ParseFloat(actual, 64); err1 == nil {
-			if expectedNum, err2 := strconv.ParseFloat(expected, 64); err2 == nil {
-				switch operator {
-				case ">":
-					result = actualNum > expectedNum
-				case "<":
-					result = actualNum < expectedNum
-				case ">=":
-					result = actualNum >= expectedNum
-				case "<=":
-					result = actualNum <= expectedNum
-				}
-			} else {
-				return types.NewErrorResult("cannot compare numeric value with non-numeric: %s", expected)
-			}
-		} else {
-			return types.NewErrorResult("cannot perform numeric comparison with non-numeric value: %s", actual)
-		}
-	default:
-		return types.NewErrorResult("unsupported operator: %s", operator)
-	}
-
-	if !result {
-		if message != "" {
-			msg := fmt.Sprintf("assertion failed: %s (actual: %s, expected: %s)", message, actual, expected)
+	
+	// Handle single boolean argument
+	if len(args) == 1 {
+		if b, ok := args[0].(bool); ok && b {
 			return types.ActionResult{
-				Status: types.ActionStatusFailed,
-				Error:  msg,
-				Output: msg,
+				Status: types.ActionStatusPassed,
 			}, nil
 		}
-		msg := fmt.Sprintf("assertion failed: %s %s %s", actual, operator, expected)
-		return types.ActionResult{
-			Status: types.ActionStatusFailed,
-			Error:  msg,
-			Output: msg,
-		}, nil
+		return types.NewErrorResult("assertion failed: %v", args[0])
 	}
+	
+	// Handle comparison syntax: [value, operator, expected]
+	if len(args) >= 3 {
+		actual := args[0]
+		operator := args[1]
+		expected := args[2]
+		
+		// Convert to strings for comparison
+		actualStr := fmt.Sprintf("%v", actual)
+		expectedStr := fmt.Sprintf("%v", expected)
+		
+		var result bool
+		switch operator {
+		case "==":
+			result = actualStr == expectedStr
+		case "!=":
+			result = actualStr != expectedStr
+		case ">":
+			result = compareNumeric(actualStr, expectedStr, ">")
+		case "<":
+			result = compareNumeric(actualStr, expectedStr, "<")
+		case ">=":
+			result = compareNumeric(actualStr, expectedStr, ">=")
+		case "<=":
+			result = compareNumeric(actualStr, expectedStr, "<=")
+		case "contains":
+			result = strings.Contains(actualStr, expectedStr)
+		default:
+			return types.NewErrorResult("unsupported operator: %v", operator)
+		}
+		
+		if result {
+			return types.ActionResult{
+				Status: types.ActionStatusPassed,
+			}, nil
+		}
+		
+		message := fmt.Sprintf("assertion failed: %v %v %v", actual, operator, expected)
+		if len(args) > 3 {
+			message = fmt.Sprintf("%v (%v)", message, args[3])
+		}
+		return types.NewErrorResult(message)
+	}
+	
+	return types.NewErrorResult("assertion failed: %v", args[0])
+}
 
-	if message != "" {
-		msg := fmt.Sprintf("Success: %s", message)
-		return types.ActionResult{
-			Status: types.ActionStatusPassed,
-			Data:   msg,
-			Output: msg,
-		}, nil
+func compareNumeric(actual, expected, operator string) bool {
+	actualNum, err1 := strconv.ParseFloat(actual, 64)
+	expectedNum, err2 := strconv.ParseFloat(expected, 64)
+	
+	if err1 != nil || err2 != nil {
+		// Fall back to string comparison if not numeric
+		switch operator {
+		case ">":
+			return actual > expected
+		case "<":
+			return actual < expected
+		case ">=":
+			return actual >= expected
+		case "<=":
+			return actual <= expected
+		}
+		return false
 	}
-	msg := "Assertion passed"
-	return types.ActionResult{
-		Status: types.ActionStatusPassed,
-		Data:   msg,
-		Output: msg,
-	}, nil
+	
+	switch operator {
+	case ">":
+		return actualNum > expectedNum
+	case "<":
+		return actualNum < expectedNum
+	case ">=":
+		return actualNum >= expectedNum
+	case "<=":
+		return actualNum <= expectedNum
+	}
+	return false
 }

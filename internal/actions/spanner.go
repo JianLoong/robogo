@@ -87,7 +87,6 @@ func spannerAction(args []any, options map[string]any, vars *common.Variables) (
 				return types.ActionResult{
 					Status: types.ActionStatusPassed,
 					Data:   map[string]any{"json_string": string(jsonBytes)},
-					Output: string(jsonBytes),
 				}, nil
 			}
 			// If marshaling fails, fall through to structured result
@@ -95,7 +94,6 @@ func spannerAction(args []any, options map[string]any, vars *common.Variables) (
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   result,
-			Output: fmt.Sprintf("%d rows returned", rowCount),
 		}, nil
 
 	case "insert", "update", "delete", "execute":
@@ -109,7 +107,6 @@ func spannerAction(args []any, options map[string]any, vars *common.Variables) (
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   map[string]any{"rows_affected": affected},
-			Output: fmt.Sprintf("DML executed successfully, %d rows affected", affected),
 		}, nil
 
 	default:

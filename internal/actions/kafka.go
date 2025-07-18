@@ -21,7 +21,14 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
 	broker := fmt.Sprintf("%v", args[1])
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout := 30 * time.Second
+	if timeoutStr, ok := options["timeout"]; ok {
+		if t, err := time.ParseDuration(fmt.Sprintf("%v", timeoutStr)); err == nil {
+			timeout = t
+		}
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	switch operation {
@@ -56,13 +63,22 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 		}
 		topic := fmt.Sprintf("%v", args[2])
 
-		r := kafka.NewReader(kafka.ReaderConfig{
+		config := kafka.ReaderConfig{
 			Brokers:   []string{broker},
 			Topic:     topic,
 			Partition: 0,
 			MinBytes:  1,
 			MaxBytes:  10e6,
-		})
+		}
+
+		// Check for auto-commit option
+		if autoCommit, ok := options["auto_commit"]; ok {
+			if enable, ok := autoCommit.(bool); ok && enable {
+				config.GroupID = "robogo-consumer"
+			}
+		}
+
+		r := kafka.NewReader(config)
 		defer r.Close()
 
 		count := 1
@@ -79,8 +95,20 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 					count = parsed
 				}
 			}
-			if count < 1 {
-				count = 1
+			if count < 0 {
+				return types.NewErrorResult("count must be >= 0, got %d", count)
+			}
+			if count == 0 {
+				// Return empty result without consuming
+				return types.ActionResult{
+					Status: types.ActionStatusPassed,
+					Data: map[string]any{
+						"messages":  []string{},
+						"count":     0,
+						"partition": 0,
+						"offset":    int64(0),
+					},
+				}, nil
 			}
 		}
 
@@ -91,6 +119,10 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 			m, err := r.ReadMessage(ctx)
 			if err != nil {
 				if i == 0 {
+					// Check if it's a timeout error for better user feedback
+					if strings.Contains(err.Error(), "context deadline exceeded") {
+						return types.NewErrorResult("failed to consume message: timeout waiting for messages (topic may not exist or be empty)")
+					}
 					return types.NewErrorResult("failed to consume message: %v", err)
 				}
 				break // return what we have so far
@@ -108,7 +140,6 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 				"partition": lastPartition,
 				"offset":    lastOffset,
 			},
-			Output: fmt.Sprintf("Consumed %d Kafka message(s): %v", len(messages), messages),
 		}, nil
 
 	default:

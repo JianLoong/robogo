@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -74,29 +73,8 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) (typ
 		"headers":     resp.Header,
 	}
 
-	parseJSON, _ := options["parse_json"].(bool)
-	if parseJSON {
-		var parsedBody any
-		if err := json.Unmarshal(responseBody, &parsedBody); err == nil {
-			result["json"] = parsedBody
-			if asJSON, ok := options["as_json"].(bool); ok && asJSON {
-				jsonBytes, err := json.Marshal(parsedBody)
-				if err == nil {
-					return types.ActionResult{
-						Status: types.ActionStatusPassed,
-						Data:   map[string]any{"json_string": string(jsonBytes)},
-						Output: string(jsonBytes),
-					}, nil
-				}
-				// If marshaling fails, fall through to structured result
-			}
-		}
-	}
-
-	output := fmt.Sprintf("HTTP %s %s -> %d", method, url, resp.StatusCode)
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
 		Data:   result,
-		Output: output,
 	}, nil
 }

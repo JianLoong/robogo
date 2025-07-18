@@ -19,12 +19,17 @@ steps:
 
   - name: "Log pretty formatted response"
     action: log
-    args: ["Pretty response:", "${http_response.status_code}"]
+    args: ["Pretty response:", "${http_response}"]
 
-  # - name: "Test status code assertion"
-  #   action: assert
-  #   args: ["${http_response.status_code}", "==", "200", "Should be 200"]
+  - name: "Debug status code"
+    action: log
+    args: ["Status code:", "${http_response.status_code}"]
 
-  # - name: "Assert that the expected value is correct"
-  #   action: assert
-  #   args: ["${http_response.body}", "==", "${expected_value}"]
+  - name: "Test status code assertion"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200"]
+    result: assert_result
+
+  - name: "Assert that the expected value is correct"
+    action: assert
+    args: ["${http_response.body}", "==", "${expected_value}"]

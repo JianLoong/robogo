@@ -20,6 +20,5 @@ func variableAction(args []any, options map[string]any, vars *common.Variables) 
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
 		Data:   value,
-		Output: fmt.Sprintf("%v", value),
 	}, nil
 }

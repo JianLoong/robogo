@@ -20,7 +20,6 @@ type ActionResult struct {
 	Error  string       `json:"error,omitempty"`  // Error message if status == "error"
 	Reason string       `json:"reason,omitempty"` // Reason for skip if status == "skipped"
 	Data   any          `json:"data,omitempty"`   // Result data if status == "success"
-	Output string       `json:"output,omitempty"` // Human-readable summary for logs/UI
 	Meta   any          `json:"meta,omitempty"`   // Optional metadata (timing, logs, etc.)
 }
 
@@ -30,6 +29,5 @@ func NewErrorResult(msg string, args ...any) (ActionResult, error) {
 	return ActionResult{
 		Status: ActionStatusError,
 		Error:  formatted,
-		Output: formatted,
 	}, fmt.Errorf(formatted)
 }

@@ -6,7 +6,7 @@ variables:
     base_url: "https://httpbin.org/post"
     test_data: '{"name": "E2E User", "email": "e2e-test@example.com"}'
     kafka_broker: "localhost:9092"
-    kafka_topic: "test-topic"
+    kafka_topic: "e2e-test-topic"
     db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
     expected_email: "e2e-test@example.com"
     expected_name: "E2E User"
@@ -31,10 +31,15 @@ steps:
     action: assert
     args: ["${http_response.status_code}", "==", "200"]
 
-  - name: "Produce Kafka message"
+  - name: "Produce first Kafka message"
     action: kafka
     args: ["publish", "${kafka_broker}", "${kafka_topic}", "${test_data}"]
-    result: "kafka_produce"
+    result: "kafka_produce1"
+
+  - name: "Produce second Kafka message"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${kafka_topic}", "${test_data}"]
+    result: "kafka_produce2"
 
   - name: "Consume 2 Kafka messages"
     action: kafka
@@ -42,6 +47,7 @@ steps:
     options:
       count: 2
       timeout: "10s"
+      auto_commit: true
     result: "kafka_msgs"
 
   - name: "Assert first Kafka message contains email"

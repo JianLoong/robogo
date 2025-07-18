@@ -77,7 +77,6 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 				return types.ActionResult{
 					Status: types.ActionStatusPassed,
 					Data:   map[string]any{"json_string": string(jsonBytes)},
-					Output: string(jsonBytes),
 				}, nil
 			}
 			// If marshaling fails, fall through to structured result

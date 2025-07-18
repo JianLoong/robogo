@@ -11,6 +11,5 @@ func uuidAction(args []any, options map[string]any, vars *common.Variables) (typ
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
 		Data:   id,
-		Output: id,
 	}, nil
 }

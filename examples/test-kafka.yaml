@@ -17,11 +17,14 @@ steps:
   - name: "Consume message from Kafka"
     action: kafka
     args: ["consume", "localhost:9092", "test-topic"]
+    options:
+      timeout: 5
+      auto_commit: true
     result: message
 
   - name: "Verify message content"
     action: assert
-    args: ["${message.message}", "==", "Hello from Robogo!"]
+    args: ["${message.messages[0]}", "==", "Hello from Robogo!"]
 
   - name: "Log completion"
     action: log

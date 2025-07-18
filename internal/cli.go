@@ -20,17 +20,15 @@ const (
 // Table formatting and truncation widths for printTestSummary
 const (
 	colStepNumWidth  = 3  // Width for step number column
-	colStepNameWidth = 32 // Width for step name column
+	colStepNameWidth = 40 // Width for step name column (expanded)
 	colStatusWidth   = 8  // Width for status column
-	colDurationWidth = 10 // Width for duration column
-	colOutputWidth   = 29 // Width for output column
-	colErrorWidth    = 29 // Width for error column
-	colReasonWidth   = 29 // Width for reason column
+	colDurationWidth = 12 // Width for duration column
+	colErrorWidth    = 40 // Width for error column (expanded)
+	colReasonWidth   = 40 // Width for reason column (expanded)
 
-	truncStepName = 29 // Truncate step name to this length before adding '...'
-	truncOutput   = 26 // Truncate output to this length before adding '...'
-	truncError    = 26 // Truncate error to this length before adding '...'
-	truncReason   = 26 // Truncate reason to this length before adding '...'
+	truncStepName = 37 // Truncate step name to this length before adding '...'
+	truncError    = 37 // Truncate error to this length before adding '...'
+	truncReason   = 37 // Truncate reason to this length before adding '...'
 )
 
 // SimpleCLI - direct, no-abstraction CLI
@@ -114,16 +112,12 @@ func printTestSummary(result *types.TestResult) {
 	if result.Error != "" {
 		fmt.Printf("  Error: %s\n", result.Error)
 	}
-	fmt.Println("\n|  #  | Step Name                        | Status   | Duration   | Output                        | Error                         | Reason                        |")
-	fmt.Println("|-----|----------------------------------|----------|------------|-------------------------------|-------------------------------|-------------------------------|")
+	fmt.Println("\n|  #  | Step Name                                | Status   | Duration     | Error                                    | Reason                                   |")
+	fmt.Println("|-----|------------------------------------------|----------|--------------|------------------------------------------|------------------------------------------|")
 	for i, step := range result.Steps {
 		stepName := step.Name
 		if len(stepName) > colStepNameWidth {
 			stepName = stepName[:truncStepName] + "..."
-		}
-		output := step.Result.Output
-		if len(output) > colOutputWidth {
-			output = output[:truncOutput] + "..."
 		}
 		errorMsg := step.Result.Error
 		if len(errorMsg) > colErrorWidth {
@@ -133,7 +127,7 @@ func printTestSummary(result *types.TestResult) {
 		if len(reason) > colReasonWidth {
 			reason = reason[:truncReason] + "..."
 		}
-		fmt.Printf("| %"+fmt.Sprintf("%dd", colStepNumWidth)+" | %-"+fmt.Sprintf("%ds", colStepNameWidth)+" | %-"+fmt.Sprintf("%ds", colStatusWidth)+" | %-"+fmt.Sprintf("%ds", colDurationWidth)+" | %-"+fmt.Sprintf("%ds", colOutputWidth)+" | %-"+fmt.Sprintf("%ds", colErrorWidth)+" | %-"+fmt.Sprintf("%ds", colReasonWidth)+" |\n",
-			i+1, stepName, step.Result.Status, step.Duration.String(), output, errorMsg, reason)
+		fmt.Printf("| %"+fmt.Sprintf("%dd", colStepNumWidth)+" | %-"+fmt.Sprintf("%ds", colStepNameWidth)+" | %-"+fmt.Sprintf("%ds", colStatusWidth)+" | %-"+fmt.Sprintf("%ds", colDurationWidth)+" | %-"+fmt.Sprintf("%ds", colErrorWidth)+" | %-"+fmt.Sprintf("%ds", colReasonWidth)+" |\n",
+			i+1, stepName, step.Result.Status, step.Duration.String(), errorMsg, reason)
 	}
 }
