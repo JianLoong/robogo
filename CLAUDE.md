@@ -108,6 +108,6 @@ The project uses YAML-based integration tests in the `examples/` directory. Ther
 
 Run example tests:
 ```bash
-./robogo run examples/test-http-get.yaml
-./robogo run examples/test-database-basic.yaml
+./robogo run examples/01-http-get.yaml
+./robogo run examples/03-postgres-basic.yaml
 ```
