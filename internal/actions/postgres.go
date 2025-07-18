@@ -14,7 +14,7 @@ import (
 )
 
 // PostgreSQL action - simplified implementation with proper resource management
-func postgresAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func postgresAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
 		return types.NewErrorResult("postgres action requires at least 3 arguments: operation, connection_string, query")
 	}
@@ -54,10 +54,10 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 			return types.NewErrorResult("failed to get columns: %v", err)
 		}
 
-		var results [][]interface{}
+		var results [][]any
 		for rows.Next() {
-			values := make([]interface{}, len(columns))
-			valuePtrs := make([]interface{}, len(columns))
+			values := make([]any, len(columns))
+			valuePtrs := make([]any, len(columns))
 			for i := range values {
 				valuePtrs[i] = &values[i]
 			}
@@ -67,7 +67,7 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 			results = append(results, values)
 		}
 
-		result := map[string]interface{}{
+		result := map[string]any{
 			"columns": columns,
 			"rows":    results,
 		}
@@ -76,7 +76,7 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 			if err == nil {
 				return types.ActionResult{
 					Status: types.ActionStatusPassed,
-					Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+					Data:   map[string]any{"json_string": string(jsonBytes)},
 					Output: string(jsonBytes),
 				}, nil
 			}
@@ -95,7 +95,7 @@ func postgresAction(args []interface{}, options map[string]interface{}, vars *co
 		rowsAffected, _ := result.RowsAffected()
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data:   map[string]interface{}{"rows_affected": rowsAffected},
+			Data:   map[string]any{"rows_affected": rowsAffected},
 		}, nil
 
 	default:

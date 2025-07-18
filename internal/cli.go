@@ -10,6 +10,29 @@ import (
 	"github.com/JianLoong/robogo/internal/types"
 )
 
+// Exit codes for CLI
+const (
+	ExitSuccess     = 0 // Normal successful exit
+	ExitUsageError  = 1 // Usage or argument error
+	ExitTestFailure = 2 // Test execution failed
+)
+
+// Table formatting and truncation widths for printTestSummary
+const (
+	colStepNumWidth  = 3  // Width for step number column
+	colStepNameWidth = 32 // Width for step name column
+	colStatusWidth   = 8  // Width for status column
+	colDurationWidth = 10 // Width for duration column
+	colOutputWidth   = 29 // Width for output column
+	colErrorWidth    = 29 // Width for error column
+	colReasonWidth   = 29 // Width for reason column
+
+	truncStepName = 29 // Truncate step name to this length before adding '...'
+	truncOutput   = 26 // Truncate output to this length before adding '...'
+	truncError    = 26 // Truncate error to this length before adding '...'
+	truncReason   = 26 // Truncate reason to this length before adding '...'
+)
+
 // SimpleCLI - direct, no-abstraction CLI
 func RunCLI() {
 	// Setup signal handling for graceful shutdown
@@ -19,14 +42,14 @@ func RunCLI() {
 		<-c
 		fmt.Println("\nShutting down gracefully...")
 		// No cleanup needed - connections close automatically
-		os.Exit(0)
+		os.Exit(ExitSuccess)
 	}()
 
 	// No cleanup needed - connections close automatically
 
 	if len(os.Args) < 2 {
 		printUsage()
-		os.Exit(1)
+		os.Exit(ExitUsageError)
 	}
 
 	command := os.Args[1]
@@ -36,7 +59,7 @@ func RunCLI() {
 		if len(os.Args) < 3 {
 			fmt.Println("Error: run command requires a test file")
 			printUsage()
-			os.Exit(1)
+			os.Exit(ExitUsageError)
 		}
 		runTest(os.Args[2])
 
@@ -49,7 +72,7 @@ func RunCLI() {
 	default:
 		fmt.Printf("Error: unknown command '%s'\n", command)
 		printUsage()
-		os.Exit(1)
+		os.Exit(ExitUsageError)
 	}
 }
 
@@ -59,13 +82,13 @@ func runTest(filename string) {
 
 	if err != nil {
 		fmt.Printf("\nERROR: Test execution failed: %s\n", err.Error())
-		os.Exit(2)
+		os.Exit(ExitTestFailure)
 	}
 
 	printTestSummary(result)
 
 	if result.Status == "FAILED" || result.Status == "failed" || result.Status == "error" || result.Status == "ERROR" {
-		os.Exit(1)
+		os.Exit(ExitTestFailure)
 	}
 }
 
@@ -95,22 +118,22 @@ func printTestSummary(result *types.TestResult) {
 	fmt.Println("|-----|----------------------------------|----------|------------|-------------------------------|-------------------------------|-------------------------------|")
 	for i, step := range result.Steps {
 		stepName := step.Name
-		if len(stepName) > 32 {
-			stepName = stepName[:29] + "..."
+		if len(stepName) > colStepNameWidth {
+			stepName = stepName[:truncStepName] + "..."
 		}
 		output := step.Result.Output
-		if len(output) > 29 {
-			output = output[:26] + "..."
+		if len(output) > colOutputWidth {
+			output = output[:truncOutput] + "..."
 		}
 		errorMsg := step.Result.Error
-		if len(errorMsg) > 29 {
-			errorMsg = errorMsg[:26] + "..."
+		if len(errorMsg) > colErrorWidth {
+			errorMsg = errorMsg[:truncError] + "..."
 		}
 		reason := step.Result.Reason
-		if len(reason) > 29 {
-			reason = reason[:26] + "..."
+		if len(reason) > colReasonWidth {
+			reason = reason[:truncReason] + "..."
 		}
-		fmt.Printf("| %3d | %-32s | %-8s | %-10s | %-29s | %-29s | %-29s |\n",
+		fmt.Printf("| %"+fmt.Sprintf("%dd", colStepNumWidth)+" | %-"+fmt.Sprintf("%ds", colStepNameWidth)+" | %-"+fmt.Sprintf("%ds", colStatusWidth)+" | %-"+fmt.Sprintf("%ds", colDurationWidth)+" | %-"+fmt.Sprintf("%ds", colOutputWidth)+" | %-"+fmt.Sprintf("%ds", colErrorWidth)+" | %-"+fmt.Sprintf("%ds", colReasonWidth)+" |\n",
 			i+1, stepName, step.Result.Status, step.Duration.String(), output, errorMsg, reason)
 	}
 }

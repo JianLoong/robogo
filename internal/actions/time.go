@@ -9,7 +9,7 @@ import (
 	"github.com/JianLoong/robogo/internal/types"
 )
 
-func timeAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func timeAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	format := "2006-01-02T15:04:05Z07:00" // RFC3339 format
 	if len(args) > 0 {
 		format = fmt.Sprintf("%v", args[0])

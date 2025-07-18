@@ -9,5 +9,5 @@ type TestCase struct {
 }
 
 type TestVariables struct {
-	Vars map[string]interface{} `yaml:"vars,omitempty"`
+	Vars map[string]any `yaml:"vars,omitempty"`
 }

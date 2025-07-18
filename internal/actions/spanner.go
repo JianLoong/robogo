@@ -14,7 +14,7 @@ import (
 	_ "github.com/googleapis/go-sql-spanner"
 )
 
-func spannerAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func spannerAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
 		result, _ := types.NewErrorResult("spanner action requires at least 3 arguments: operation, database_path, query")
 		return result, nil
@@ -51,11 +51,11 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			return result, nil
 		}
 
-		var results [][]interface{}
+		var results [][]any
 		rowCount := 0
 		for rows.Next() {
-			values := make([]interface{}, len(columns))
-			valuePtrs := make([]interface{}, len(columns))
+			values := make([]any, len(columns))
+			valuePtrs := make([]any, len(columns))
 			for i := range values {
 				valuePtrs[i] = &values[i]
 			}
@@ -77,7 +77,7 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			return result, nil
 		}
 
-		result := map[string]interface{}{
+		result := map[string]any{
 			"columns": columns,
 			"rows":    results,
 		}
@@ -86,7 +86,7 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 			if err == nil {
 				return types.ActionResult{
 					Status: types.ActionStatusPassed,
-					Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+					Data:   map[string]any{"json_string": string(jsonBytes)},
 					Output: string(jsonBytes),
 				}, nil
 			}
@@ -108,7 +108,7 @@ func spannerAction(args []interface{}, options map[string]interface{}, vars *com
 		affected, _ := res.RowsAffected()
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data:   map[string]interface{}{"rows_affected": affected},
+			Data:   map[string]any{"rows_affected": affected},
 			Output: fmt.Sprintf("DML executed successfully, %d rows affected", affected),
 		}, nil
 

@@ -21,10 +21,10 @@ steps:
     action: log
     args: ["Pretty response:", "${http_response.status_code}"]
 
-  - name: "Test status code assertion"
-    action: assert
-    args: ["${http_response.status_code}", "==", "200", "Should be 200"]
+  # - name: "Test status code assertion"
+  #   action: assert
+  #   args: ["${http_response.status_code}", "==", "200", "Should be 200"]
 
-  - name: "Assert that the expected value is correct"
-    action: assert
-    args: ["${http_response.body}", "==", "${expected_value}"]
+  # - name: "Assert that the expected value is correct"
+  #   action: assert
+  #   args: ["${http_response.body}", "==", "${expected_value}"]

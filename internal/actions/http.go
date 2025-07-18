@@ -14,7 +14,7 @@ import (
 
 // httpAction performs an HTTP request. It always returns status code, headers, and raw body.
 // If options["parse_json"] == true and the body is valid JSON, the parsed JSON is included in Data.
-func httpAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func httpAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	fmt.Println("[DEBUG] Entered httpAction")
 	if len(args) < 2 {
 		return types.NewErrorResult("http action requires at least 2 arguments: method and URL")
@@ -40,7 +40,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 		return types.NewErrorResult("failed to create request: %v", err)
 	}
 
-	if headers, ok := options["headers"].(map[string]interface{}); ok {
+	if headers, ok := options["headers"].(map[string]any); ok {
 		for key, value := range headers {
 			req.Header.Set(key, fmt.Sprintf("%v", value))
 		}
@@ -68,7 +68,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 	}
 
 	respBodyStr := string(responseBody)
-	result := map[string]interface{}{
+	result := map[string]any{
 		"status_code": resp.StatusCode,
 		"body":        respBodyStr,
 		"headers":     resp.Header,
@@ -76,7 +76,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 
 	parseJSON, _ := options["parse_json"].(bool)
 	if parseJSON {
-		var parsedBody interface{}
+		var parsedBody any
 		if err := json.Unmarshal(responseBody, &parsedBody); err == nil {
 			result["json"] = parsedBody
 			if asJSON, ok := options["as_json"].(bool); ok && asJSON {
@@ -84,7 +84,7 @@ func httpAction(args []interface{}, options map[string]interface{}, vars *common
 				if err == nil {
 					return types.ActionResult{
 						Status: types.ActionStatusPassed,
-						Data:   map[string]interface{}{"json_string": string(jsonBytes)},
+						Data:   map[string]any{"json_string": string(jsonBytes)},
 						Output: string(jsonBytes),
 					}, nil
 				}

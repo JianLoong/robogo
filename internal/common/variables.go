@@ -9,19 +9,19 @@ import (
 
 // Variables - simple variable storage and substitution
 type Variables struct {
-	data map[string]interface{}
+	data map[string]any
 }
 
 func NewVariables() *Variables {
 	return &Variables{
-		data: make(map[string]interface{}),
+		data: make(map[string]any),
 	}
 }
 
-func (v *Variables) Set(key string, value interface{}) {
+func (v *Variables) Set(key string, value any) {
 	// If value is a JSON string, try to parse it
 	if str, ok := value.(string); ok {
-		var parsed interface{}
+		var parsed any
 		if err := json.Unmarshal([]byte(str), &parsed); err == nil {
 			v.data[key] = parsed
 			return
@@ -30,14 +30,14 @@ func (v *Variables) Set(key string, value interface{}) {
 	v.data[key] = value
 }
 
-func (v *Variables) Get(key string) interface{} {
+func (v *Variables) Get(key string) any {
 	if val, exists := v.data[key]; exists {
 		return val
 	}
 	return nil
 }
 
-func (v *Variables) Load(vars map[string]interface{}) {
+func (v *Variables) Load(vars map[string]any) {
 	for k, val := range vars {
 		v.data[k] = val
 	}
@@ -84,7 +84,7 @@ func (v *Variables) Substitute(template string) string {
 }
 
 // Enhanced dot notation resolver with array indexing support
-func (v *Variables) resolveDotNotation(varName string) interface{} {
+func (v *Variables) resolveDotNotation(varName string) any {
 	if !strings.Contains(varName, ".") && !strings.Contains(varName, "[") {
 		// Simple variable
 		if val, exists := v.data[varName]; exists {
@@ -165,7 +165,7 @@ func (v *Variables) parsePath(varName string) []string {
 }
 
 // Navigate a single segment (property or array index)
-func (v *Variables) navigateSegment(current interface{}, segment string) interface{} {
+func (v *Variables) navigateSegment(current any, segment string) any {
 	if strings.HasPrefix(segment, "[") && strings.HasSuffix(segment, "]") {
 		// Array index
 		indexStr := segment[1 : len(segment)-1]
@@ -174,14 +174,14 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 			return nil
 		}
 
-		// Support []interface{}
-		if arr, ok := current.([]interface{}); ok {
+		// Support []any
+		if arr, ok := current.([]any); ok {
 			if index >= 0 && index < len(arr) {
 				return arr[index]
 			}
 		}
-		// Support [][]interface{} (slice of slices)
-		if arr, ok := current.([][]interface{}); ok {
+		// Support [][]any (slice of slices)
+		if arr, ok := current.([][]any); ok {
 			if index >= 0 && index < len(arr) {
 				return arr[index]
 			}
@@ -190,15 +190,15 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 	} else {
 		// Special property: length
 		if segment == "length" {
-			if arr, ok := current.([]interface{}); ok {
+			if arr, ok := current.([]any); ok {
 				return len(arr)
 			}
 			// Also support length on string
 			if str, ok := current.(string); ok {
 				return len(str)
 			}
-			// Support length on [][]interface{} (slice of slices)
-			if arr, ok := current.([][]interface{}); ok {
+			// Support length on [][]any (slice of slices)
+			if arr, ok := current.([][]any); ok {
 				return len(arr)
 			}
 			fmt.Printf("[DEBUG] Length requested on type: %T, value: %v\n", current, current)
@@ -206,7 +206,7 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 		}
 
 		// Property access
-		if m, ok := current.(map[string]interface{}); ok {
+		if m, ok := current.(map[string]any); ok {
 			if val, exists := m[segment]; exists {
 				return val
 			}
@@ -216,8 +216,8 @@ func (v *Variables) navigateSegment(current interface{}, segment string) interfa
 }
 
 // Substitute variables in arguments
-func (v *Variables) SubstituteArgs(args []interface{}) []interface{} {
-	result := make([]interface{}, len(args))
+func (v *Variables) SubstituteArgs(args []any) []any {
+	result := make([]any, len(args))
 	for i, arg := range args {
 		if str, ok := arg.(string); ok {
 			result[i] = v.Substitute(str)

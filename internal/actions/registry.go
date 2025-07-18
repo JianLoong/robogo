@@ -6,7 +6,7 @@ import (
 )
 
 // Action function signature
-type ActionFunc func(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error)
+type ActionFunc func(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error)
 
 // Action registry - centralized registration of all actions
 var ActionRegistry = map[string]ActionFunc{

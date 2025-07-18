@@ -13,7 +13,7 @@ import (
 )
 
 // Kafka action - simplified implementation with immediate connection management
-func kafkaAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func kafkaAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 2 {
 		return types.NewErrorResult("kafka action requires at least 2 arguments: operation, broker")
 	}
@@ -47,7 +47,7 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data:   map[string]interface{}{"status": "published"},
+			Data:   map[string]any{"status": "published"},
 		}, nil
 
 	case "consume":
@@ -102,7 +102,7 @@ func kafkaAction(args []interface{}, options map[string]interface{}, vars *commo
 
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"messages":  messages,
 				"count":     len(messages),
 				"partition": lastPartition,

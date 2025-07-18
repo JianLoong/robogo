@@ -9,7 +9,7 @@ import (
 	"github.com/JianLoong/robogo/internal/types"
 )
 
-func logAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func logAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) == 0 {
 		return types.NewErrorResult("log action requires at least 1 argument")
 	}

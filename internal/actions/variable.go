@@ -7,7 +7,7 @@ import (
 	"github.com/JianLoong/robogo/internal/types"
 )
 
-func variableAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func variableAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 2 {
 		return types.NewErrorResult("variable action requires at least 2 arguments")
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func uuidAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func uuidAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	id := uuid.New().String()
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,

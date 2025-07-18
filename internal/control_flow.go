@@ -68,7 +68,7 @@ func (cfe *ControlFlowExecutor) ExecuteStepWithControlFlow(step types.Step, step
 // executeStepForLoop executes a step in a for loop
 func (cfe *ControlFlowExecutor) executeStepForLoop(step types.Step, stepNum int) ([]types.StepResult, error) {
 	rangeOrArray := cfe.variables.Substitute(step.For)
-	var iterations []interface{}
+	var iterations []any
 
 	// Parse range, array, or count
 	if strings.Contains(rangeOrArray, "..") {
@@ -231,7 +231,7 @@ func (cfe *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (*type
 	args := cfe.variables.SubstituteArgs(step.Args)
 
 	// Substitute variables in options
-	options := make(map[string]interface{})
+	options := make(map[string]any)
 	for k, v := range step.Options {
 		if str, ok := v.(string); ok {
 			options[k] = cfe.variables.Substitute(str)

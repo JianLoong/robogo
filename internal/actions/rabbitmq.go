@@ -12,7 +12,7 @@ import (
 )
 
 // RabbitMQ action - simplified implementation with proper resource management
-func rabbitmqAction(args []interface{}, options map[string]interface{}, vars *common.Variables) (types.ActionResult, error) {
+func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
 	if len(args) < 3 {
 		return types.NewErrorResult("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange")
 	}
@@ -66,7 +66,7 @@ func rabbitmqAction(args []interface{}, options map[string]interface{}, vars *co
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
-			Data:   map[string]interface{}{"status": "published"},
+			Data:   map[string]any{"status": "published"},
 		}, nil
 
 	default:
