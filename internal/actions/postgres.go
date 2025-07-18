@@ -16,7 +16,9 @@ import (
 // PostgreSQL action - simplified implementation with proper resource management
 func postgresAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 3 {
-		return types.NewErrorResult("postgres action requires at least 3 arguments: operation, connection_string, query")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "POSTGRES_MISSING_ARGS").
+			WithTemplate("postgres action requires at least 3 arguments: operation, connection_string, query").
+			Build()
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -26,7 +28,11 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 	// Open connection for this operation only
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		return types.NewErrorResult("failed to open postgres connection: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "POSTGRES_CONNECTION_FAILED").
+			WithTemplate("failed to open postgres connection: %v").
+			WithContext("connection_string", connectionString).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 	defer db.Close()
 
@@ -35,7 +41,11 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 	db.SetConnMaxLifetime(constants.DefaultConnectionLifetime)
 
 	if err = db.Ping(); err != nil {
-		return types.NewErrorResult("failed to ping postgres database: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "POSTGRES_PING_FAILED").
+			WithTemplate("failed to ping postgres database: %v").
+			WithContext("connection_string", connectionString).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultDatabaseTimeout)
@@ -45,13 +55,21 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 	case constants.OperationQuery, constants.OperationSelect:
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			return types.NewErrorResult("failed to execute query: %v", err)
+			return types.NewErrorBuilder(types.ErrorCategoryExecution, "POSTGRES_QUERY_FAILED").
+				WithTemplate("failed to execute query: %v").
+				WithContext("query", query).
+				WithContext("error", err.Error()).
+				Build(err)
 		}
 		defer rows.Close()
 
 		columns, err := rows.Columns()
 		if err != nil {
-			return types.NewErrorResult("failed to get columns: %v", err)
+			return types.NewErrorBuilder(types.ErrorCategoryExecution, "POSTGRES_COLUMNS_FAILED").
+				WithTemplate("failed to get columns: %v").
+				WithContext("query", query).
+				WithContext("error", err.Error()).
+				Build(err)
 		}
 
 		var results [][]any
@@ -62,7 +80,11 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 				valuePtrs[i] = &values[i]
 			}
 			if err := rows.Scan(valuePtrs...); err != nil {
-				return types.NewErrorResult("failed to scan row: %v", err)
+				return types.NewErrorBuilder(types.ErrorCategoryExecution, "POSTGRES_SCAN_FAILED").
+					WithTemplate("failed to scan row: %v").
+					WithContext("query", query).
+					WithContext("error", err.Error()).
+					Build(err)
 			}
 			results = append(results, values)
 		}
@@ -89,7 +111,11 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 	case constants.OperationExecute, constants.OperationInsert, constants.OperationUpdate, constants.OperationDelete:
 		result, err := db.ExecContext(ctx, query)
 		if err != nil {
-			return types.NewErrorResult("failed to execute statement: %v", err)
+			return types.NewErrorBuilder(types.ErrorCategoryExecution, "POSTGRES_EXECUTE_FAILED").
+				WithTemplate("failed to execute statement: %v").
+				WithContext("query", query).
+				WithContext("error", err.Error()).
+				Build(err)
 		}
 		rowsAffected, _ := result.RowsAffected()
 		return types.ActionResult{
@@ -98,6 +124,9 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 		}
 
 	default:
-		return types.NewErrorResult("unknown postgres operation: %s", operation)
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "POSTGRES_UNKNOWN_OPERATION").
+			WithTemplate("unknown postgres operation: %s").
+			WithContext("operation", operation).
+			Build(operation)
 	}
 }

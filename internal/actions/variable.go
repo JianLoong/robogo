@@ -9,7 +9,9 @@ import (
 
 func variableAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 2 {
-		return types.NewErrorResult("variable action requires at least 2 arguments")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "VARIABLE_MISSING_ARGS").
+			WithTemplate("variable action requires at least 2 arguments").
+			Build()
 	}
 
 	name := fmt.Sprintf("%v", args[0])

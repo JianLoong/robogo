@@ -1,0 +1,19 @@
+testcase: "Test Error Handling"
+description: "Test to verify new error handling system"
+
+steps:
+  - name: "Test successful log action"
+    action: "log"
+    args: ["Hello, World!"]
+  
+  - name: "Test assertion success"
+    action: "assert"
+    args: [true]
+  
+  - name: "Test assertion failure"
+    action: "assert"
+    args: [false, "==", true]
+  
+  - name: "This should not run"
+    action: "log"
+    args: ["This should not be executed"]

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	
+
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
@@ -12,9 +12,11 @@ import (
 
 func assertAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 1 {
-		return types.NewErrorResult("assert action requires at least 1 argument")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "ASSERT_MISSING_ARGS").
+			WithTemplate("assert action requires at least 1 argument").
+			Build()
 	}
-	
+
 	// Handle single boolean argument
 	if len(args) == 1 {
 		if b, ok := args[0].(bool); ok && b {
@@ -22,19 +24,22 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) ty
 				Status: types.ActionStatusPassed,
 			}
 		}
-		return types.NewErrorResult("assertion failed: %v", args[0])
+		return types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_FAILED").
+			WithTemplate("assertion failed: %v").
+			WithContext("value", args[0]).
+			Build(args[0])
 	}
-	
+
 	// Handle comparison syntax: [value, operator, expected]
 	if len(args) >= 3 {
 		actual := args[0]
 		operator := args[1]
 		expected := args[2]
-		
+
 		// Convert to strings for comparison
 		actualStr := fmt.Sprintf("%v", actual)
 		expectedStr := fmt.Sprintf("%v", expected)
-		
+
 		var result bool
 		switch operator {
 		case constants.OperatorEqual:
@@ -52,23 +57,36 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) ty
 		case constants.OperatorContains:
 			result = strings.Contains(actualStr, expectedStr)
 		default:
-			return types.NewErrorResult("unsupported operator: %v", operator)
+			return types.NewErrorBuilder(types.ErrorCategoryValidation, "ASSERT_UNSUPPORTED_OPERATOR").
+				WithTemplate("unsupported operator: %v").
+				WithContext("operator", operator).
+				Build(operator)
 		}
-		
+
 		if result {
 			return types.ActionResult{
 				Status: types.ActionStatusPassed,
 			}
 		}
-		
-		message := fmt.Sprintf("assertion failed: %v %v %v", actual, operator, expected)
+
+		builder := types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_COMPARISON_FAILED").
+			WithTemplate("assertion failed: %v %v %v").
+			WithContext("actual", actual).
+			WithContext("operator", operator).
+			WithContext("expected", expected)
+
 		if len(args) > 3 {
-			message = fmt.Sprintf("%v (%v)", message, args[3])
+			builder.WithContext("message", args[3])
+			return builder.WithTemplate("assertion failed: %v %v %v (%v)").Build(actual, operator, expected, args[3])
 		}
-		return types.NewErrorResult(message)
+
+		return builder.Build(actual, operator, expected)
 	}
-	
-	return types.NewErrorResult("assertion failed: %v", args[0])
+
+	return types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_FAILED").
+		WithTemplate("assertion failed: %v").
+		WithContext("value", args[0]).
+		Build(args[0])
 }
 
 // compareNumeric compares two strings numerically if possible, falling back to string comparison.
@@ -78,7 +96,7 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) ty
 func compareNumeric(actual, expected, operator string) bool {
 	actualNum, actualErr := strconv.ParseFloat(actual, 64)
 	expectedNum, expectedErr := strconv.ParseFloat(expected, 64)
-	
+
 	if actualErr != nil || expectedErr != nil {
 		// Fall back to string comparison if not numeric
 		switch operator {
@@ -93,7 +111,7 @@ func compareNumeric(actual, expected, operator string) bool {
 		}
 		return false
 	}
-	
+
 	switch operator {
 	case constants.OperatorGreaterThan:
 		return actualNum > expectedNum

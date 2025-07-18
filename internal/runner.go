@@ -50,7 +50,7 @@ func (r *TestRunner) RunTest(filename string) (*types.TestResult, error) {
 
 		if r.anyStepFailedOrErrored(stepResults, stepErr) {
 			result.Status = r.aggregateStatus(stepResults)
-			result.Error = r.getFirstError(stepResults)
+			result.ErrorInfo = r.getFirstErrorInfo(stepResults)
 			break
 		}
 	}
@@ -93,15 +93,15 @@ func (r *TestRunner) aggregateStatus(stepResults []types.StepResult) string {
 	return string(types.ActionStatusPassed)
 }
 
-// getFirstError extracts the first error from step results.
-func (r *TestRunner) getFirstError(stepResults []types.StepResult) string {
+// getFirstErrorInfo extracts the first ErrorInfo from step results.
+func (r *TestRunner) getFirstErrorInfo(stepResults []types.StepResult) *types.ErrorInfo {
 	for _, sr := range stepResults {
 		switch sr.Result.Status {
 		case types.ActionStatusError, types.ActionStatusFailed:
-			if sr.Result.Error != "" {
-				return sr.Result.Error
+			if sr.Result.ErrorInfo != nil {
+				return sr.Result.ErrorInfo
 			}
 		}
 	}
-	return ""
+	return nil
 }

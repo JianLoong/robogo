@@ -109,8 +109,8 @@ func printTestSummary(result *types.TestResult) {
 	fmt.Printf("  Name: %s\n", result.Name)
 	fmt.Printf("  Status: %s\n", result.Status)
 	fmt.Printf("  Duration: %s\n", result.Duration)
-	if result.Error != "" {
-		fmt.Printf("  Error: %s\n", result.Error)
+	if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+		fmt.Printf("  Error: %s\n", errorMsg)
 	}
 	fmt.Println("\n|  #  | Step Name                                | Status   | Duration     | Error                                    | Reason                                   |")
 	fmt.Println("|-----|------------------------------------------|----------|--------------|------------------------------------------|------------------------------------------|")
@@ -119,11 +119,11 @@ func printTestSummary(result *types.TestResult) {
 		if len(stepName) > colStepNameWidth {
 			stepName = stepName[:truncStepName] + "..."
 		}
-		errorMsg := step.Result.Error
+		errorMsg := step.Result.GetErrorMessage()
 		if len(errorMsg) > colErrorWidth {
 			errorMsg = errorMsg[:truncError] + "..."
 		}
-		reason := step.Result.Reason
+		reason := step.Result.GetSkipReason()
 		if len(reason) > colReasonWidth {
 			reason = reason[:truncReason] + "..."
 		}

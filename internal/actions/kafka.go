@@ -16,7 +16,9 @@ import (
 // Kafka action - simplified implementation with immediate connection management
 func kafkaAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 2 {
-		return types.NewErrorResult("kafka action requires at least 2 arguments: operation, broker")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "KAFKA_MISSING_ARGS").
+			WithTemplate("kafka action requires at least 2 arguments: operation, broker").
+			Build()
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -28,14 +30,16 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 			timeout = t
 		}
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	switch operation {
 	case constants.OperationPublish:
 		if len(args) < 4 {
-			return types.NewErrorResult("kafka publish requires: operation, broker, topic, message")
+			return types.NewErrorBuilder(types.ErrorCategoryValidation, "KAFKA_PUBLISH_MISSING_ARGS").
+				WithTemplate("kafka publish requires: operation, broker, topic, message").
+				Build()
 		}
 		topic := fmt.Sprintf("%v", args[2])
 		message := fmt.Sprintf("%v", args[3])
@@ -51,7 +55,12 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 			Value: []byte(message),
 		})
 		if err != nil {
-			return types.NewErrorResult("failed to publish message: %v", err)
+			return types.NewErrorBuilder(types.ErrorCategoryNetwork, "KAFKA_PUBLISH_FAILED").
+				WithTemplate("failed to publish message: %v").
+				WithContext("broker", broker).
+				WithContext("topic", topic).
+				WithContext("error", err.Error()).
+				Build(err)
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
@@ -60,7 +69,9 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 
 	case constants.OperationConsume:
 		if len(args) < 3 {
-			return types.NewErrorResult("kafka consume requires: operation, broker, topic")
+			return types.NewErrorBuilder(types.ErrorCategoryValidation, "KAFKA_CONSUME_MISSING_ARGS").
+				WithTemplate("kafka consume requires: operation, broker, topic").
+				Build()
 		}
 		topic := fmt.Sprintf("%v", args[2])
 
@@ -97,7 +108,10 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 				}
 			}
 			if count < 0 {
-				return types.NewErrorResult("count must be >= 0, got %d", count)
+				return types.NewErrorBuilder(types.ErrorCategoryValidation, "KAFKA_INVALID_COUNT").
+					WithTemplate("count must be >= 0, got %d").
+					WithContext("count", count).
+					Build(count)
 			}
 			if count == 0 {
 				// Return empty result without consuming
@@ -122,9 +136,18 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 				if i == 0 {
 					// Check if it's a timeout error for better user feedback
 					if strings.Contains(err.Error(), "context deadline exceeded") {
-						return types.NewErrorResult("failed to consume message: timeout waiting for messages (topic may not exist or be empty)")
+						return types.NewErrorBuilder(types.ErrorCategoryNetwork, "KAFKA_CONSUME_TIMEOUT").
+							WithTemplate("failed to consume message: timeout waiting for messages (topic may not exist or be empty)").
+							WithContext("broker", broker).
+							WithContext("topic", topic).
+							Build()
 					}
-					return types.NewErrorResult("failed to consume message: %v", err)
+					return types.NewErrorBuilder(types.ErrorCategoryNetwork, "KAFKA_CONSUME_FAILED").
+						WithTemplate("failed to consume message: %v").
+						WithContext("broker", broker).
+						WithContext("topic", topic).
+						WithContext("error", err.Error()).
+						Build(err)
 				}
 				break // return what we have so far
 			}
@@ -144,6 +167,9 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 		}
 
 	default:
-		return types.NewErrorResult("unknown kafka operation: %s", operation)
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "KAFKA_UNKNOWN_OPERATION").
+			WithTemplate("unknown kafka operation: %s").
+			WithContext("operation", operation).
+			Build(operation)
 	}
 }

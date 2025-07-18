@@ -16,7 +16,9 @@ import (
 func httpAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	fmt.Println("[DEBUG] Entered httpAction")
 	if len(args) < 2 {
-		return types.NewErrorResult("http action requires at least 2 arguments: method and URL")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "HTTP_MISSING_ARGS").
+			WithTemplate("http action requires at least 2 arguments: method and URL").
+			Build()
 	}
 
 	method := fmt.Sprintf("%v", args[0])
@@ -36,7 +38,12 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		return types.NewErrorResult("failed to create request: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "HTTP_REQUEST_CREATE_FAILED").
+			WithTemplate("failed to create request: %v").
+			WithContext("method", method).
+			WithContext("url", url).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 
 	if headers, ok := options["headers"].(map[string]any); ok {
@@ -57,13 +64,24 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 	resp, err := client.Do(req)
 	fmt.Println("[DEBUG] HTTP request completed")
 	if err != nil {
-		return types.NewErrorResult("HTTP request failed: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "HTTP_REQUEST_FAILED").
+			WithTemplate("HTTP request failed: %v").
+			WithContext("method", method).
+			WithContext("url", url).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return types.NewErrorResult("failed to read response body: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "HTTP_RESPONSE_READ_FAILED").
+			WithTemplate("failed to read response body: %v").
+			WithContext("method", method).
+			WithContext("url", url).
+			WithContext("status_code", resp.StatusCode).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 
 	respBodyStr := string(responseBody)

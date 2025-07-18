@@ -11,7 +11,9 @@ import (
 
 func logAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) == 0 {
-		return types.NewErrorResult("log action requires at least 1 argument")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "LOG_MISSING_ARGS").
+			WithTemplate("log action requires at least 1 argument").
+			Build()
 	}
 
 	parts := make([]string, len(args))

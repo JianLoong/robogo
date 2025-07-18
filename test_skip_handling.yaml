@@ -1,0 +1,12 @@
+testcase: "Test Skip Handling"
+description: "Test to verify skip reason handling"
+
+steps:
+  - name: "Test successful log action"
+    action: "log"
+    args: ["This should work"]
+  
+  - name: "Test conditional step that should be skipped"
+    action: "log"
+    args: ["This should be skipped"]
+    if: "false"

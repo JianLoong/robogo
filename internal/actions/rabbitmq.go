@@ -14,7 +14,9 @@ import (
 // RabbitMQ action - simplified implementation with proper resource management
 func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 3 {
-		return types.NewErrorResult("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange")
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "RABBITMQ_MISSING_ARGS").
+			WithTemplate("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange").
+			Build()
 	}
 
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
@@ -22,17 +24,28 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 
 	conn, err := amqp.Dial(connectionString)
 	if err != nil {
-		return types.NewErrorResult("failed to connect to RabbitMQ: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "RABBITMQ_CONNECTION_FAILED").
+			WithTemplate("failed to connect to RabbitMQ: %v").
+			WithContext("connection_string", connectionString).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 	defer conn.Close()
 
 	if conn.IsClosed() {
-		return types.NewErrorResult("RabbitMQ connection closed immediately")
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "RABBITMQ_CONNECTION_CLOSED").
+			WithTemplate("RabbitMQ connection closed immediately").
+			WithContext("connection_string", connectionString).
+			Build()
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		return types.NewErrorResult("failed to open channel: %v", err)
+		return types.NewErrorBuilder(types.ErrorCategoryNetwork, "RABBITMQ_CHANNEL_FAILED").
+			WithTemplate("failed to open channel: %v").
+			WithContext("connection_string", connectionString).
+			WithContext("error", err.Error()).
+			Build(err)
 	}
 	defer func() {
 		if closeErr := ch.Close(); closeErr != nil {
@@ -46,7 +59,9 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 	switch operation {
 	case constants.OperationPublish:
 		if len(args) < 4 {
-			return types.NewErrorResult("rabbitmq publish requires: operation, connection_string, queue/exchange, message")
+			return types.NewErrorBuilder(types.ErrorCategoryValidation, "RABBITMQ_PUBLISH_MISSING_ARGS").
+				WithTemplate("rabbitmq publish requires: operation, connection_string, queue/exchange, message").
+				Build()
 		}
 		queueOrExchange := fmt.Sprintf("%v", args[2])
 		message := fmt.Sprintf("%v", args[3])
@@ -62,7 +77,12 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 			},
 		)
 		if err != nil {
-			return types.NewErrorResult("failed to publish message: %v", err)
+			return types.NewErrorBuilder(types.ErrorCategoryNetwork, "RABBITMQ_PUBLISH_FAILED").
+				WithTemplate("failed to publish message: %v").
+				WithContext("connection_string", connectionString).
+				WithContext("queue", queueOrExchange).
+				WithContext("error", err.Error()).
+				Build(err)
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
@@ -70,6 +90,9 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 		}
 
 	default:
-		return types.NewErrorResult("unknown rabbitmq operation: %s", operation)
+		return types.NewErrorBuilder(types.ErrorCategoryValidation, "RABBITMQ_UNKNOWN_OPERATION").
+			WithTemplate("unknown rabbitmq operation: %s").
+			WithContext("operation", operation).
+			Build(operation)
 	}
 }
