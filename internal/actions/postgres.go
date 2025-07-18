@@ -6,15 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 	_ "github.com/lib/pq"
 )
 
 // PostgreSQL action - simplified implementation with proper resource management
-func postgresAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func postgresAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 3 {
 		return types.NewErrorResult("postgres action requires at least 3 arguments: operation, connection_string, query")
 	}
@@ -32,17 +32,17 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(0)
-	db.SetConnMaxLifetime(1 * time.Second)
+	db.SetConnMaxLifetime(constants.DefaultConnectionLifetime)
 
 	if err = db.Ping(); err != nil {
 		return types.NewErrorResult("failed to ping postgres database: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultDatabaseTimeout)
 	defer cancel()
 
 	switch operation {
-	case "query", "select":
+	case constants.OperationQuery, constants.OperationSelect:
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
 			return types.NewErrorResult("failed to execute query: %v", err)
@@ -77,16 +77,16 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 				return types.ActionResult{
 					Status: types.ActionStatusPassed,
 					Data:   map[string]any{"json_string": string(jsonBytes)},
-				}, nil
+				}
 			}
 			// If marshaling fails, fall through to structured result
 		}
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   result,
-		}, nil
+		}
 
-	case "execute", "insert", "update", "delete":
+	case constants.OperationExecute, constants.OperationInsert, constants.OperationUpdate, constants.OperationDelete:
 		result, err := db.ExecContext(ctx, query)
 		if err != nil {
 			return types.NewErrorResult("failed to execute statement: %v", err)
@@ -95,7 +95,7 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   map[string]any{"rows_affected": rowsAffected},
-		}, nil
+		}
 
 	default:
 		return types.NewErrorResult("unknown postgres operation: %s", operation)

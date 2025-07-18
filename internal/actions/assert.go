@@ -6,10 +6,11 @@ import (
 	"strings"
 	
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
-func assertAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func assertAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 1 {
 		return types.NewErrorResult("assert action requires at least 1 argument")
 	}
@@ -19,7 +20,7 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) (t
 		if b, ok := args[0].(bool); ok && b {
 			return types.ActionResult{
 				Status: types.ActionStatusPassed,
-			}, nil
+			}
 		}
 		return types.NewErrorResult("assertion failed: %v", args[0])
 	}
@@ -36,19 +37,19 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) (t
 		
 		var result bool
 		switch operator {
-		case "==":
+		case constants.OperatorEqual:
 			result = actualStr == expectedStr
-		case "!=":
+		case constants.OperatorNotEqual:
 			result = actualStr != expectedStr
-		case ">":
-			result = compareNumeric(actualStr, expectedStr, ">")
-		case "<":
-			result = compareNumeric(actualStr, expectedStr, "<")
-		case ">=":
-			result = compareNumeric(actualStr, expectedStr, ">=")
-		case "<=":
-			result = compareNumeric(actualStr, expectedStr, "<=")
-		case "contains":
+		case constants.OperatorGreaterThan:
+			result = compareNumeric(actualStr, expectedStr, constants.OperatorGreaterThan)
+		case constants.OperatorLessThan:
+			result = compareNumeric(actualStr, expectedStr, constants.OperatorLessThan)
+		case constants.OperatorGreaterThanOrEqual:
+			result = compareNumeric(actualStr, expectedStr, constants.OperatorGreaterThanOrEqual)
+		case constants.OperatorLessThanOrEqual:
+			result = compareNumeric(actualStr, expectedStr, constants.OperatorLessThanOrEqual)
+		case constants.OperatorContains:
 			result = strings.Contains(actualStr, expectedStr)
 		default:
 			return types.NewErrorResult("unsupported operator: %v", operator)
@@ -57,7 +58,7 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) (t
 		if result {
 			return types.ActionResult{
 				Status: types.ActionStatusPassed,
-			}, nil
+			}
 		}
 		
 		message := fmt.Sprintf("assertion failed: %v %v %v", actual, operator, expected)
@@ -70,33 +71,37 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) (t
 	return types.NewErrorResult("assertion failed: %v", args[0])
 }
 
+// compareNumeric compares two strings numerically if possible, falling back to string comparison.
+// It first attempts to parse both values as floating-point numbers. If successful, it performs
+// numeric comparison. If either value cannot be parsed as a number, it falls back to string
+// comparison using Go's string comparison operators.
 func compareNumeric(actual, expected, operator string) bool {
-	actualNum, err1 := strconv.ParseFloat(actual, 64)
-	expectedNum, err2 := strconv.ParseFloat(expected, 64)
+	actualNum, actualErr := strconv.ParseFloat(actual, 64)
+	expectedNum, expectedErr := strconv.ParseFloat(expected, 64)
 	
-	if err1 != nil || err2 != nil {
+	if actualErr != nil || expectedErr != nil {
 		// Fall back to string comparison if not numeric
 		switch operator {
-		case ">":
+		case constants.OperatorGreaterThan:
 			return actual > expected
-		case "<":
+		case constants.OperatorLessThan:
 			return actual < expected
-		case ">=":
+		case constants.OperatorGreaterThanOrEqual:
 			return actual >= expected
-		case "<=":
+		case constants.OperatorLessThanOrEqual:
 			return actual <= expected
 		}
 		return false
 	}
 	
 	switch operator {
-	case ">":
+	case constants.OperatorGreaterThan:
 		return actualNum > expectedNum
-	case "<":
+	case constants.OperatorLessThan:
 		return actualNum < expectedNum
-	case ">=":
+	case constants.OperatorGreaterThanOrEqual:
 		return actualNum >= expectedNum
-	case "<=":
+	case constants.OperatorLessThanOrEqual:
 		return actualNum <= expectedNum
 	}
 	return false

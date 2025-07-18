@@ -13,7 +13,7 @@ import (
 
 // httpAction performs an HTTP request. It always returns status code, headers, and raw body.
 // If options["parse_json"] == true and the body is valid JSON, the parsed JSON is included in Data.
-func httpAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func httpAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	fmt.Println("[DEBUG] Entered httpAction")
 	if len(args) < 2 {
 		return types.NewErrorResult("http action requires at least 2 arguments: method and URL")
@@ -76,5 +76,5 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) (typ
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
 		Data:   result,
-	}, nil
+	}
 }

@@ -21,7 +21,8 @@
       "Bash(./robogo:*)",
       "Bash(SPANNER_EMULATOR_HOST=localhost:9010 timeout 15s ./robogo run debug-spanner.yaml)",
       "Bash(timeout:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(../robogo.exe run 01-http-get.yaml)"
     ],
     "deny": []
   }

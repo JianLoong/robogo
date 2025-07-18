@@ -23,11 +23,11 @@ type ActionResult struct {
 	Meta   any          `json:"meta,omitempty"`   // Optional metadata (timing, logs, etc.)
 }
 
-// NewErrorResult creates an ActionResult with error status and a Go error.
-func NewErrorResult(msg string, args ...any) (ActionResult, error) {
+// NewErrorResult creates an ActionResult with error status.
+func NewErrorResult(msg string, args ...any) ActionResult {
 	formatted := fmt.Sprintf(msg, args...)
 	return ActionResult{
 		Status: ActionStatusError,
 		Error:  formatted,
-	}, fmt.Errorf(formatted)
+	}
 }

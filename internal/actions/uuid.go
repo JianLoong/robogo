@@ -6,10 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
-func uuidAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func uuidAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	id := uuid.New().String()
 	return types.ActionResult{
 		Status: types.ActionStatusPassed,
 		Data:   id,
-	}, nil
+	}
 }

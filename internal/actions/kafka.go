@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 	"github.com/segmentio/kafka-go"
 )
 
 // Kafka action - simplified implementation with immediate connection management
-func kafkaAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func kafkaAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 2 {
 		return types.NewErrorResult("kafka action requires at least 2 arguments: operation, broker")
 	}
@@ -32,7 +33,7 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 	defer cancel()
 
 	switch operation {
-	case "publish":
+	case constants.OperationPublish:
 		if len(args) < 4 {
 			return types.NewErrorResult("kafka publish requires: operation, broker, topic, message")
 		}
@@ -55,9 +56,9 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   map[string]any{"status": "published"},
-		}, nil
+		}
 
-	case "consume":
+	case constants.OperationConsume:
 		if len(args) < 3 {
 			return types.NewErrorResult("kafka consume requires: operation, broker, topic")
 		}
@@ -108,7 +109,7 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 						"partition": 0,
 						"offset":    int64(0),
 					},
-				}, nil
+				}
 			}
 		}
 
@@ -140,7 +141,7 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) (ty
 				"partition": lastPartition,
 				"offset":    lastOffset,
 			},
-		}, nil
+		}
 
 	default:
 		return types.NewErrorResult("unknown kafka operation: %s", operation)

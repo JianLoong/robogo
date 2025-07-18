@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 )
 
 // ConditionEvaluator handles condition evaluation for control flow
@@ -20,10 +21,15 @@ func NewConditionEvaluator(variables *common.Variables) *ConditionEvaluator {
 	}
 }
 
-// Evaluate evaluates a condition string and returns true/false
-func (ce *ConditionEvaluator) Evaluate(condition string) (bool, error) {
+// Evaluate evaluates a condition string and returns true/false.
+// It first substitutes variables, then handles simple boolean values ("true"/"false").
+// For more complex conditions, it supports comparison operators:
+// - Equality: ==, !=
+// - Numeric: >, <, >=, <= (with automatic string fallback)
+// - String: contains, starts_with, ends_with
+func (evaluator *ConditionEvaluator) Evaluate(condition string) (bool, error) {
 	// Substitute variables first
-	condition = ce.variables.Substitute(condition)
+	condition = evaluator.variables.Substitute(condition)
 	
 	// Handle simple boolean values
 	if condition == "true" {
@@ -34,7 +40,7 @@ func (ce *ConditionEvaluator) Evaluate(condition string) (bool, error) {
 	}
 
 	// Handle comparison operators
-	operators := []string{">=", "<=", "==", "!=", ">", "<", "contains", "starts_with", "ends_with"}
+	operators := []string{constants.OperatorGreaterThanOrEqual, constants.OperatorLessThanOrEqual, constants.OperatorEqual, constants.OperatorNotEqual, constants.OperatorGreaterThan, constants.OperatorLessThan, constants.OperatorContains, constants.OperatorStartsWith, constants.OperatorEndsWith}
 	
 	for _, op := range operators {
 		if strings.Contains(condition, op) {
@@ -46,41 +52,41 @@ func (ce *ConditionEvaluator) Evaluate(condition string) (bool, error) {
 			right := strings.TrimSpace(parts[1])
 			
 			switch op {
-			case "==":
+			case constants.OperatorEqual:
 				return left == right, nil
-			case "!=":
+			case constants.OperatorNotEqual:
 				return left != right, nil
-			case "contains":
+			case constants.OperatorContains:
 				return strings.Contains(left, right), nil
-			case "starts_with":
+			case constants.OperatorStartsWith:
 				return strings.HasPrefix(left, right), nil
-			case "ends_with":
+			case constants.OperatorEndsWith:
 				return strings.HasSuffix(left, right), nil
-			case ">", "<", ">=", "<=":
+			case constants.OperatorGreaterThan, constants.OperatorLessThan, constants.OperatorGreaterThanOrEqual, constants.OperatorLessThanOrEqual:
 				// Try numeric comparison
-				leftNum, err1 := strconv.ParseFloat(left, 64)
-				rightNum, err2 := strconv.ParseFloat(right, 64)
-				if err1 == nil && err2 == nil {
+				leftNum, leftErr := strconv.ParseFloat(left, 64)
+				rightNum, rightErr := strconv.ParseFloat(right, 64)
+				if leftErr == nil && rightErr == nil {
 					switch op {
-					case ">":
+					case constants.OperatorGreaterThan:
 						return leftNum > rightNum, nil
-					case "<":
+					case constants.OperatorLessThan:
 						return leftNum < rightNum, nil
-					case ">=":
+					case constants.OperatorGreaterThanOrEqual:
 						return leftNum >= rightNum, nil
-					case "<=":
+					case constants.OperatorLessThanOrEqual:
 						return leftNum <= rightNum, nil
 					}
 				}
 				// String comparison as fallback
 				switch op {
-				case ">":
+				case constants.OperatorGreaterThan:
 					return left > right, nil
-				case "<":
+				case constants.OperatorLessThan:
 					return left < right, nil
-				case ">=":
+				case constants.OperatorGreaterThanOrEqual:
 					return left >= right, nil
-				case "<=":
+				case constants.OperatorLessThanOrEqual:
 					return left <= right, nil
 				}
 			}

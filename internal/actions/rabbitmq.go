@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // RabbitMQ action - simplified implementation with proper resource management
-func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) (types.ActionResult, error) {
+func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 3 {
 		return types.NewErrorResult("rabbitmq action requires at least 3 arguments: operation, connection_string, queue/exchange")
 	}
@@ -40,11 +40,11 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultMessagingTimeout)
 	defer cancel()
 
 	switch operation {
-	case "publish":
+	case constants.OperationPublish:
 		if len(args) < 4 {
 			return types.NewErrorResult("rabbitmq publish requires: operation, connection_string, queue/exchange, message")
 		}
@@ -67,7 +67,7 @@ func rabbitmqAction(args []any, options map[string]any, vars *common.Variables) 
 		return types.ActionResult{
 			Status: types.ActionStatusPassed,
 			Data:   map[string]any{"status": "published"},
-		}, nil
+		}
 
 	default:
 		return types.NewErrorResult("unknown rabbitmq operation: %s", operation)
