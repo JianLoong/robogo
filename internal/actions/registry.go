@@ -27,8 +27,12 @@ var ActionRegistry = map[string]ActionFunc{
 	"spanner":  spannerAction,
 
 	// Messaging actions
-	"kafka":    kafkaAction,
-	"rabbitmq": rabbitmqAction,
+	"kafka":         kafkaAction,
+	"rabbitmq":      rabbitmqAction,
+	"swift_message": swiftMessageAction,
+	
+	// JSON actions
+	"json_build": jsonBuildAction,
 }
 
 // Helper function to get action

@@ -1,0 +1,44 @@
+# Example: Generate a SWIFT MT103 message using the minimal template
+# The 'result' field saves the ActionResult.Data value to a variable for later use.
+testcase: "TC-10-Generate Swift Message"
+description: Generate Swift MT103 Message With No Optional Fields
+
+steps:
+  - name: Create MT103 Swift Message
+    action: swift_message
+    args:
+      - "mt103.txt"
+      - {
+          SenderBIC: "BANKBEBBAXXX",
+          ReceiverBIC: "BANKDEFFXXXX",
+          TransactionRef: "REF123456789",
+          BankOperationCode: "CRED",
+          ValueDate: "250719",         # YYMMDD
+          Currency: "EUR",
+          InterbankAmount: "1000,00",
+          OrderingCustomer: "John Doe\n123 Main St\nBrussels",
+          BeneficiaryCustomer: "Jane Smith\n456 Elm St\nBerlin",
+          DetailsOfCharges: "SHA"
+        }
+    result: swiftMsg
+  
+  - name: Log Message
+    action: log
+    args: ["Generated SWIFT MT103 message:", "${swiftMsg}"]
+
+  - name: Send MT103 to httpbin
+    action: http
+    args: ["POST", "https://httpbin.org/post", "${swiftMsg}"]
+    result: http_response
+
+  - name: Log HTTP response status
+    action: log
+    args: ["HTTP response status:", "${http_response.status_code}"]
+
+  - name: Log HTTP response body
+    action: log
+    args: ["HTTP response body:", "${http_response.body}"]
+
+  - name: Assert TransactionRef in response
+    action: assert
+    args: ["${http_response.body}", "contains", "REF123456789", "HTTP response should contain the TransactionRef"] 

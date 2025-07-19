@@ -255,12 +255,44 @@ func (v *Variables) SubstituteArgs(args []any) []any {
 	result := make([]any, len(args))
 	for i, arg := range args {
 		if str, ok := arg.(string); ok {
-			result[i] = v.Substitute(str)
+			// Check if this is a simple variable reference like "${variable_name}"
+			if v.isSimpleVariableReference(str) {
+				// For simple variable references, return the actual object instead of string representation
+				varName := strings.TrimSuffix(strings.TrimPrefix(str, "${"), "}")
+				if value := v.Get(varName); value != nil {
+					result[i] = value
+				} else {
+					result[i] = v.Substitute(str)
+				}
+			} else {
+				result[i] = v.Substitute(str)
+			}
 		} else {
 			result[i] = arg
 		}
 	}
 	return result
+}
+
+// isSimpleVariableReference checks if a string is a simple variable reference like "${variable_name}"
+func (v *Variables) isSimpleVariableReference(str string) bool {
+	// Check if it matches the pattern ${variable_name} with no complex expressions
+	if !strings.HasPrefix(str, "${") || !strings.HasSuffix(str, "}") {
+		return false
+	}
+	
+	varName := strings.TrimSuffix(strings.TrimPrefix(str, "${"), "}")
+	
+	// Check if it's a simple variable name (no dots, operators, etc.)
+	// Allow alphanumeric characters and underscores
+	for _, char := range varName {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
+			 (char >= '0' && char <= '9') || char == '_') {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // SubstituteArgsWithContext performs variable substitution on arguments with tracking

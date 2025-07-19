@@ -55,7 +55,7 @@ steps:
 
   - name: "Store retrieved age"
     action: variable
-    args: ["set", "retrieved_age", "${user_data.rows[0][3]}"]
+    args: ["retrieved_age", "${user_data.rows[0][3]}"]
     
   # Verify all the data matches what we inserted
   - name: "Verify name matches"

@@ -2,12 +2,18 @@
 
 A simple, modern test automation framework written in Go. Robogo provides a clean YAML-based DSL for writing test cases with support for HTTP APIs, databases, messaging systems, and more.
 
+**Shift-Left Testing**: Robogo enables developers to run comprehensive end-to-end tests early in the development cycle with clear, readable test definitions that improve collaboration between development and testing teams.
+
 ## Features
 
+- **Developer-Friendly**: Clear, readable YAML tests that developers can easily understand and maintain
+- **Shift-Left Ready**: Run full end-to-end tests in development environments
 - **Simple YAML Tests**: Write tests in clean, readable YAML format
 - **HTTP Testing**: Full HTTP client with response validation and variable substitution
 - **Database Support**: PostgreSQL and Google Cloud Spanner with immediate connections
 - **Messaging**: Kafka and RabbitMQ operations with auto-commit support
+- **Financial Messaging**: SWIFT message generation for banking and financial testing
+- **JSON Construction**: Build complex JSON structures directly from YAML
 - **Variable Substitution**: Dynamic variables with expression evaluation using `${variable}` syntax
 - **Enhanced Assertions**: Support for multiple comparison operators and string matching
 - **Clean CLI Tool**: Immediate connection handling - no hanging processes
@@ -86,6 +92,12 @@ Run it:
 - **`kafka`** - Kafka publish/consume with auto-commit support
 - **`rabbitmq`** - RabbitMQ publish/consume operations
 
+### Financial Actions
+- **`swift_message`** - Generate SWIFT financial messages from templates
+
+### JSON Actions
+- **`json_build`** - Create JSON objects and arrays from nested YAML structures
+
 ## Test Structure
 
 ### Basic Test Case
@@ -112,6 +124,69 @@ steps:
   - name: "Check response contains email"
     action: assert
     args: ["${response.body}", "contains", "${user_email}"]
+```
+
+### JSON Construction
+
+Create complex JSON structures directly from YAML:
+
+```yaml
+steps:
+  - name: "Create user object"
+    action: json_build
+    args:
+      - id: "${user_id}"
+        name: "${user_name}"
+        email: "${user_email}"
+        active: true
+        profile:
+          age: 30
+          preferences: ["email", "sms"]
+    result: user_json
+    
+  - name: "Send JSON to API"
+    action: http
+    args: ["POST", "${api_url}/users", "${user_json}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+    result: response
+```
+
+The `json_build` action automatically handles:
+- Variable substitution in nested structures
+- Proper JSON marshaling for HTTP requests
+- Property access via dot notation (e.g., `${user_json.name}`)
+
+### SWIFT Message Generation
+
+Generate SWIFT financial messages using templates:
+
+```yaml
+steps:
+  - name: "Generate MT103 message"
+    action: swift_message
+    args: ["mt103"]
+    options:
+      data:
+        SenderBIC: "BANKGB2L"
+        ReceiverBIC: "BANKUS33"
+        TransactionRef: "TXN-${transaction_id}"
+        BankOperationCode: "CRED"
+        ValueDate: "240719"
+        Currency: "USD"
+        InterbankAmount: "1000.00"
+        OrderingCustomer: "John Doe\\nMain Street 123"
+        BeneficiaryCustomer: "Jane Smith\\nOak Avenue 456"
+        DetailsOfCharges: "OUR"
+    result: swift_msg
+    
+  - name: "Send to processing system"
+    action: http
+    args: ["POST", "${swift_endpoint}", "${swift_msg}"]
+    options:
+      headers:
+        Content-Type: "text/plain"
 ```
 
 ### Advanced Assertions
@@ -247,6 +322,8 @@ robogo/
 │   │   ├── postgres.go         # PostgreSQL operations
 │   │   ├── spanner.go          # Spanner operations
 │   │   ├── rabbitmq.go         # RabbitMQ operations
+│   │   ├── swift.go            # SWIFT message generation
+│   │   ├── json.go             # JSON construction utilities
 │   │   ├── log.go              # Logging action
 │   │   ├── variable.go         # Variable management
 │   │   ├── uuid.go             # UUID generation
@@ -263,6 +340,9 @@ robogo/
 │   ├── parser.go                # YAML parsing
 │   └── control_flow.go          # Control flow execution
 ├── examples/                    # Example tests
+├── templates/                   # Message templates
+│   └── swift/                  # SWIFT message templates
+│       └── mt103.txt           # MT103 credit transfer template
 ├── setup-spanner.sh            # Spanner setup script
 ├── setup-spanner.ps1           # Spanner setup (Windows)
 └── docker-compose.yml         # Development services
@@ -270,11 +350,14 @@ robogo/
 
 ## Architecture Principles
 
+- **Developer-Centric Design**: Tests are written as clear, readable YAML that developers can easily understand and modify
+- **Shift-Left Enablement**: Full end-to-end testing capabilities that run efficiently in development environments
 - **Simple & Direct**: No over-engineering, interfaces, or dependency injection
 - **Immediate Connections**: Database and messaging connections open/close per operation
 - **CLI Tool Design**: Clean exit, no hanging processes
 - **Minimal Dependencies**: Only essential libraries
 - **KISS Principle**: Keep it simple and straightforward
+- **Test Clarity**: Every test step is self-documenting with clear names and expected outcomes
 
 ## Example Tests
 
@@ -292,6 +375,8 @@ The `examples/` directory contains comprehensive test examples organized by comp
 - **`07-spanner-advanced.yaml`** - Advanced Spanner verification
 - **`08-control-flow.yaml`** - Control flow examples (if, for, while)
 - **`09-e2e-integration.yaml`** - End-to-end integration test
+- **`10-swift-mt103.yaml`** - SWIFT MT103 message generation
+- **`11-json-build.yaml`** - Complex JSON construction and HTTP integration
 
 ### Running Examples
 
@@ -314,6 +399,36 @@ The `examples/` directory contains comprehensive test examples organized by comp
 # Advanced features
 ./robogo run examples/08-control-flow.yaml
 ./robogo run examples/09-e2e-integration.yaml
+
+# SWIFT and JSON features (no services required)
+./robogo run examples/10-swift-mt103.yaml
+./robogo run examples/11-json-build.yaml
+```
+
+## Shift-Left Testing Benefits
+
+Robogo enables **true shift-left testing** by allowing developers to:
+
+### For Developers
+- **Run Full E2E Tests Locally**: Complete integration tests with databases, messaging, and external APIs
+- **Clear Test Intent**: YAML format makes test logic immediately visible and understandable
+- **Fast Feedback**: Quick test execution with immediate connection handling
+- **Easy Setup**: Simple environment setup for comprehensive testing
+
+### For Teams
+- **Improved Collaboration**: QA and developers can read and modify the same test definitions
+- **Living Documentation**: Tests serve as executable specifications of system behavior
+- **Early Bug Detection**: Catch integration issues before they reach staging environments
+- **Reduced Testing Debt**: E2E tests written during development, not as an afterthought
+
+### Example: Developer Workflow
+```bash
+# 1. Run relevant tests during development
+./robogo run tests/user-registration-flow.yaml
+./robogo run tests/payment-processing.yaml
+
+# 2. Validate changes before commit
+./robogo run tests/critical-paths.yaml
 ```
 
 ## Advanced Features

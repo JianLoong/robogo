@@ -1,0 +1,142 @@
+testcase: "TC-11-JSON-BUILD"
+description: "Test json_build action with nested objects and arrays"
+
+variables:
+  vars:
+    user_id: 123
+    user_name: "John Doe"
+    user_email: "john@example.com"
+    product_price: 19.99
+
+    base_url: "https://httpbin.org/post"
+steps:
+  # Simple flat JSON
+  - name: "Create simple user JSON"
+    action: json_build
+    args:
+      - id: "${user_id}"
+        name: "${user_name}"
+        email: "${user_email}"
+        active: true
+        balance: 150.75
+    result: simple_json
+
+  - name: "Log simple JSON"
+    action: log
+    args: ["Simple JSON:", "${simple_json}"]
+
+  - name: "Assert simple JSON structure"
+    action: assert
+    args: ["${simple_json}", "contains", "john@example.com", "JSON should contain email"]
+
+  # Complex nested JSON with arrays
+  - name: "Create complex order JSON"
+    action: json_build
+    args:
+      - order_id: "ORD-${user_id}"
+        timestamp: "2024-07-19T10:30:00Z"
+        customer:
+          id: "${user_id}"
+          name: "${user_name}"
+          email: "${user_email}"
+          address:
+            street: "123 Main Street"
+            city: "New York"
+            state: "NY"
+            zipcode: "10001"
+            country: "USA"
+        items:
+          - product_id: "PROD001"
+            name: "Widget A"
+            price: "${product_price}"
+            quantity: 2
+            total: 39.98
+          - product_id: "PROD002"
+            name: "Widget B"
+            price: 29.99
+            quantity: 1
+            total: 29.99
+        subtotal: 69.97
+        tax: 6.30
+        shipping: 5.99
+        total: 82.26
+        payment:
+          method: "credit_card"
+          card:
+            last4: "1234"
+            type: "visa"
+            exp_month: 12
+            exp_year: 2025
+        shipping_address:
+          same_as_billing: false
+          street: "456 Oak Avenue"
+          city: "Brooklyn"
+          state: "NY"
+          zipcode: "11201"
+          country: "USA"
+        metadata:
+          source: "web"
+          campaign: "summer2024"
+          notes: null
+    result: complex_json
+
+  - name: "Log complex JSON"
+    action: log
+    args: ["Complex JSON:", "${complex_json}"]
+
+  # Test sending JSON to HTTP endpoint
+  - name: "Send JSON to httpbin"
+    action: http
+    args: ["POST", "https://httpbin.org/post", "${complex_json}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+    result: http_response
+
+  - name: "Assert HTTP success"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200", "HTTP request should succeed"]
+
+  - name: "Debug HTTP response"
+    action: log
+    args: ["HTTP Response:", "${http_response}"]
+
+  - name: "Assert JSON was received correctly"
+    action: assert
+    args: ["${http_response.body}", "contains", "ORD-123", "Response should contain our order ID"]
+
+  # Test JSON array creation
+  - name: "Create JSON array"
+    action: json_build
+    args:
+      - - id: 1
+          name: "First Item"
+        - id: 2
+          name: "Second Item"
+        - id: 3
+          name: "Third Item"
+    result: json_array
+
+  - name: "Log JSON array"
+    action: log
+    args: ["JSON Array:", "${json_array}"]
+
+  - name: "Assert array structure"
+    action: assert
+    args: ["${json_array}", "contains", "First Item", "Array should contain first item"]
+
+  - name: "Make HTTP POST request"
+    action: http
+    args: ["POST", "${base_url}", "${json_array}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+    result: http_response
+
+  - name: "Verify status code"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200", "Should return 200 OK"]
+
+  - name: "Log response body"
+    action: log
+    args: ["Response body:", "${http_response.body}"]

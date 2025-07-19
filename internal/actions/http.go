@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,17 +24,39 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 	method := fmt.Sprintf("%v", args[0])
 	url := fmt.Sprintf("%v", args[1])
 
-	var body string
-	if len(args) > 2 {
-		body = fmt.Sprintf("%v", args[2])
-	}
-
-	// Extract request headers for context
+	// Extract request headers for context first (needed for body processing)
 	var requestHeaders map[string]string
 	if headers, ok := options["headers"].(map[string]any); ok {
 		requestHeaders = make(map[string]string)
 		for key, value := range headers {
 			requestHeaders[key] = fmt.Sprintf("%v", value)
+		}
+	}
+
+	var body string
+	if len(args) > 2 {
+		// Smart JSON serialization for application/json requests
+		contentType := ""
+		if requestHeaders != nil {
+			// Check for Content-Type header (case-insensitive)
+			for key, value := range requestHeaders {
+				if strings.ToLower(key) == "content-type" {
+					contentType = strings.ToLower(value)
+					break
+				}
+			}
+		}
+		
+		// If Content-Type is application/json, handle JSON intelligently
+		if strings.Contains(contentType, "application/json") {
+			// Try to marshal any data structure to JSON
+			if jsonBytes, err := json.Marshal(args[2]); err == nil {
+				body = string(jsonBytes)
+			} else {
+				body = fmt.Sprintf("%v", args[2])
+			}
+		} else {
+			body = fmt.Sprintf("%v", args[2])
 		}
 	}
 
@@ -87,3 +110,4 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		Data:   result,
 	}
 }
+

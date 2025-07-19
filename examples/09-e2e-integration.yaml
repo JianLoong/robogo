@@ -23,8 +23,6 @@ steps:
   - name: "POST to API"
     action: http
     args: ["POST", "${base_url}", "${test_data}"]
-    options:
-      parse_json: true
     result: "http_response"
 
   - name: "Assert HTTP 200"
