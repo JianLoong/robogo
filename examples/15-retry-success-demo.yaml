@@ -1,0 +1,46 @@
+testcase: "TC-15-RETRY-SUCCESS-DEMO"
+description: "Demonstrate retry functionality with various outcomes"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org"
+
+steps:
+  # Test 1: HTTP request that succeeds immediately (no retry needed)
+  - name: "HTTP request - succeeds on first attempt"
+    action: http
+    args: ["GET", "${base_url}/status/200"]
+    retry:
+      attempts: 3
+      delay: "1s"
+      stop_on_success: true
+    result: immediate_success
+
+  # Test 2: Simple assertion that works
+  - name: "Assertion - succeeds immediately"
+    action: assert
+    args: ["${immediate_success.status_code}", "==", "200", "Status should be 200"]
+    retry:
+      attempts: 3
+      delay: "500ms"
+    result: assertion_success
+
+  # Test 3: Demonstrate exponential backoff timing
+  - name: "Log exponential backoff demo"
+    action: log
+    args: ["Next test will demonstrate exponential backoff: 1s, 2s, 4s delays"]
+
+  # Test 4: A test that will fail all attempts to show exponential backoff
+  - name: "Assertion failure with exponential backoff"
+    action: assert
+    args: ["no", "==", "yes", "This will fail to show retry timing"]
+    retry:
+      attempts: 4
+      delay: "1s"
+      backoff: "exponential"
+    result: exponential_demo
+
+  # This step won't be reached due to failure above, but shows test structure
+  - name: "This step would continue if previous succeeded"
+    action: log
+    args: ["Test completed - note that failed retries stop test execution"]

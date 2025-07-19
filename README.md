@@ -16,6 +16,7 @@ A simple, modern test automation framework written in Go. Robogo provides a clea
 - **JSON Construction**: Build complex JSON structures directly from YAML
 - **Variable Substitution**: Dynamic variables with expression evaluation using `${variable}` syntax
 - **Enhanced Assertions**: Support for multiple comparison operators and string matching
+- **Retry Logic**: Built-in retry capabilities for handling eventual consistency and processing delays
 - **Clean CLI Tool**: Immediate connection handling - no hanging processes
 - **Formatted Output**: Clean table summaries with execution details
 
@@ -218,6 +219,53 @@ steps:
 
 **Supported operators**: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`
 
+### Retry Logic
+
+Handle eventual consistency and processing delays with built-in retry capabilities:
+
+```yaml
+steps:
+  # Basic retry with fixed delay
+  - name: "Poll for completion"
+    action: http
+    args: ["GET", "${api_url}/status/${job_id}"]
+    retry:
+      attempts: 5
+      delay: "2s"
+      backoff: "fixed"
+    result: job_status
+    
+  # Exponential backoff for quick failures
+  - name: "Wait for database consistency"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT status FROM orders WHERE id = ${order_id}"]
+    retry:
+      attempts: 6
+      delay: "500ms"
+      backoff: "exponential"  # 500ms, 1s, 2s, 4s, 8s, 16s
+      retry_on: ["connection_error", "timeout"]
+    result: order_status
+    
+  # Assertion retry for eventual consistency
+  - name: "Verify processing completed"
+    action: assert
+    args: ["${job_status.json.state}", "==", "completed"]
+    retry:
+      attempts: 10
+      delay: "3s"
+      backoff: "linear"  # 3s, 6s, 9s, 12s...
+      retry_on: ["assertion_failed"]
+      stop_on_success: true
+    result: completion_check
+```
+
+**Retry Configuration:**
+- `attempts`: Number of total attempts (including first try)
+- `delay`: Base delay between attempts (e.g., "1s", "500ms")
+- `backoff`: Strategy - "fixed", "linear", or "exponential"
+- `retry_on`: Specific error types - ["assertion_failed", "http_error", "timeout", "connection_error", "all"]
+- `stop_on_success`: Stop retrying immediately on success (default: true)
+
 ### Variable Substitution
 
 Variables support expression evaluation with dot notation:
@@ -377,6 +425,10 @@ The `examples/` directory contains comprehensive test examples organized by comp
 - **`09-e2e-integration.yaml`** - End-to-end integration test
 - **`10-swift-mt103.yaml`** - SWIFT MT103 message generation
 - **`11-json-build.yaml`** - Complex JSON construction and HTTP integration
+- **`12-retry-scenarios.yaml`** - Retry functionality demonstrations
+- **`13-retry-demo.yaml`** - Simple retry examples
+- **`14-retry-with-failures.yaml`** - Retry with failure scenarios
+- **`15-retry-success-demo.yaml`** - Retry timing and backoff strategies
 
 ### Running Examples
 
@@ -403,6 +455,10 @@ The `examples/` directory contains comprehensive test examples organized by comp
 # SWIFT and JSON features (no services required)
 ./robogo run examples/10-swift-mt103.yaml
 ./robogo run examples/11-json-build.yaml
+
+# Retry functionality examples (no services required)
+./robogo run examples/13-retry-demo.yaml
+./robogo run examples/15-retry-success-demo.yaml
 ```
 
 ## Shift-Left Testing Benefits

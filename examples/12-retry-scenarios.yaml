@@ -1,0 +1,89 @@
+testcase: "TC-12-RETRY-SCENARIOS"
+description: "Test retry functionality with various scenarios"
+
+variables:
+  vars:
+    retry_endpoint: "https://httpbin.org/status"
+    nonexistent_endpoint: "https://httpbin.org/delay/1"
+    base_url: "https://httpbin.org"
+
+steps:
+  # Test 1: Simple retry with fixed delay
+  - name: "Test basic retry with fixed delay"
+    action: http
+    args: ["GET", "${base_url}/status/500"]
+    retry:
+      attempts: 3
+      delay: "1s"
+      backoff: "fixed"
+    result: fixed_retry_result
+
+  # Test 2: Exponential backoff retry
+  - name: "Test exponential backoff retry"
+    action: http
+    args: ["GET", "${base_url}/status/503"]
+    retry:
+      attempts: 4
+      delay: "500ms"
+      backoff: "exponential"
+    result: exponential_retry_result
+
+  # Test 3: Linear backoff retry
+  - name: "Test linear backoff retry"
+    action: http
+    args: ["GET", "${base_url}/status/502"]
+    retry:
+      attempts: 3
+      delay: "800ms"
+      backoff: "linear"
+    result: linear_retry_result
+
+  # Test 4: Retry on specific error types (will succeed on first try)
+  - name: "Test retry on HTTP errors only (should succeed immediately)"
+    action: http
+    args: ["GET", "${base_url}/status/200"]
+    retry:
+      attempts: 5
+      delay: "1s"
+      retry_on: ["http_error"]
+      stop_on_success: true
+    result: success_result
+
+  # Test 5: Assertion retry (will fail all attempts)
+  - name: "Test assertion retry"
+    action: assert
+    args: ["${success_result.status_code}", "==", "404", "This should fail and retry"]
+    retry:
+      attempts: 3
+      delay: "500ms"
+      retry_on: ["assertion_failed"]
+    result: assertion_retry_result
+
+  # Test 6: Successful retry scenario (using delay endpoint)
+  - name: "Test eventual success with delay endpoint"
+    action: http
+    args: ["GET", "${base_url}/delay/0"]
+    retry:
+      attempts: 3
+      delay: "1s"
+      stop_on_success: true
+    result: eventual_success
+
+  # Test 7: Log final results
+  - name: "Log retry test summary"
+    action: log
+    args: ["Retry tests completed - some failures are expected for demonstration"]
+
+  # Test 8: Complex scenario - retry with variable substitution
+  - name: "Test retry with variable substitution"
+    action: variable
+    args: ["test_status_code", "200"]
+
+  - name: "Verify variable with retry"
+    action: assert
+    args: ["${test_status_code}", "==", "200", "Variable should equal 200"]
+    retry:
+      attempts: 2
+      delay: "200ms"
+      retry_on: ["assertion_failed"]
+    result: variable_test_result

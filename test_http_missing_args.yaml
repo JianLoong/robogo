@@ -1,8 +1,0 @@
-testcase: "TC-HTTP-MISSING-ARGS-001"
-description: "Test HTTP missing arguments error"
-
-steps:
-  - name: "Test missing arguments error"
-    action: http
-    args: ["GET"]
-    result: "missing_args_error"

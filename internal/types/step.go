@@ -9,4 +9,14 @@ type Step struct {
 	If      string         `yaml:"if,omitempty"`
 	For     string         `yaml:"for,omitempty"`
 	While   string         `yaml:"while,omitempty"`
+	Retry   *RetryConfig   `yaml:"retry,omitempty"`
+}
+
+// RetryConfig defines retry behavior for a step
+type RetryConfig struct {
+	Attempts    int      `yaml:"attempts"`
+	Delay       string   `yaml:"delay"`
+	Backoff     string   `yaml:"backoff,omitempty"`     // "fixed", "linear", "exponential"
+	RetryOn     []string `yaml:"retry_on,omitempty"`    // Specific error types to retry on
+	StopOnSuccess bool   `yaml:"stop_on_success,omitempty"` // Stop retrying on first success
 }

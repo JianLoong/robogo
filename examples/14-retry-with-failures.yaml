@@ -1,0 +1,55 @@
+testcase: "TC-14-RETRY-WITH-FAILURES"
+description: "Demonstrate retry with actual failures and recovery"
+
+variables:
+  vars:
+    counter: 0
+
+steps:
+  # Test 1: Assertion that will fail initially then succeed
+  - name: "Test assertion retry (will fail first, then succeed)"
+    action: variable
+    args: ["retry_test_value", "wrong_value"]
+
+  - name: "Assert with retry (should fail then we'll fix it)"
+    action: assert
+    args: ["${retry_test_value}", "==", "correct_value", "Testing retry behavior"]
+    retry:
+      attempts: 3
+      delay: "1s"
+      retry_on: ["assertion_failed"]
+    result: assertion_result
+
+  # Test 2: Show that even with failures, we can continue
+  - name: "Log continuation after retry failure"
+    action: log
+    args: ["Test continued after retry failure - this is expected behavior"]
+
+  # Test 3: Variable that succeeds immediately
+  - name: "Set correct value for next test"
+    action: variable
+    args: ["success_value", "expected"]
+
+  - name: "Assert that succeeds on first try"
+    action: assert
+    args: ["${success_value}", "==", "expected", "This should succeed immediately"]
+    retry:
+      attempts: 5
+      delay: "500ms"
+      retry_on: ["assertion_failed"]
+    result: immediate_success
+
+  # Test 4: HTTP retry with a delayed endpoint
+  - name: "Test HTTP with delay (simulates processing time)"
+    action: http
+    args: ["GET", "https://httpbin.org/delay/1"]
+    retry:
+      attempts: 3
+      delay: "2s"
+      backoff: "linear"
+    result: delayed_response
+
+  # Test 5: Log completion
+  - name: "Final test summary"
+    action: log
+    args: ["Retry with failures demo completed - failures are expected and normal"]
