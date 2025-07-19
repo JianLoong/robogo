@@ -9,6 +9,7 @@ import (
 	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/constants"
+	"github.com/JianLoong/robogo/internal/templates"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
@@ -47,7 +48,7 @@ func (executor *ControlFlowExecutor) ExecuteStepWithControlFlow(step types.Step,
 				Name:   step.Name,
 				Action: step.Action,
 				Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "IF_CONDITION_FAILED").
-					WithTemplate("if condition evaluation failed: %v").
+					WithTemplate(templates.GetTemplateConstant(constants.TemplateIfConditionFailed)).
 					WithContext("condition", condition).
 					WithContext("error", err.Error()).
 					Build(err),
@@ -105,7 +106,7 @@ func (executor *ControlFlowExecutor) parseRange(rangeSpec string, step types.Ste
 			Name:   step.Name,
 			Action: step.Action,
 			Result: types.NewErrorBuilder(types.ErrorCategoryValidation, "INVALID_RANGE_FORMAT").
-				WithTemplate("invalid range format: %s").
+				WithTemplate(templates.GetTemplateConstant(constants.TemplateInvalidRangeFormat)).
 				WithContext("range_spec", rangeSpec).
 				Build(rangeSpec),
 		}, fmt.Errorf("invalid range format: %s", rangeSpec)
@@ -117,7 +118,7 @@ func (executor *ControlFlowExecutor) parseRange(rangeSpec string, step types.Ste
 			Name:   step.Name,
 			Action: step.Action,
 			Result: types.NewErrorBuilder(types.ErrorCategoryValidation, "INVALID_START_VALUE").
-				WithTemplate("invalid start value: %s").
+				WithTemplate(templates.GetTemplateConstant(constants.TemplateInvalidStartValue)).
 				WithContext("start_value", parts[0]).
 				Build(parts[0]),
 		}, fmt.Errorf("invalid start value: %s", parts[0])
@@ -129,7 +130,7 @@ func (executor *ControlFlowExecutor) parseRange(rangeSpec string, step types.Ste
 			Name:   step.Name,
 			Action: step.Action,
 			Result: types.NewErrorBuilder(types.ErrorCategoryValidation, "INVALID_END_VALUE").
-				WithTemplate("invalid end value: %s").
+				WithTemplate(templates.GetTemplateConstant(constants.TemplateInvalidEndValue)).
 				WithContext("end_value", parts[1]).
 				Build(parts[1]),
 		}, fmt.Errorf("invalid end value: %s", parts[1])
@@ -163,7 +164,7 @@ func (executor *ControlFlowExecutor) parseCount(countSpec string, step types.Ste
 			Name:   step.Name,
 			Action: step.Action,
 			Result: types.NewErrorBuilder(types.ErrorCategoryValidation, "INVALID_COUNT_FORMAT").
-				WithTemplate("invalid count format: %s").
+				WithTemplate(templates.GetTemplateConstant(constants.TemplateInvalidCountFormat)).
 				WithContext("count_spec", countSpec).
 				Build(countSpec),
 		}, fmt.Errorf("invalid count format: %s", countSpec)
@@ -183,24 +184,38 @@ func (executor *ControlFlowExecutor) parseCount(countSpec string, step types.Ste
 // - item: current iteration value
 func (executor *ControlFlowExecutor) executeIterations(step types.Step, stepNum int, iterations []any) ([]types.StepResult, error) {
 	var results []types.StepResult
+	forCondition := executor.variables.Substitute(step.For)
+
 	for i, item := range iterations {
 		// Set loop variables
 		executor.variables.Set(constants.LoopVariableIteration, i+1)
 		executor.variables.Set(constants.LoopVariableIndex, i)
 		executor.variables.Set(constants.LoopVariableItem, item)
 
+		// Create loop context for this iteration
+		loopCtx := types.NewForLoopContext(i+1, i, item, forCondition)
+
 		// Check if condition within loop
 		if step.If != "" {
 			condition := executor.variables.Substitute(step.If)
 			shouldExecute, err := executor.conditionEvaluator.Evaluate(condition)
 			if err != nil {
+				// Create step context for error enrichment
+				stepContext := types.NewStepContext(stepNum, step.Name, step.Action).
+					WithLoopContext(loopCtx)
+
+				builder := types.NewErrorBuilder(types.ErrorCategoryExecution, "IF_CONDITION_FAILED").
+					WithTemplate(templates.GetTemplateConstant(constants.TemplateIfConditionFailed))
+
+				// Add step context to error
+				for key, value := range stepContext.ToMap() {
+					builder.WithContext(key, value)
+				}
+
 				stepResult := &types.StepResult{
 					Name:   fmt.Sprintf("%s (iteration %d)", step.Name, i+1),
 					Action: step.Action,
-					Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "IF_CONDITION_FAILED").
-						WithTemplate("if condition evaluation failed: %v").
-						WithContext("condition", condition).
-						WithContext("iteration", i+1).
+					Result: builder.WithContext("condition", condition).
 						WithContext("error", err.Error()).
 						Build(err),
 				}
@@ -219,7 +234,7 @@ func (executor *ControlFlowExecutor) executeIterations(step types.Step, stepNum 
 			}
 		}
 
-		stepResult, err := executor.executeStep(step, stepNum)
+		stepResult, err := executor.executeStepWithContext(step, stepNum, loopCtx)
 		stepResult.Name = fmt.Sprintf("%s (iteration %d)", step.Name, i+1)
 		results = append(results, *stepResult)
 
@@ -238,22 +253,35 @@ func (executor *ControlFlowExecutor) executeStepWhileLoop(step types.Step, stepN
 	const maxIterations = constants.MaxWhileLoopIterations
 	iterations := 0
 	var results []types.StepResult
+	whileCondition := executor.variables.Substitute(step.While)
 
 	for iterations < maxIterations {
 		iterations++
 		executor.variables.Set(constants.LoopVariableIteration, iterations)
 
+		// Create loop context for this iteration
+		loopCtx := types.NewWhileLoopContext(iterations, whileCondition, maxIterations)
+
 		// Evaluate condition
 		condition := executor.variables.Substitute(step.While)
 		shouldContinue, err := executor.conditionEvaluator.Evaluate(condition)
 		if err != nil {
+			// Create step context for error enrichment
+			stepContext := types.NewStepContext(stepNum, step.Name, step.Action).
+				WithLoopContext(loopCtx)
+
+			builder := types.NewErrorBuilder(types.ErrorCategoryExecution, "WHILE_CONDITION_FAILED").
+				WithTemplate(templates.GetTemplateConstant(constants.TemplateWhileConditionFailed))
+
+			// Add step context to error
+			for key, value := range stepContext.ToMap() {
+				builder.WithContext(key, value)
+			}
+
 			stepResult := &types.StepResult{
 				Name:   step.Name,
 				Action: step.Action,
-				Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "WHILE_CONDITION_FAILED").
-					WithTemplate("while condition evaluation failed: %v").
-					WithContext("condition", condition).
-					WithContext("iteration", iterations).
+				Result: builder.WithContext("condition", condition).
 					WithContext("error", err.Error()).
 					Build(err),
 			}
@@ -264,7 +292,7 @@ func (executor *ControlFlowExecutor) executeStepWhileLoop(step types.Step, stepN
 			break
 		}
 
-		stepResult, err := executor.executeStep(step, stepNum)
+		stepResult, err := executor.executeStepWithContext(step, stepNum, loopCtx)
 		stepResult.Name = fmt.Sprintf("%s (while iteration %d)", step.Name, iterations)
 		results = append(results, *stepResult)
 
@@ -280,21 +308,38 @@ func (executor *ControlFlowExecutor) executeStepWhileLoop(step types.Step, stepN
 // Returns the step result and an error if the action fails with an error status.
 // The error is used for control flow purposes to stop execution on critical failures.
 func (executor *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (*types.StepResult, error) {
+	return executor.executeStepWithContext(step, stepNum, nil)
+}
+
+// executeStepWithContext executes a step with optional loop context
+func (executor *ControlFlowExecutor) executeStepWithContext(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
 	start := time.Now()
 
 	result := &types.StepResult{
 		Name:   step.Name,
 		Action: step.Action,
-		Result: types.ActionResult{Status: types.ActionStatusError},
+		Result: types.ActionResult{Status: constants.ActionStatusError},
+	}
+
+	// Create step context
+	stepContext := types.NewStepContext(stepNum, step.Name, step.Action)
+	if loopCtx != nil {
+		stepContext.WithLoopContext(loopCtx)
 	}
 
 	// Get action
 	action, exists := actions.GetAction(step.Action)
 	if !exists {
-		result.Result = types.NewErrorBuilder(types.ErrorCategoryValidation, "UNKNOWN_ACTION").
-			WithTemplate("unknown action: %s").
-			WithContext("action_name", step.Action).
-			Build(step.Action)
+		// Enrich error with step context
+		builder := types.NewErrorBuilder(types.ErrorCategoryValidation, "UNKNOWN_ACTION").
+			WithTemplate(templates.GetTemplateConstant(constants.TemplateUnknownAction))
+
+		// Add step context to error
+		for key, value := range stepContext.ToMap() {
+			builder.WithContext(key, value)
+		}
+
+		result.Result = builder.Build(step.Action)
 		result.Duration = time.Since(start)
 		return result, fmt.Errorf("unknown action: %s", step.Action)
 	}
@@ -312,15 +357,42 @@ func (executor *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (
 		}
 	}
 
+	// Enrich step context with execution details
+	stepContext.WithArguments(convertToInterfaceSlice(args)).
+		WithOptions(convertToInterfaceMap(options)).
+		WithVariables(executor.variables.GetSnapshot())
+
+	// Add condition context if present
+	if step.If != "" || step.For != "" || step.While != "" || step.Result != "" {
+		conditionCtx := types.NewConditionContext(step.If, step.For, step.While, step.Result)
+		stepContext.WithConditions(conditionCtx)
+	}
+
+	// Print step execution details
+	executor.printStepExecution(step, stepNum, args, options)
+
 	// Execute action
 	output := action(args, options, executor.variables)
 	result.Duration = time.Since(start)
 
+	// Enrich error with step context if it's an error
+	if output.Status == constants.ActionStatusError && output.ErrorInfo != nil {
+		// Add step context to the existing error
+		for key, value := range stepContext.ToMap() {
+			if _, exists := output.ErrorInfo.Context[key]; !exists {
+				output.ErrorInfo.Context[key] = value
+			}
+		}
+	}
+
 	// Use the ActionResult as is
 	result.Result = output
 
+	// Print execution result
+	executor.printStepResult(output, result.Duration)
+
 	// Return error only if the action status is error (for control flow purposes)
-	if output.Status == types.ActionStatusError {
+	if output.Status == constants.ActionStatusError {
 		return result, fmt.Errorf("action failed: %s", output.GetErrorMessage())
 	}
 
@@ -330,4 +402,141 @@ func (executor *ControlFlowExecutor) executeStep(step types.Step, stepNum int) (
 	}
 
 	return result, nil
+}
+
+// printStepExecution prints step execution details to console
+func (executor *ControlFlowExecutor) printStepExecution(step types.Step, stepNum int, args []any, options map[string]any) {
+	fmt.Printf("Step %d: %s\n", stepNum, step.Name)
+	fmt.Printf("  Action: %s\n", step.Action)
+
+	if len(args) > 0 {
+		fmt.Printf("  Args: %v\n", args)
+	}
+
+	if len(options) > 0 {
+		fmt.Printf("  Options: %v\n", options)
+	}
+
+	// Show conditions if present
+	if step.If != "" {
+		condition := executor.variables.Substitute(step.If)
+		fmt.Printf("  If: %s\n", condition)
+	}
+
+	if step.For != "" {
+		forValue := executor.variables.Substitute(step.For)
+		fmt.Printf("  For: %s\n", forValue)
+	}
+
+	if step.While != "" {
+		whileValue := executor.variables.Substitute(step.While)
+		fmt.Printf("  While: %s\n", whileValue)
+	}
+
+	if step.Result != "" {
+		fmt.Printf("  Result Variable: %s\n", step.Result)
+	}
+
+	fmt.Print("  Executing... ")
+}
+
+// printStepResult prints the result of step execution
+func (executor *ControlFlowExecutor) printStepResult(result types.ActionResult, duration time.Duration) {
+	// Print status with color-like indicators
+	switch result.Status {
+	case constants.ActionStatusPassed:
+		fmt.Printf("✓ PASSED (%s)\n", duration)
+	case constants.ActionStatusFailed:
+		fmt.Printf("✗ FAILED (%s)\n", duration)
+		if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+			fmt.Printf("    Error: %s\n", errorMsg)
+		}
+	case constants.ActionStatusSkipped:
+		fmt.Printf("- SKIPPED (%s)\n", duration)
+		if skipReason := result.GetSkipReason(); skipReason != "" {
+			fmt.Printf("    Reason: %s\n", skipReason)
+		}
+	case constants.ActionStatusError:
+		fmt.Printf("! ERROR (%s)\n", duration)
+		if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+			fmt.Printf("    Error: %s\n", errorMsg)
+		}
+		// Show enhanced context for errors
+		if result.ErrorInfo != nil && len(result.ErrorInfo.Context) > 0 {
+			fmt.Printf("    Context: ")
+			var contextParts []string
+
+			// Step information
+			if stepNum, ok := result.ErrorInfo.Context["step_number"]; ok {
+				contextParts = append(contextParts, fmt.Sprintf("Step %v", stepNum))
+			}
+			if stepName, ok := result.ErrorInfo.Context["step_name"]; ok {
+				contextParts = append(contextParts, fmt.Sprintf("'%v'", stepName))
+			}
+
+			// Loop context
+			if loopCtx, ok := result.ErrorInfo.Context["loop_context"]; ok {
+				if loopData, ok := loopCtx.(map[string]interface{}); ok {
+					if loopType, ok := loopData["type"]; ok && loopType == "for" {
+						if iteration, ok := loopData["iteration"]; ok {
+							contextParts = append(contextParts, fmt.Sprintf("iteration %v", iteration))
+						}
+						if item, ok := loopData["item"]; ok {
+							contextParts = append(contextParts, fmt.Sprintf("item '%v'", item))
+						}
+					} else if loopType == "while" {
+						if iteration, ok := loopData["iteration"]; ok {
+							contextParts = append(contextParts, fmt.Sprintf("while iteration %v", iteration))
+						}
+					}
+				}
+			}
+
+			// Action-specific context
+			if method, ok := result.ErrorInfo.Context["method"]; ok {
+				contextParts = append(contextParts, fmt.Sprintf("Method: %v", method))
+			}
+			if url, ok := result.ErrorInfo.Context["url"]; ok {
+				contextParts = append(contextParts, fmt.Sprintf("URL: %v", url))
+			}
+
+			if len(contextParts) > 0 {
+				fmt.Printf("%s\n", strings.Join(contextParts, ", "))
+			}
+		}
+	default:
+		fmt.Printf("? %s (%s)\n", result.Status, duration)
+	}
+
+	// Show result data if present and not too large
+	if result.Data != nil {
+		dataStr := fmt.Sprintf("%v", result.Data)
+		if len(dataStr) <= 100 { // Only show small data to avoid cluttering output
+			fmt.Printf("    Data: %s\n", dataStr)
+		} else {
+			fmt.Printf("    Data: [%d characters]\n", len(dataStr))
+		}
+	}
+
+	fmt.Println() // Add blank line for readability
+}
+
+// Helper functions for type conversion
+
+// convertToInterfaceSlice converts []any to []interface{}
+func convertToInterfaceSlice(slice []any) []interface{} {
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
+}
+
+// convertToInterfaceMap converts map[string]any to map[string]interface{}
+func convertToInterfaceMap(m map[string]any) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
 }

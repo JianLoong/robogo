@@ -150,6 +150,7 @@ func TestErrorCategories(t *testing.T) {
 		ErrorCategoryAssertion,
 		ErrorCategoryVariable,
 		ErrorCategoryNetwork,
+		ErrorCategoryDatabase,
 		ErrorCategorySystem,
 	}
 
@@ -159,6 +160,7 @@ func TestErrorCategories(t *testing.T) {
 		"assertion",
 		"variable",
 		"network",
+		"database",
 		"system",
 	}
 
@@ -166,5 +168,60 @@ func TestErrorCategories(t *testing.T) {
 		if string(category) != expectedValues[i] {
 			t.Errorf("Expected category %d to be '%s', got '%s'", i, expectedValues[i], string(category))
 		}
+	}
+}
+
+func TestDatabaseErrorHandling(t *testing.T) {
+	// Test database error with enhanced context
+	result := NewErrorBuilder(ErrorCategoryDatabase, "POSTGRES_CONNECTION_FAILED").
+		WithTemplate("failed to open postgres connection: %v").
+		WithContext("connection_string", "postgres://user:pass@localhost:5432/db").
+		WithContext("database_type", "postgresql").
+		WithContext("operation", "query").
+		WithSuggestion("Verify the connection string format and database server availability").
+		Build("connection refused")
+
+	if result.Status != ActionStatusError {
+		t.Errorf("Expected status to be error, got %s", result.Status)
+	}
+
+	if result.ErrorInfo == nil {
+		t.Fatal("Expected ErrorInfo to be set")
+	}
+
+	if result.ErrorInfo.Category != ErrorCategoryDatabase {
+		t.Errorf("Expected category to be database, got %s", result.ErrorInfo.Category)
+	}
+
+	if result.ErrorInfo.Code != "POSTGRES_CONNECTION_FAILED" {
+		t.Errorf("Expected code to be POSTGRES_CONNECTION_FAILED, got %s", result.ErrorInfo.Code)
+	}
+
+	expectedMessage := "failed to open postgres connection: connection refused"
+	if result.ErrorInfo.Message != expectedMessage {
+		t.Errorf("Expected message to be '%s', got '%s'", expectedMessage, result.ErrorInfo.Message)
+	}
+
+	// Verify database-specific context
+	if result.ErrorInfo.Context["database_type"] != "postgresql" {
+		t.Errorf("Expected database_type to be 'postgresql', got %v", result.ErrorInfo.Context["database_type"])
+	}
+
+	if result.ErrorInfo.Context["operation"] != "query" {
+		t.Errorf("Expected operation to be 'query', got %v", result.ErrorInfo.Context["operation"])
+	}
+
+	if result.ErrorInfo.Context["connection_string"] != "postgres://user:pass@localhost:5432/db" {
+		t.Errorf("Expected connection_string to be set correctly, got %v", result.ErrorInfo.Context["connection_string"])
+	}
+
+	// Verify suggestions
+	if len(result.ErrorInfo.Suggestions) != 1 {
+		t.Errorf("Expected 1 suggestion, got %d", len(result.ErrorInfo.Suggestions))
+	}
+
+	expectedSuggestion := "Verify the connection string format and database server availability"
+	if result.ErrorInfo.Suggestions[0] != expectedSuggestion {
+		t.Errorf("Expected suggestion to be '%s', got '%s'", expectedSuggestion, result.ErrorInfo.Suggestions[0])
 	}
 }

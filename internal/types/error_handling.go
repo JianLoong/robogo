@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/JianLoong/robogo/internal/templates"
 )
 
 // ErrorCategory represents different categories of errors that can occur
@@ -15,6 +17,7 @@ const (
 	ErrorCategoryAssertion  ErrorCategory = "assertion"
 	ErrorCategoryVariable   ErrorCategory = "variable"
 	ErrorCategoryNetwork    ErrorCategory = "network"
+	ErrorCategoryDatabase   ErrorCategory = "database"
 	ErrorCategorySystem     ErrorCategory = "system"
 )
 
@@ -26,6 +29,32 @@ type ErrorInfo struct {
 	Context     map[string]any `json:"context,omitempty"`
 	Suggestions []string       `json:"suggestions,omitempty"`
 	Timestamp   time.Time      `json:"timestamp"`
+}
+
+// FailureCategory represents different categories of logical failures
+type FailureCategory string
+
+const (
+	FailureCategoryAssertion  FailureCategory = "assertion"
+	FailureCategoryValidation FailureCategory = "validation"
+	FailureCategoryBusiness   FailureCategory = "business_rule"
+	FailureCategoryData       FailureCategory = "data_mismatch"
+	FailureCategoryResponse   FailureCategory = "response_validation"
+)
+
+// FailureInfo contains structured information about a logical failure
+type FailureInfo struct {
+	Category    FailureCategory `json:"category"`
+	Code        string          `json:"code"`
+	Message     string          `json:"message"`
+	Context     map[string]any  `json:"context,omitempty"`
+	Suggestions []string        `json:"suggestions,omitempty"`
+	Timestamp   time.Time       `json:"timestamp"`
+
+	// Failure-specific fields
+	Expected   any    `json:"expected,omitempty"`
+	Actual     any    `json:"actual,omitempty"`
+	Comparison string `json:"comparison,omitempty"`
 }
 
 // ErrorBuilder provides a fluent interface for building structured errors
@@ -66,8 +95,31 @@ func (eb *ErrorBuilder) WithSuggestion(suggestion string) *ErrorBuilder {
 	return eb
 }
 
+// WithExpected adds expected value context (useful for failures)
+func (eb *ErrorBuilder) WithExpected(expected any) *ErrorBuilder {
+	eb.context["expected"] = expected
+	return eb
+}
+
+// WithActual adds actual value context (useful for failures)
+func (eb *ErrorBuilder) WithActual(actual any) *ErrorBuilder {
+	eb.context["actual"] = actual
+	return eb
+}
+
+// WithComparison adds comparison context (useful for failures)
+func (eb *ErrorBuilder) WithComparison(comparison string) *ErrorBuilder {
+	eb.context["comparison"] = comparison
+	return eb
+}
+
 // Build creates an ActionResult with the structured error information
 func (eb *ErrorBuilder) Build(args ...any) ActionResult {
+	return eb.BuildWithStatus(ActionStatusError, args...)
+}
+
+// BuildWithStatus creates an ActionResult with the specified status
+func (eb *ErrorBuilder) BuildWithStatus(status ActionStatus, args ...any) ActionResult {
 	message, err := eb.formatter.Format(eb.template, args...)
 	if err != nil {
 		// Fallback to a safe error message if formatting fails
@@ -84,9 +136,19 @@ func (eb *ErrorBuilder) Build(args ...any) ActionResult {
 	}
 
 	return ActionResult{
-		Status:    ActionStatusError,
+		Status:    status,
 		ErrorInfo: errorInfo,
 	}
+}
+
+// BuildError creates an ActionResult with ERROR status (technical errors)
+func (eb *ErrorBuilder) BuildError(args ...any) ActionResult {
+	return eb.BuildWithStatus(ActionStatusError, args...)
+}
+
+// BuildFailure creates an ActionResult with FAILED status (logical failures)
+func (eb *ErrorBuilder) BuildFailure(args ...any) ActionResult {
+	return eb.BuildWithStatus(ActionStatusFailed, args...)
 }
 
 // SafeFormatter provides secure string formatting with template validation
@@ -187,6 +249,96 @@ func (sf *SafeFormatter) GetTemplate(name string) (string, bool) {
 // Default formatter instance
 var defaultFormatter *SafeFormatter
 
+// FailureBuilder provides a fluent interface for building structured failures
+type FailureBuilder struct {
+	category    FailureCategory
+	code        string
+	template    string
+	context     map[string]any
+	suggestions []string
+	expected    any
+	actual      any
+	comparison  string
+	formatter   *SafeFormatter
+}
+
+// NewFailureBuilder creates a new FailureBuilder with the specified category and code
+func NewFailureBuilder(category FailureCategory, code string) *FailureBuilder {
+	return &FailureBuilder{
+		category:  category,
+		code:      code,
+		context:   make(map[string]any),
+		formatter: GetDefaultSafeFormatter(),
+	}
+}
+
+// WithTemplate sets the failure message template
+func (fb *FailureBuilder) WithTemplate(template string) *FailureBuilder {
+	fb.template = template
+	return fb
+}
+
+// WithContext adds context information to the failure
+func (fb *FailureBuilder) WithContext(key string, value any) *FailureBuilder {
+	fb.context[key] = value
+	return fb
+}
+
+// WithSuggestion adds a suggestion for resolving the failure
+func (fb *FailureBuilder) WithSuggestion(suggestion string) *FailureBuilder {
+	fb.suggestions = append(fb.suggestions, suggestion)
+	return fb
+}
+
+// WithExpected adds expected value for the failure
+func (fb *FailureBuilder) WithExpected(expected any) *FailureBuilder {
+	fb.expected = expected
+	return fb
+}
+
+// WithActual adds actual value for the failure
+func (fb *FailureBuilder) WithActual(actual any) *FailureBuilder {
+	fb.actual = actual
+	return fb
+}
+
+// WithComparison adds comparison context for the failure
+func (fb *FailureBuilder) WithComparison(comparison string) *FailureBuilder {
+	fb.comparison = comparison
+	return fb
+}
+
+// Build creates an ActionResult with FAILED status and FailureInfo
+func (fb *FailureBuilder) Build(args ...any) ActionResult {
+	message, err := fb.formatter.Format(fb.template, args...)
+	if err != nil {
+		// Fallback to a safe error message if formatting fails
+		message = fmt.Sprintf("Failure formatting failed: %s (template: %s)", err.Error(), fb.template)
+	}
+
+	failureInfo := &FailureInfo{
+		Category:    fb.category,
+		Code:        fb.code,
+		Message:     message,
+		Context:     fb.context,
+		Suggestions: fb.suggestions,
+		Expected:    fb.expected,
+		Actual:      fb.actual,
+		Comparison:  fb.comparison,
+		Timestamp:   time.Now(),
+	}
+
+	return ActionResult{
+		Status:      ActionStatusFailed,
+		FailureInfo: failureInfo,
+	}
+}
+
+// BuildFailure is an alias for Build for consistency with ErrorBuilder
+func (fb *FailureBuilder) BuildFailure(args ...any) ActionResult {
+	return fb.Build(args...)
+}
+
 // GetDefaultSafeFormatter returns the default SafeFormatter instance
 func GetDefaultSafeFormatter() *SafeFormatter {
 	if defaultFormatter == nil {
@@ -198,22 +350,10 @@ func GetDefaultSafeFormatter() *SafeFormatter {
 
 // initializeDefaultTemplates sets up commonly used error templates
 func initializeDefaultTemplates(formatter *SafeFormatter) {
-	templates := map[string]string{
-		"assertion.failed":           "Assertion failed: expected %v %s %v, but got %v",
-		"assertion.type_mismatch":    "Type mismatch in assertion: expected %s but got %s",
-		"variable.unresolved":        "Variable '%s' could not be resolved in template '%s'",
-		"variable.invalid_access":    "Invalid access path '%s' in variable '%s'",
-		"action.invalid_args":        "Action '%s' received invalid arguments: %s",
-		"action.execution_failed":    "Action '%s' execution failed: %s",
-		"http.request_failed":        "HTTP request failed: %s %s returned %d",
-		"database.connection_failed": "Database connection failed: %s",
-		"validation.required_field":  "Required field '%s' is missing or empty",
-		"validation.invalid_format":  "Field '%s' has invalid format: %s",
-		"system.file_not_found":      "File not found: %s",
-		"system.permission_denied":   "Permission denied: %s",
-	}
+	// Import all error templates from constants package
+	errorTemplates := templates.InitializeErrorTemplates()
 
-	for name, template := range templates {
+	for name, template := range errorTemplates {
 		formatter.RegisterTemplate(name, template)
 	}
 }

@@ -123,30 +123,40 @@ func TestErrorHandlingIntegration(t *testing.T) {
 	}
 }
 
-// TestBackwardCompatibility ensures the new system works with existing code
-func TestBackwardCompatibility(t *testing.T) {
-	// Old style error creation should still work
-	oldStyleError := NewErrorResult("Old style error: %s", "test")
-	if oldStyleError.Status != ActionStatusError {
-		t.Errorf("Expected error status, got %s", oldStyleError.Status)
-	}
-	if oldStyleError.ErrorInfo == nil {
-		t.Error("Expected ErrorInfo to be set for legacy error")
-	}
-	if oldStyleError.ErrorInfo.Message != "Old style error: test" {
-		t.Errorf("Expected 'Old style error: test', got '%s'", oldStyleError.ErrorInfo.Message)
-	}
-
-	// GetErrorMessage should work with both old and new styles
-	if oldStyleError.GetErrorMessage() != "Old style error: test" {
-		t.Errorf("GetErrorMessage failed for old style error")
-	}
-
-	newStyleError := NewErrorBuilder(ErrorCategoryValidation, "NEW001").
-		WithTemplate("New style error: %s").
+// TestErrorBuilderBasics ensures the ErrorBuilder works correctly
+func TestErrorBuilderBasics(t *testing.T) {
+	// Test ErrorBuilder creates proper errors
+	errorResult := NewErrorBuilder(ErrorCategorySystem, "TEST_ERROR").
+		WithTemplate("Test error: %s").
 		Build("test")
 
-	if newStyleError.GetErrorMessage() != "New style error: test" {
-		t.Errorf("GetErrorMessage failed for new style error")
+	if errorResult.Status != ActionStatusError {
+		t.Errorf("Expected error status, got %s", errorResult.Status)
+	}
+	if errorResult.ErrorInfo == nil {
+		t.Error("Expected ErrorInfo to be set for error")
+	}
+	if errorResult.ErrorInfo.Message != "Test error: test" {
+		t.Errorf("Expected 'Test error: test', got '%s'", errorResult.ErrorInfo.Message)
+	}
+
+	// Test FailureBuilder creates proper failures
+	failureResult := NewFailureBuilder(FailureCategoryAssertion, "TEST_FAILURE").
+		WithTemplate("Test failure: expected %v, got %v").
+		WithExpected("expected").
+		WithActual("actual").
+		Build("expected", "actual")
+
+	if failureResult.Status != ActionStatusFailed {
+		t.Errorf("Expected failed status, got %s", failureResult.Status)
+	}
+	if failureResult.FailureInfo == nil {
+		t.Error("Expected FailureInfo to be set for failure")
+	}
+	if failureResult.FailureInfo.Expected != "expected" {
+		t.Errorf("Expected 'expected', got '%v'", failureResult.FailureInfo.Expected)
+	}
+	if failureResult.FailureInfo.Actual != "actual" {
+		t.Errorf("Expected 'actual', got '%v'", failureResult.FailureInfo.Actual)
 	}
 }

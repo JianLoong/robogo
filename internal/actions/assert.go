@@ -12,22 +12,19 @@ import (
 
 func assertAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	if len(args) < 1 {
-		return types.NewErrorBuilder(types.ErrorCategoryValidation, "ASSERT_MISSING_ARGS").
-			WithTemplate("assert action requires at least 1 argument").
-			Build()
+		return types.MissingArgsError("assert", 1, len(args))
 	}
 
 	// Handle single boolean argument
 	if len(args) == 1 {
 		if b, ok := args[0].(bool); ok && b {
 			return types.ActionResult{
-				Status: types.ActionStatusPassed,
+				Status: constants.ActionStatusPassed,
 			}
 		}
-		return types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_FAILED").
-			WithTemplate("assertion failed: %v").
-			WithContext("value", args[0]).
-			Build(args[0])
+
+		// Use simple failure function for boolean assertion failure
+		return types.BooleanAssertionFailure(args[0])
 	}
 
 	// Handle comparison syntax: [value, operator, expected]
@@ -47,80 +44,66 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) ty
 		case constants.OperatorNotEqual:
 			result = actualStr != expectedStr
 		case constants.OperatorGreaterThan:
-			result = compareNumeric(actualStr, expectedStr, constants.OperatorGreaterThan)
+			result, _ = compareNumericWithContext(actualStr, expectedStr, constants.OperatorGreaterThan)
 		case constants.OperatorLessThan:
-			result = compareNumeric(actualStr, expectedStr, constants.OperatorLessThan)
+			result, _ = compareNumericWithContext(actualStr, expectedStr, constants.OperatorLessThan)
 		case constants.OperatorGreaterThanOrEqual:
-			result = compareNumeric(actualStr, expectedStr, constants.OperatorGreaterThanOrEqual)
+			result, _ = compareNumericWithContext(actualStr, expectedStr, constants.OperatorGreaterThanOrEqual)
 		case constants.OperatorLessThanOrEqual:
-			result = compareNumeric(actualStr, expectedStr, constants.OperatorLessThanOrEqual)
+			result, _ = compareNumericWithContext(actualStr, expectedStr, constants.OperatorLessThanOrEqual)
 		case constants.OperatorContains:
 			result = strings.Contains(actualStr, expectedStr)
 		default:
-			return types.NewErrorBuilder(types.ErrorCategoryValidation, "ASSERT_UNSUPPORTED_OPERATOR").
-				WithTemplate("unsupported operator: %v").
-				WithContext("operator", operator).
-				Build(operator)
+			return types.InvalidArgError("assert", "operator", "valid comparison operator (==, !=, >, <, >=, <=, contains)")
 		}
 
 		if result {
 			return types.ActionResult{
-				Status: types.ActionStatusPassed,
+				Status: constants.ActionStatusPassed,
 			}
 		}
 
-		builder := types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_COMPARISON_FAILED").
-			WithTemplate("assertion failed: %v %v %v").
-			WithContext("actual", actual).
-			WithContext("operator", operator).
-			WithContext("expected", expected)
-
-		if len(args) > 3 {
-			builder.WithContext("message", args[3])
-			return builder.WithTemplate("assertion failed: %v %v %v (%v)").Build(actual, operator, expected, args[3])
-		}
-
-		return builder.Build(actual, operator, expected)
+		// Use simple failure function for comparison assertion failure
+		return types.AssertionFailure(expected, actual, fmt.Sprintf("%v", operator))
 	}
 
-	return types.NewErrorBuilder(types.ErrorCategoryAssertion, "ASSERT_FAILED").
-		WithTemplate("assertion failed: %v").
-		WithContext("value", args[0]).
-		Build(args[0])
+	// Fallback case - treat as boolean assertion
+	return types.BooleanAssertionFailure(args[0])
 }
 
-// compareNumeric compares two strings numerically if possible, falling back to string comparison.
-// It first attempts to parse both values as floating-point numbers. If successful, it performs
-// numeric comparison. If either value cannot be parsed as a number, it falls back to string
-// comparison using Go's string comparison operators.
-func compareNumeric(actual, expected, operator string) bool {
+// compareNumericWithContext compares two strings numerically if possible, falling back to string comparison.
+// Returns the comparison result and whether numeric comparison was used.
+func compareNumericWithContext(actual, expected, operator string) (bool, bool) {
 	actualNum, actualErr := strconv.ParseFloat(actual, 64)
 	expectedNum, expectedErr := strconv.ParseFloat(expected, 64)
 
 	if actualErr != nil || expectedErr != nil {
 		// Fall back to string comparison if not numeric
+		result := false
 		switch operator {
 		case constants.OperatorGreaterThan:
-			return actual > expected
+			result = actual > expected
 		case constants.OperatorLessThan:
-			return actual < expected
+			result = actual < expected
 		case constants.OperatorGreaterThanOrEqual:
-			return actual >= expected
+			result = actual >= expected
 		case constants.OperatorLessThanOrEqual:
-			return actual <= expected
+			result = actual <= expected
 		}
-		return false
+		return result, false // false = string comparison was used
 	}
 
+	// Numeric comparison
+	result := false
 	switch operator {
 	case constants.OperatorGreaterThan:
-		return actualNum > expectedNum
+		result = actualNum > expectedNum
 	case constants.OperatorLessThan:
-		return actualNum < expectedNum
+		result = actualNum < expectedNum
 	case constants.OperatorGreaterThanOrEqual:
-		return actualNum >= expectedNum
+		result = actualNum >= expectedNum
 	case constants.OperatorLessThanOrEqual:
-		return actualNum <= expectedNum
+		result = actualNum <= expectedNum
 	}
-	return false
+	return result, true // true = numeric comparison was used
 }

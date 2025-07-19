@@ -1,0 +1,27 @@
+testcase: "TC-HTTP-ERROR-001"
+description: "Test HTTP error handling improvements"
+
+variables:
+  vars:
+    invalid_url: "http://nonexistent-domain-12345.com"
+    timeout_url: "http://httpbin.org/delay/10"
+
+steps:
+  - name: "Test invalid domain error"
+    action: http
+    args: ["GET", "${invalid_url}"]
+    options:
+      timeout: "5s"
+    result: "error_response"
+
+  - name: "Test missing arguments error"
+    action: http
+    args: ["GET"]
+    result: "missing_args_error"
+
+  - name: "Test timeout error"
+    action: http
+    args: ["GET", "${timeout_url}"]
+    options:
+      timeout: "2s"
+    result: "timeout_error"

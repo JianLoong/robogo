@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
@@ -25,7 +26,7 @@ func timeAction(args []any, options map[string]any, vars *common.Variables) type
 	}
 
 	return types.ActionResult{
-		Status: types.ActionStatusPassed,
+		Status: constants.ActionStatusPassed,
 		Data:   timestamp,
 	}
 }

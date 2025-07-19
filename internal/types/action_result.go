@@ -1,52 +1,30 @@
 package types
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/JianLoong/robogo/internal/constants"
 )
 
-// ActionStatus represents the lifecycle state of an action.
-type ActionStatus string
+// ActionStatus is now defined in constants package
+type ActionStatus = constants.ActionStatus
 
 const (
-	ActionStatusPending ActionStatus = "pending"
-	ActionStatusRunning ActionStatus = "running"
-	ActionStatusPassed  ActionStatus = "passed"
-	ActionStatusFailed  ActionStatus = "failed"
-	ActionStatusError   ActionStatus = "error"
-	ActionStatusSkipped ActionStatus = "skipped"
+	ActionStatusPending = constants.ActionStatusPending
+	ActionStatusRunning = constants.ActionStatusRunning
+	ActionStatusPassed  = constants.ActionStatusPassed
+	ActionStatusFailed  = constants.ActionStatusFailed
+	ActionStatusError   = constants.ActionStatusError
+	ActionStatusSkipped = constants.ActionStatusSkipped
 )
 
 // ActionResult is the public, consistent result type for all actions.
 type ActionResult struct {
-	Status    ActionStatus `json:"status"`               // "pending", "running", "success", "error", "skipped"
-	ErrorInfo *ErrorInfo   `json:"error_info,omitempty"` // Structured error information
-	Data      any          `json:"data,omitempty"`       // Result data if status == "success"
-	Meta      any          `json:"meta,omitempty"`       // Optional metadata (timing, logs, etc.)
-}
-
-// NewErrorResult creates an ActionResult with error status.
-// Deprecated: Use ErrorBuilder for structured error handling
-func NewErrorResult(msg string, args ...any) ActionResult {
-	// Use SafeFormatter to prevent format string injection
-	formatter := GetDefaultSafeFormatter()
-	formatted, err := formatter.Format(msg, args...)
-	if err != nil {
-		// If formatting fails, create a safe fallback message
-		formatted = fmt.Sprintf("Error formatting failed: %s (original message: %s)", err.Error(), msg)
-	}
-
-	errorInfo := &ErrorInfo{
-		Category:  ErrorCategorySystem,
-		Code:      "LEGACY_ERROR",
-		Message:   formatted,
-		Context:   make(map[string]any),
-		Timestamp: time.Now(),
-	}
-	return ActionResult{
-		Status:    ActionStatusError,
-		ErrorInfo: errorInfo,
-	}
+	Status      ActionStatus `json:"status"`                 // "pending", "running", "success", "error", "skipped"
+	ErrorInfo   *ErrorInfo   `json:"error_info,omitempty"`   // Structured error information (technical errors)
+	FailureInfo *FailureInfo `json:"failure_info,omitempty"` // Structured failure information (logical failures)
+	Data        any          `json:"data,omitempty"`         // Result data if status == "success"
+	Meta        any          `json:"meta,omitempty"`         // Optional metadata (timing, logs, etc.)
 }
 
 // NewSuccessResult creates an ActionResult with passed status
@@ -79,12 +57,20 @@ func NewSkippedResult(reason string) ActionResult {
 	}
 }
 
-// GetErrorMessage returns the error message from ErrorInfo
-func (ar *ActionResult) GetErrorMessage() string {
+// GetMessage returns the error or failure message
+func (ar *ActionResult) GetMessage() string {
 	if ar.ErrorInfo != nil {
 		return ar.ErrorInfo.Message
 	}
+	if ar.FailureInfo != nil {
+		return ar.FailureInfo.Message
+	}
 	return ""
+}
+
+// GetErrorMessage returns the error or failure message
+func (ar *ActionResult) GetErrorMessage() string {
+	return ar.GetMessage()
 }
 
 // GetSkipReason returns the skip reason from ErrorInfo
@@ -95,9 +81,19 @@ func (ar *ActionResult) GetSkipReason() string {
 	return ""
 }
 
-// IsError returns true if the result represents an error
+// IsError returns true if the result represents a technical error
 func (ar *ActionResult) IsError() bool {
-	return ar.Status == ActionStatusError || ar.Status == ActionStatusFailed
+	return ar.Status == ActionStatusError
+}
+
+// IsFailed returns true if the result represents a logical failure
+func (ar *ActionResult) IsFailed() bool {
+	return ar.Status == ActionStatusFailed
+}
+
+// HasIssue returns true if the result has either an error or failure
+func (ar *ActionResult) HasIssue() bool {
+	return ar.IsError() || ar.IsFailed()
 }
 
 // IsSuccess returns true if the result represents success

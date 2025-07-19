@@ -49,9 +49,11 @@ func TestFormatStringSecurity(t *testing.T) {
 	}
 }
 
-func TestNewErrorResultSecurity(t *testing.T) {
-	// Test that NewErrorResult now uses SafeFormatter
-	result := NewErrorResult("Test error: %s", "safe_value")
+func TestErrorBuilderSecurity(t *testing.T) {
+	// Test that ErrorBuilder uses SafeFormatter
+	result := NewErrorBuilder(ErrorCategorySystem, "TEST_ERROR").
+		WithTemplate("Test error: %s").
+		Build("safe_value")
 
 	if result.Status != ActionStatusError {
 		t.Errorf("Expected error status, got %s", result.Status)
@@ -67,7 +69,10 @@ func TestNewErrorResultSecurity(t *testing.T) {
 
 	// Test that dangerous format strings are handled safely
 	dangerousTemplate := "Dangerous " + "%n" + " format"
-	dangerousResult := NewErrorResult(dangerousTemplate, "test")
+	dangerousResult := NewErrorBuilder(ErrorCategorySystem, "DANGEROUS_ERROR").
+		WithTemplate(dangerousTemplate).
+		Build("test")
+
 	if dangerousResult.ErrorInfo == nil {
 		t.Error("Expected ErrorInfo to be set for dangerous format")
 	}
