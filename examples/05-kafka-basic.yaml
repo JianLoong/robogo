@@ -20,6 +20,7 @@ steps:
     options:
       timeout: 5
       auto_commit: true
+      offset: latest
     result: message
 
   - name: "Verify message content"

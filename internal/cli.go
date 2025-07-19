@@ -20,15 +20,15 @@ const (
 // Table formatting and truncation widths for printTestSummary
 const (
 	colStepNumWidth  = 3  // Width for step number column
-	colStepNameWidth = 40 // Width for step name column (expanded)
+	colStepNameWidth = 40 // Width for step name column
 	colStatusWidth   = 8  // Width for status column
 	colDurationWidth = 12 // Width for duration column
-	colErrorWidth    = 40 // Width for error column (expanded)
-	colReasonWidth   = 40 // Width for reason column (expanded)
+	colMessageWidth  = 50 // Width for message column (error/failure message)
+	colCategoryWidth = 13 // Width for category column
 
 	truncStepName = 37 // Truncate step name to this length before adding '...'
-	truncError    = 37 // Truncate error to this length before adding '...'
-	truncReason   = 37 // Truncate reason to this length before adding '...'
+	truncMessage  = 47 // Truncate message to this length before adding '...'
+	truncCategory = 9  // Truncate category to this length before adding '...'
 )
 
 // SimpleCLI - direct, no-abstraction CLI
@@ -104,6 +104,17 @@ func printUsage() {
 	fmt.Println("  robogo version                Show version")
 }
 
+// getCategory returns the category from ErrorInfo or FailureInfo
+func getCategory(result types.ActionResult) string {
+	if result.ErrorInfo != nil {
+		return string(result.ErrorInfo.Category)
+	}
+	if result.FailureInfo != nil {
+		return string(result.FailureInfo.Category)
+	}
+	return ""
+}
+
 func printTestSummary(result *types.TestResult) {
 	fmt.Println("\nTest Summary:")
 	fmt.Printf("  Name: %s\n", result.Name)
@@ -112,22 +123,28 @@ func printTestSummary(result *types.TestResult) {
 	if errorMsg := result.GetErrorMessage(); errorMsg != "" {
 		fmt.Printf("  Error: %s\n", errorMsg)
 	}
-	fmt.Println("\n|  #  | Step Name                                | Status   | Duration     | Error                                    | Reason                                   |")
-	fmt.Println("|-----|------------------------------------------|----------|--------------|------------------------------------------|------------------------------------------|")
+	fmt.Println()
+	fmt.Println("|  #  | Step Name                                | Status   | Duration     | Message                                            | Category      |")
+	fmt.Println("|-----|------------------------------------------|----------|--------------|----------------------------------------------------|---------------|")
 	for i, step := range result.Steps {
 		stepName := step.Name
 		if len(stepName) > colStepNameWidth {
 			stepName = stepName[:truncStepName] + "..."
 		}
-		errorMsg := step.Result.GetErrorMessage()
-		if len(errorMsg) > colErrorWidth {
-			errorMsg = errorMsg[:truncError] + "..."
+
+		// Get message (error or failure message)
+		message := step.Result.GetMessage()
+		if len(message) > colMessageWidth {
+			message = message[:truncMessage] + "..."
 		}
-		reason := step.Result.GetSkipReason()
-		if len(reason) > colReasonWidth {
-			reason = reason[:truncReason] + "..."
+
+		// Get category from ErrorInfo or FailureInfo
+		category := getCategory(step.Result)
+		if len(category) > colCategoryWidth {
+			category = category[:truncCategory] + "..."
 		}
-		fmt.Printf("| %"+fmt.Sprintf("%dd", colStepNumWidth)+" | %-"+fmt.Sprintf("%ds", colStepNameWidth)+" | %-"+fmt.Sprintf("%ds", colStatusWidth)+" | %-"+fmt.Sprintf("%ds", colDurationWidth)+" | %-"+fmt.Sprintf("%ds", colErrorWidth)+" | %-"+fmt.Sprintf("%ds", colReasonWidth)+" |\n",
-			i+1, stepName, step.Result.Status, step.Duration.String(), errorMsg, reason)
+
+		fmt.Printf("| %"+fmt.Sprintf("%dd", colStepNumWidth)+" | %-"+fmt.Sprintf("%ds", colStepNameWidth)+" | %-"+fmt.Sprintf("%ds", colStatusWidth)+" | %-"+fmt.Sprintf("%ds", colDurationWidth)+" | %-"+fmt.Sprintf("%ds", colMessageWidth)+" | %-"+fmt.Sprintf("%ds", colCategoryWidth)+" |\n",
+			i+1, stepName, step.Result.Status, step.Duration.String(), message, category)
 	}
 }

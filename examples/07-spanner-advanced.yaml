@@ -23,6 +23,11 @@ steps:
     action: spanner
     args: ["execute", "${db_path}", "CREATE TABLE IF NOT EXISTS test_users (id INT64, name STRING(100), email STRING(100), age INT64, created_at TIMESTAMP) PRIMARY KEY (id)"]
 
+  # Clean up any existing test data
+  - name: "Clear existing test data"
+    action: spanner
+    args: ["execute", "${db_path}", "DELETE FROM test_users WHERE id IN (1, 2)"]
+
   # Insert test data
   - name: "Insert user with multiple fields"
     action: spanner
@@ -38,20 +43,20 @@ steps:
   # Store the first row data for verification
   - name: "Store user ID for later use"
     action: variable
-    args: ["set", "user_id", "${user_data.rows[0][0]}"]
+    args: ["user_id", "${user_data.rows[0][0]}"]
 
   - name: "Store retrieved name"
     action: variable
-    args: ["set", "retrieved_name", "${user_data.rows[0][1]}"]
+    args: ["retrieved_name", "${user_data.rows[0][1]}"]
 
   - name: "Store retrieved email"
     action: variable
-    args: ["set", "retrieved_email", "${user_data.rows[0][2]}"]
+    args: ["retrieved_email", "${user_data.rows[0][2]}"]
 
   - name: "Store retrieved age"
     action: variable
     args: ["set", "retrieved_age", "${user_data.rows[0][3]}"]
-
+    
   # Verify all the data matches what we inserted
   - name: "Verify name matches"
     action: assert
@@ -87,7 +92,7 @@ steps:
 
   - name: "Store updated age"
     action: variable
-    args: ["set", "new_age", "${updated_data.rows[0][0]}"]
+    args: ["new_age", "${updated_data.rows[0][0]}"]
 
   - name: "Verify age was updated"
     action: assert
@@ -101,7 +106,7 @@ steps:
 
   - name: "Store user count"
     action: variable
-    args: ["set", "total_users", "${count_data.rows[0][0]}"]
+    args: ["total_users", "${count_data.rows[0][0]}"]
 
   - name: "Verify we have at least our test user"
     action: assert

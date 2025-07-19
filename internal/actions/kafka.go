@@ -72,6 +72,30 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 			MaxBytes:  10e6,
 		}
 
+		// Check for offset option
+		if offsetOpt, ok := options["offset"]; ok {
+			switch offset := offsetOpt.(type) {
+			case string:
+				switch strings.ToLower(offset) {
+				case "earliest", "beginning":
+					config.StartOffset = kafka.FirstOffset
+				case "latest", "end":
+					config.StartOffset = kafka.LastOffset
+				default:
+					// Try to parse as numeric offset
+					if numOffset, err := strconv.ParseInt(offset, 10, 64); err == nil {
+						config.StartOffset = numOffset
+					}
+				}
+			case int:
+				config.StartOffset = int64(offset)
+			case int64:
+				config.StartOffset = offset
+			case float64:
+				config.StartOffset = int64(offset)
+			}
+		}
+
 		// Check for auto-commit option
 		if autoCommit, ok := options["auto_commit"]; ok {
 			if enable, ok := autoCommit.(bool); ok && enable {
