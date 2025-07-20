@@ -1,0 +1,100 @@
+testcase: "TC-E2E-POST-KAFKA-POSTGRES"
+description: "E2E test: HTTP POST triggers Kafka and Postgres entry"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org/post"
+    test_data: '{"name": "E2E User", "email": "e2e-test@example.com"}'
+    kafka_broker: "localhost:9092"
+    kafka_topic: "e2e-test-topic"
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+    expected_email: "e2e-test@example.com"
+    expected_name: "E2E User"
+
+steps:
+  - name: "Create users table if not exists"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE)"]
+
+  - name: "Delete any existing E2E user"
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM users WHERE email = '${expected_email}'"]
+
+  - name: "POST to API"
+    action: http
+    args: ["POST", "${base_url}", "${test_data}"]
+    result: "http_response"
+
+  - name: "Extract status code with jq"
+    action: jq
+    args: ["${http_response}", ".status_code"]
+    result: "status_code"
+
+  - name: "Assert HTTP 200"
+    action: assert
+    args: ["${status_code}", "==", "200"]
+
+  - name: "Produce first Kafka message"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${kafka_topic}", "${test_data}"]
+    result: "kafka_produce1"
+
+  - name: "Produce second Kafka message"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${kafka_topic}", "${test_data}"]
+    result: "kafka_produce2"
+
+  - name: "Consume 2 Kafka messages"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${kafka_topic}"]
+    options:
+      count: 2
+      timeout: "10s"
+      auto_commit: true
+    result: "kafka_msgs"
+
+  - name: "Extract first Kafka message with jq"
+    action: jq
+    args: ["${kafka_msgs}", ".messages[0]"]
+    result: "first_message"
+
+  - name: "Extract second Kafka message with jq"
+    action: jq
+    args: ["${kafka_msgs}", ".messages[1]"]
+    result: "second_message"
+
+  - name: "Assert first Kafka message contains email"
+    action: assert
+    args: ["${first_message}", "contains", "${expected_email}"]
+
+  - name: "Assert second Kafka message contains email"
+    action: assert
+    args: ["${second_message}", "contains", "${expected_email}"]
+
+  - name: "Insert user into Postgres"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO users (name, email) VALUES ('${expected_name}', '${expected_email}') ON CONFLICT DO NOTHING"]
+    result: "pg_insert"
+
+  - name: "Query Postgres for record"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT name, email FROM users WHERE email = '${expected_email}' LIMIT 1"]
+    result: "pg_result"
+
+  - name: "Extract Postgres email with jq"
+    action: jq
+    args: ["${pg_result}", ".rows[0][1]"]
+    result: "pg_email"
+
+  - name: "Extract Postgres name with jq"
+    action: jq
+    args: ["${pg_result}", ".rows[0][0]"]
+    result: "pg_name"
+
+  - name: "Assert Postgres record exists"
+    action: assert
+    args: ["${pg_email}", "==", "${expected_email}"]
+
+  - name: "Assert Postgres name"
+    action: assert
+    args: ["${pg_name}", "==", "${expected_name}"] 

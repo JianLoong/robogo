@@ -1,0 +1,48 @@
+testcase: "TC-HTTP-001"
+description: "Test to understand HTTP response format"
+
+# Robogo variables are declared at the top
+variables:
+  vars:
+
+    # base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    base_url: "http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+
+    json_url: http://localhost:8000/json
+    # Section for expected id from the endpoint
+    expected_value: "HTTPBIN is awesome"
+
+steps:
+  - name: "Make simple HTTP request"
+    action: http
+    args: ["GET", "${base_url}"]
+    options:
+      timeout: "5s"
+    result: "http_response"
+
+  - name: "Log pretty formatted response"
+    action: log
+    args: ["Pretty response:", "${http_response}"]
+
+  - name: "Extract status code with jq"
+    action: jq
+    args: ["${http_response}", ".status_code"]
+    result: "status_code"
+
+  - name: "Debug status code"
+    action: log
+    args: ["Status code:", "${status_code}"]
+
+  - name: "Test status code assertion"
+    action: assert
+    args: ["${status_code}", "==", "200"]
+    result: assert_result
+
+  - name: "Extract body with jq"
+    action: jq
+    args: ["${http_response}", ".body"]
+    result: "response_body"
+
+  - name: "Assert that the expected value is correct"
+    action: assert
+    args: ["${response_body}", "==", "${expected_value}"]

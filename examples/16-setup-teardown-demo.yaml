@@ -1,0 +1,81 @@
+testcase: "TC-SETUP-TEARDOWN-001"
+description: "Demonstrate setup and teardown functionality with database operations"
+
+variables:
+  vars:
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+    test_user_email: "setup-teardown-test@example.com"
+    test_user_name: "Setup Teardown User"
+    api_base: "https://httpbin.org"
+
+setup:
+  - name: "Create test schema if needed"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE SCHEMA IF NOT EXISTS test_schema"]
+    
+  - name: "Create users table for testing"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE, created_at TIMESTAMP DEFAULT NOW())"]
+    
+  - name: "Clean up any previous test data"
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM users WHERE email = '${test_user_email}'"]
+    
+  - name: "Log setup completion"
+    action: log
+    args: ["Setup completed - database ready for testing"]
+
+steps:
+  - name: "Insert test user via database"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO users (name, email) VALUES ('${test_user_name}', '${test_user_email}')"]
+    result: "db_insert"
+    
+  - name: "Verify user was created"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT id, name, email FROM users WHERE email = '${test_user_email}'"]
+    result: "user_query"
+    
+  - name: "Assert user exists with correct data"
+    action: assert
+    args: ["${user_query.rows[0][1]}", "==", "${test_user_name}"]
+    
+  - name: "Test API call (simulating app behavior)"
+    action: http
+    args: ["GET", "${api_base}/json"]
+    result: "api_response"
+    
+  - name: "Assert API is working"
+    action: assert
+    args: ["${api_response.status_code}", "==", "200"]
+    
+  - name: "Update user record"
+    action: postgres
+    args: ["execute", "${db_url}", "UPDATE users SET name = '${test_user_name} Updated' WHERE email = '${test_user_email}'"]
+    
+  - name: "Verify update worked"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT name FROM users WHERE email = '${test_user_email}'"]
+    result: "updated_user"
+    
+  - name: "Assert update was successful"
+    action: assert
+    args: ["${updated_user.rows[0][0]}", "==", "${test_user_name} Updated"]
+
+teardown:
+  - name: "Delete test user (cleanup)"
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM users WHERE email = '${test_user_email}'"]
+    
+  - name: "Verify cleanup completed"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT COUNT(*) FROM users WHERE email = '${test_user_email}'"]
+    result: "cleanup_check"
+    
+  - name: "Assert no test data remains"
+    action: assert
+    args: ["${cleanup_check.rows[0][0]}", "==", "0"]
+    
+  - name: "Log teardown completion"
+    action: log
+    args: ["Teardown completed - all test data cleaned up"]

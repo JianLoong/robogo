@@ -1,0 +1,82 @@
+testcase: "TC-LOG-FORMATTING"
+description: "Demonstrate enhanced log action formatting options"
+
+variables:
+  vars:
+    simple_message: "Hello World"
+    user_id: 12345
+    is_active: true
+
+steps:
+  - name: "Make HTTP request for test data"
+    action: http
+    args: ["GET", "http://localhost:8000/json"]
+    result: "http_response"
+  
+  # Simple values - formatted as-is
+  - name: "Log simple string"
+    action: log
+    args: ["Message:", "${simple_message}"]
+    
+  - name: "Log simple number and boolean"
+    action: log
+    args: ["User ID:", "${user_id}", "Active:", "${is_active}"]
+  
+  # Complex data - pretty JSON by default
+  - name: "Log HTTP response (pretty formatted)"
+    action: log
+    args: ["HTTP Response:", "${http_response}"]
+  
+  # Compact JSON formatting
+  - name: "Log HTTP response (compact)"
+    action: log
+    args: ["HTTP Response Compact:", "${http_response}"]
+    options:
+      format: "compact"
+  
+  # Raw formatting (old behavior)
+  - name: "Log HTTP response (raw format)"
+    action: log
+    args: ["HTTP Response Raw:", "${http_response}"]
+    options:
+      format: "raw"
+  
+  # Mixed simple and complex values
+  - name: "Log mixed values"
+    action: log
+    args: ["Status:", "${user_id}", "Response:", "${http_response}"]
+    options:
+      format: "compact"
+      
+  # Extract and log specific values
+  - name: "Extract status code with jq"
+    action: jq
+    args: ["${http_response}", ".status_code"]
+    result: "status_code"
+    
+  - name: "Log extracted simple value"
+    action: log
+    args: ["Extracted status code:", "${status_code}"]
+    
+  # Create test data structure
+  - name: "Create test user object"
+    action: json_build
+    args:
+      - id: "${user_id}"
+        name: "John Doe"
+        email: "john@example.com"
+        active: "${is_active}"
+        metadata:
+          last_login: "2024-01-15T10:30:00Z"
+          preferences: ["email", "sms"]
+    result: "user_object"
+    
+  - name: "Log user object (pretty)"
+    action: log
+    args: ["User Object:", "${user_object}"]
+    
+  - name: "Log user object (compact)"
+    action: log
+    args: ["User Object Compact:", "${user_object}"]
+    options:
+      format: "compact"

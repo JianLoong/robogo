@@ -1,0 +1,19 @@
+testcase: "TC-HTTP-001"
+description: "Test to understand HTTP response format"
+
+# Robogo variables are declared at the top
+variables:
+  vars:
+
+    base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    # Section for expected id from the endpoint
+    expected_value: "HTTPBIN is awesome"
+
+steps:
+  - name: "Make simple HTTP request"
+    action: uuid
+    result: "uuid"
+
+  - name: Log uuid
+    action: log
+    args: ["${uuid}"]

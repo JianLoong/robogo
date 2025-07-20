@@ -1,0 +1,61 @@
+testcase: "TC-HTTP-POST-VERIFY"
+description: "HTTP POST test with data verification"
+
+variables:
+  vars:
+    base_url: "http://localhost:8000/post"
+    test_data: "Test Data"
+
+    json_data: |
+      {
+        "name": "Test Data",
+        "items": [
+          {"id": 1, "name": "John Doe"},
+          {"id": 2, "name": "Jane Smith"}
+        ]
+      }
+
+steps:
+  - name: "Make HTTP POST request"
+    action: http
+    args: ["POST", "${base_url}", "${test_data}"]
+    result: "http_response"
+
+  - name: "Log HTTP response"
+    action: log
+    args: ["${http_response}"]
+
+  - name: "Extract data with jq (parse JSON first)"
+    action: jq
+    args: ["${http_response}", ".body | fromjson | .data"]
+    result: "posted_data"
+
+  - name: "Assert that data sent is correct"
+    action: assert
+    args: ["${posted_data}", "==", "${test_data}"]
+
+  - name: "Make HTTP POST request with inline JSON"
+    action: http
+    args: ["POST", "${base_url}", "${json_data}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+    result: "http_response"
+    
+  - name: "Extract data with jq"
+    action: jq
+    args: ["${http_response}", ".body | fromjson | .data | fromjson | .name"]
+    result: "name"
+
+  - name: "Assert that data sent is correct"
+    action: assert
+    args: ["${name}", "==", "Test Data"]
+
+  - name: "Extract data with jq"
+    action: jq
+    args: ["${http_response}", ".body | fromjson | .data | fromjson | .items[0].name"]
+    result: "name"
+
+  - name: "Assert that data sent is correct"
+    action: assert
+    args: ["${name}", "==", "John Doe"]

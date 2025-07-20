@@ -1,0 +1,102 @@
+testcase: "TC-XML-001"
+description: "Test XML parsing and building operations"
+
+variables:
+  vars:
+    sample_xml: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <users>
+        <user id="1" active="true">
+          <name>John Doe</name>
+          <email>john@example.com</email>
+          <age>30</age>
+        </user>
+        <user id="2" active="false">
+          <name>Jane Smith</name>
+          <email>jane@example.com</email>
+          <age>25</age>
+        </user>
+      </users>
+    
+    simple_xml: |
+      <message>
+        <title>Hello World</title>
+        <content>This is a test message</content>
+      </message>
+
+steps:
+  - name: "Parse simple XML"
+    action: xml_parse
+    args: ["${simple_xml}"]
+    result: "parsed_simple"
+    
+  - name: "Log parsed simple XML"
+    action: log
+    args: ["Parsed simple XML:", "${parsed_simple}"]
+    
+  - name: "Parse complex XML with attributes"
+    action: xml_parse
+    args: ["${sample_xml}"]
+    result: "parsed_users"
+    
+  - name: "Log parsed complex XML"
+    action: log
+    args: ["Parsed users XML:", "${parsed_users}"]
+    
+  - name: "Extract first user name with XPath"
+    action: xpath
+    args: ["${sample_xml}", "//user[1]/name/text()"]
+    result: "first_user_name"
+    
+  - name: "Access XML data"
+    action: log
+    args: ["First user name:", "${first_user_name}"]
+    
+  - name: "Build simple XML from data"
+    action: xml_build
+    args:
+      - name: "Test User"
+        email: "test@example.com"
+        active: true
+    options:
+      root_element: "user"
+      declaration: true
+    result: "built_xml"
+    
+  - name: "Log built XML"
+    action: log
+    args: ["Built XML:", "${built_xml}"]
+    
+  - name: "Build XML with multiple items"
+    action: xml_build
+    args:
+      - product:
+          name: "Laptop"
+          price: 999.99
+          category: "Electronics"
+      - product:
+          name: "Mouse"
+          price: 29.99
+          category: "Accessories"
+    options:
+      root_element: "catalog"
+      declaration: true
+    result: "catalog_xml"
+    
+  - name: "Log catalog XML"
+    action: log
+    args: ["Catalog XML:", "${catalog_xml}"]
+    
+  - name: "Parse the built XML back"
+    action: xml_parse
+    args: ["${built_xml}"]
+    result: "reparsed_xml"
+    
+  - name: "Extract reparsed user name with XPath"
+    action: xpath
+    args: ["${built_xml}", "//user/name/text()"]
+    result: "reparsed_name"
+    
+  - name: "Verify round-trip parsing"
+    action: assert
+    args: ["${reparsed_name}", "==", "Test User"]

@@ -1,0 +1,72 @@
+testcase: "Spanner Connection Test"
+description: "Test Spanner with immediate connection management and basic verification"
+
+# To run on Linux/Mac:
+# SPANNER_EMULATOR_HOST=localhost:9010 ./robogo run examples/test-spanner.yaml
+#
+# To run on Windows PowerShell:
+# $env:SPANNER_EMULATOR_HOST="localhost:9010"; .\robogo.exe run examples/test-spanner.yaml
+#
+# To run on Windows Command Prompt:
+# set SPANNER_EMULATOR_HOST=localhost:9010 && robogo.exe run examples/test-spanner.yaml
+
+steps:
+  - name: "Log start"
+    action: log
+    args: ["Testing Spanner connection..."]
+
+  - name: "Generate timestamp"
+    action: time
+    args: ["2006_01_02_15_04_05"]
+    result: current_time
+
+  - name: "Create test table"
+    action: spanner
+    args: ["execute", "projects/test-project/instances/test-instance/databases/test-database", "CREATE TABLE t_${current_time} (id INT64, name STRING(100)) PRIMARY KEY (id)"]
+
+  - name: "Test information_schema query"
+    action: spanner
+    args: ["select", "projects/test-project/instances/test-instance/databases/test-database", "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' and t.table_schema = ''"]
+    result: spanner_result
+
+  - name: "Debug: Show full result"
+    action: log
+    args: ["Full result: ${spanner_result}"]
+
+  - name: "Extract columns with jq"
+    action: jq
+    args: ["${spanner_result}", ".columns"]
+    result: "columns"
+
+  - name: "Extract rows with jq"
+    action: jq
+    args: ["${spanner_result}", ".rows"]
+    result: "rows"
+
+  - name: "Get row count with jq"
+    action: jq
+    args: ["${spanner_result}", ".rows | length"]
+    result: "row_count"
+
+  - name: "Show columns"
+    action: log
+    args: ["Columns: ${columns}"]
+
+  - name: "Show Rows"
+    action: log
+    args: ["Rows: ${rows}"]
+
+  - name: "Verify we got results"
+    action: assert
+    args: ["${row_count}", ">", "0", "Should have at least one row"]
+
+  - name: "Test simple SELECT 1 query"
+    action: spanner
+    args: ["query", "projects/test-project/instances/test-instance/databases/test-database", "SELECT 1 as test_value, 'hello' as test_string, true as test_bool"]
+    options:
+      as_json: true
+    result: simple_result
+
+  - name: "Test complete"
+    action: log
+    args: ["Test finished - all verifications passed!"]

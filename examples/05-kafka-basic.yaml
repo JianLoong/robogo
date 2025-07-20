@@ -1,0 +1,41 @@
+testcase: "Kafka Messaging Test"
+description: "Test Kafka publish and consume with immediate connection management"
+
+# Prerequisites: Create topic first
+# docker exec kafka kafka-topics.sh --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+steps:
+  - name: "Log start"
+    action: log
+    args: ["Testing Kafka messaging..."]
+
+  - name: "Publish message to Kafka"
+    action: kafka
+    args: ["publish", "localhost:9092", "test-topic", "Hello from Robogo!"]
+    result: publish_result
+
+  - name: "Log start"
+    action: log
+    args: ["${publish_result}"]
+
+  - name: "Consume message from Kafka"
+    action: kafka
+    args: ["consume", "localhost:9092", "test-topic"]
+    options:
+      timeout: 5s
+      auto_commit: true
+      offset: latest
+    result: message
+
+  - name: "Extract first message with jq"
+    action: jq
+    args: ["${message}", ".messages[0]"]
+    result: "first_message"
+    
+  - name: "Verify message content"
+    action: assert
+    args: ["${first_message}", "==", "Hello from Robogo!"]
+
+  - name: "Log completion"
+    action: log
+    args: ["Kafka test completed successfully"]

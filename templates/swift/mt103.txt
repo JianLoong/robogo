@@ -1,0 +1,8 @@
+{1:F01{{.SenderBIC}}0000000000}{2:I103{{.ReceiverBIC}}N}{4:
+:20:{{.TransactionRef}}
+:23B:{{.BankOperationCode}}
+:32A:{{.ValueDate}}{{.Currency}}{{.InterbankAmount}}
+:50K:{{.OrderingCustomer}}
+:59:{{.BeneficiaryCustomer}}
+:71A:{{.DetailsOfCharges}}
+-} 

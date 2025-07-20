@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go run:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(./robogo.exe run:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(go mod:*)",
+      "Bash(ls:*)",
+      "Bash(./robogo.exe --help)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(./robogo_new.exe run examples/simple-secrets-demo.robogo --output console)",
+      "Bash(./robogo-simple:*)",
+      "Bash(./robogo:*)",
+      "Bash(SPANNER_EMULATOR_HOST=localhost:9010 timeout 15s ./robogo run debug-spanner.yaml)",
+      "Bash(timeout:*)",
+      "Bash(docker exec:*)",
+      "Bash(../robogo.exe run 01-http-get.yaml)",
+      "Bash(go list:*)",
+      "Bash(SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh)",
+      "Bash(go vet:*)",
+      "Bash(go get:*)"
+    ],
+    "deny": []
+  }
+}
