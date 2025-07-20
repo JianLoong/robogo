@@ -86,7 +86,7 @@ func runTest(filename string) {
 
 	printTestSummary(result)
 
-	if result.Status == "FAILED" || result.Status == "failed" || result.Status == "error" || result.Status == "ERROR" {
+	if result.Status == "FAIL" || result.Status == "FAILED" || result.Status == "failed" || result.Status == "error" || result.Status == "ERROR" {
 		os.Exit(ExitTestFailure)
 	}
 }
@@ -125,7 +125,7 @@ func printTestSummary(result *types.TestResult) {
 		fmt.Printf("  Error: %s\n", errorMsg)
 	}
 	fmt.Println()
-	
+
 	// Print table header
 	headerFormat := "| %*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n"
 	separatorFormat := "|%s|%s|%s|%s|%s|%s|\n"
@@ -145,21 +145,21 @@ func printTestSummary(result *types.TestResult) {
 		strings.Repeat("-", colDurationWidth+2),
 		strings.Repeat("-", colMessageWidth+2),
 		strings.Repeat("-", colCategoryWidth+2))
-	
+
 	stepNum := 1
-	
+
 	// Print setup steps
 	for _, step := range result.SetupSteps {
 		printStepRow(stepNum, step, "[SETUP] ")
 		stepNum++
 	}
-	
+
 	// Print main test steps
 	for _, step := range result.Steps {
 		printStepRow(stepNum, step, "")
 		stepNum++
 	}
-	
+
 	// Print teardown steps
 	for _, step := range result.TeardownSteps {
 		printStepRow(stepNum, step, "[TEARDOWN] ")

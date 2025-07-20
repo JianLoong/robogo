@@ -433,12 +433,77 @@ robogo/
 
 - **Developer-Centric Design**: Tests are written as clear, readable YAML that developers can easily understand and modify
 - **Shift-Left Enablement**: Full end-to-end testing capabilities that run efficiently in development environments
+- **CLI Tool Design**: Single-threaded, single-test execution following Unix philosophy
+- **Sequential Test Logic**: Steps execute in defined order for predictable, debuggable behavior
+- **Process-Level Parallelism**: Parallelization achieved through multiple CLI invocations, not internal threading
 - **Simple & Direct**: No over-engineering, interfaces, or dependency injection
 - **Immediate Connections**: Database and messaging connections open/close per operation
-- **CLI Tool Design**: Clean exit, no hanging processes
+- **Clean Process Management**: Clean exit, no hanging processes or background threads
 - **Minimal Dependencies**: Only essential libraries
 - **KISS Principle**: Keep it simple and straightforward
 - **Test Clarity**: Every test step is self-documenting with clear names and expected outcomes
+
+## Parallelism and Performance
+
+### CLI Tool Design Philosophy
+
+Robogo follows the **Unix philosophy** for CLI tools: do one thing well and compose with other tools. Each `robogo run` command executes a single test file sequentially, which provides:
+
+- **Predictable Behavior**: Steps execute in the exact order defined
+- **Easy Debugging**: Clear execution flow without race conditions
+- **Reliable Results**: No concurrency bugs or timing issues
+- **Simple Architecture**: Single-threaded execution is easier to maintain
+
+### Achieving Parallelism
+
+For parallel test execution, use **process-level parallelism** rather than internal threading:
+
+#### Shell-Level Parallelism
+```bash
+# Run multiple tests in parallel using shell
+./robogo run test1.yaml &
+./robogo run test2.yaml &
+./robogo run test3.yaml &
+wait  # Wait for all to complete
+```
+
+#### CI/CD Parallelism
+```yaml
+# GitHub Actions example
+strategy:
+  matrix:
+    test: [test1.yaml, test2.yaml, test3.yaml]
+steps:
+  - run: ./robogo run ${{ matrix.test }}
+```
+
+#### Makefile Parallelism
+```makefile
+# Run tests in parallel with make
+test-parallel:
+	./robogo run test1.yaml & \
+	./robogo run test2.yaml & \
+	./robogo run test3.yaml & \
+	wait
+```
+
+### Why Not Internal Parallelism?
+
+Internal step parallelism would break the fundamental testing logic:
+
+```yaml
+steps:
+  - name: "Create user"
+    action: http
+    args: ["POST", "/users", "..."]
+    result: response
+    
+  - name: "Verify user created"  # This DEPENDS on the above step
+    action: assert
+    args: ["${response.status}", "==", "201"]
+```
+
+Steps within a test are **intentionally sequential** because they represent a logical flow where later steps depend on earlier results.
 
 ## Example Tests
 

@@ -18,31 +18,12 @@ const (
 	ErrorCategorySystem     ErrorCategory = "system"
 )
 
-// FailureCategory represents different categories of logical failures
-type FailureCategory string
-
-const (
-	FailureCategoryAssertion  FailureCategory = "assertion"
-	FailureCategoryValidation FailureCategory = "validation"
-	FailureCategoryBusiness   FailureCategory = "business_rule"
-	FailureCategoryData       FailureCategory = "data_mismatch"
-	FailureCategoryResponse   FailureCategory = "response_validation"
-)
-
 // ErrorInfo contains structured information about an error
 type ErrorInfo struct {
 	Category  ErrorCategory `json:"category"`
 	Code      string        `json:"code"`
 	Message   string        `json:"message"`
 	Timestamp time.Time     `json:"timestamp"`
-}
-
-// FailureInfo contains structured information about a logical failure
-type FailureInfo struct {
-	Category  FailureCategory `json:"category"`
-	Code      string          `json:"code"`
-	Message   string          `json:"message"`
-	Timestamp time.Time       `json:"timestamp"`
 }
 
 // NewError creates a simple error result
@@ -58,118 +39,107 @@ func NewError(category ErrorCategory, code, message string) ActionResult {
 	}
 }
 
-// NewFailure creates a simple failure result
-func NewFailure(category FailureCategory, code, message string) ActionResult {
-	return ActionResult{
-		Status: ActionStatusFailed,
-		FailureInfo: &FailureInfo{
-			Category:  category,
-			Code:      code,
-			Message:   message,
-			Timestamp: time.Now(),
-		},
-	}
-}
-
 // Backward compatibility builders - simple wrappers
 
-// ErrorBuilder provides backward compatibility
+// ErrorBuilder provides rich error construction
 type ErrorBuilder struct {
-	category ErrorCategory
-	code     string
-	message  string
+	category    ErrorCategory
+	code        string
+	template    string
+	context     map[string]any
+	suggestions []string
+	expected    any
+	actual      any
+	comparison  string
 }
 
-// FailureBuilder provides backward compatibility  
-type FailureBuilder struct {
-	category FailureCategory
-	code     string
-	message  string
-}
-
-// NewErrorBuilder creates a new ErrorBuilder (simplified)
+// NewErrorBuilder creates a new ErrorBuilder
 func NewErrorBuilder(category ErrorCategory, code string) *ErrorBuilder {
 	return &ErrorBuilder{
 		category: category,
 		code:     code,
+		context:  make(map[string]any),
 	}
 }
 
-// NewFailureBuilder creates a new FailureBuilder (simplified)
-func NewFailureBuilder(category FailureCategory, code string) *FailureBuilder {
-	return &FailureBuilder{
-		category: category,
-		code:     code,
-	}
-}
-
-// WithTemplate sets the message (ignores template complexity)
+// WithTemplate sets the error message template
 func (eb *ErrorBuilder) WithTemplate(template string) *ErrorBuilder {
-	eb.message = template
+	eb.template = template
 	return eb
 }
 
-// WithContext ignored for simplicity
+// WithContext adds contextual information to the error
 func (eb *ErrorBuilder) WithContext(key string, value any) *ErrorBuilder {
+	if eb.context == nil {
+		eb.context = make(map[string]any)
+	}
+	eb.context[key] = value
 	return eb
 }
 
-// WithSuggestion ignored for simplicity
+// WithSuggestion adds a suggestion for fixing the error
 func (eb *ErrorBuilder) WithSuggestion(suggestion string) *ErrorBuilder {
+	eb.suggestions = append(eb.suggestions, suggestion)
 	return eb
 }
 
-// WithExpected ignored for simplicity
+// WithExpected sets the expected value for comparison errors
 func (eb *ErrorBuilder) WithExpected(expected any) *ErrorBuilder {
+	eb.expected = expected
 	return eb
 }
 
-// WithActual ignored for simplicity
+// WithActual sets the actual value for comparison errors
 func (eb *ErrorBuilder) WithActual(actual any) *ErrorBuilder {
+	eb.actual = actual
 	return eb
 }
 
-// WithComparison ignored for simplicity
+// WithComparison sets the comparison operator for assertion errors
 func (eb *ErrorBuilder) WithComparison(comparison string) *ErrorBuilder {
+	eb.comparison = comparison
 	return eb
 }
 
-// Build creates the final error result with formatted message
+// Build creates the final error result with rich context
 func (eb *ErrorBuilder) Build(args ...any) ActionResult {
-	message := eb.message
-	if len(args) > 0 {
-		message = fmt.Sprintf(eb.message, args...)
+	// Start with the template
+	message := eb.template
+
+	// Apply template formatting if args provided
+	if len(args) > 0 && eb.template != "" {
+		message = fmt.Sprintf(eb.template, args...)
 	}
+
+	// Enhance message with context if available
+	if len(eb.context) > 0 {
+		message += "\nContext:"
+		for key, value := range eb.context {
+			message += fmt.Sprintf("\n  %s: %v", key, value)
+		}
+	}
+
+	// Add comparison details for assertion errors
+	if eb.expected != nil || eb.actual != nil {
+		message += "\nComparison Details:"
+		if eb.expected != nil {
+			message += fmt.Sprintf("\n  Expected: %v", eb.expected)
+		}
+		if eb.actual != nil {
+			message += fmt.Sprintf("\n  Actual: %v", eb.actual)
+		}
+		if eb.comparison != "" {
+			message += fmt.Sprintf("\n  Operator: %s", eb.comparison)
+		}
+	}
+
+	// Add suggestions if available
+	if len(eb.suggestions) > 0 {
+		message += "\nSuggestions:"
+		for _, suggestion := range eb.suggestions {
+			message += fmt.Sprintf("\n  • %s", suggestion)
+		}
+	}
+
 	return NewError(eb.category, eb.code, message)
-}
-
-// FailureBuilder methods (similar pattern)
-
-func (fb *FailureBuilder) WithTemplate(template string) *FailureBuilder {
-	fb.message = template
-	return fb
-}
-
-func (fb *FailureBuilder) WithExpected(expected any) *FailureBuilder {
-	return fb
-}
-
-func (fb *FailureBuilder) WithActual(actual any) *FailureBuilder {
-	return fb
-}
-
-func (fb *FailureBuilder) WithComparison(comparison string) *FailureBuilder {
-	return fb
-}
-
-func (fb *FailureBuilder) WithContext(key string, value any) *FailureBuilder {
-	return fb
-}
-
-func (fb *FailureBuilder) Build(args ...any) ActionResult {
-	message := fb.message
-	if len(args) > 0 {
-		message = fmt.Sprintf(fb.message, args...)
-	}
-	return NewFailure(fb.category, fb.code, message)
 }

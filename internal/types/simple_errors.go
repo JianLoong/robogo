@@ -72,18 +72,22 @@ func UnresolvedVariableError(count int, args []int) ActionResult {
 // Assertion failures (these return FAILED status for logical failures)
 func AssertionFailure(expected, actual any, operator string) ActionResult {
 	return NewFailureBuilder(FailureCategoryAssertion, "ASSERTION_FAILED").
-		WithTemplate("assertion failed: expected %v %s %v, got %v").
+		WithTemplate("Assertion failed: expected %v %s %v, but got %v").
 		WithExpected(expected).
 		WithActual(actual).
 		WithComparison(operator).
+		WithSuggestion("Check that your test data matches the expected values").
+		WithSuggestion("Verify that variables are properly substituted").
 		Build(actual, operator, expected, actual)
 }
 
 func BooleanAssertionFailure(actual any) ActionResult {
 	return NewFailureBuilder(FailureCategoryAssertion, "BOOLEAN_ASSERTION_FAILED").
-		WithTemplate("assertion failed: expected true, got %v (%T)").
+		WithTemplate("Boolean assertion failed: expected true, got %v (%T)").
 		WithExpected(true).
 		WithActual(actual).
 		WithComparison("boolean equality").
+		WithSuggestion("Ensure your condition evaluates to a boolean true value").
+		WithSuggestion("Check if variables are properly resolved and contain expected values").
 		Build(actual, actual)
 }

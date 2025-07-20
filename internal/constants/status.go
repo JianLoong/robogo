@@ -4,8 +4,8 @@ package constants
 type ActionStatus string
 
 const (
-	ActionStatusPassed  ActionStatus = "passed"
-	ActionStatusFailed  ActionStatus = "failed"
-	ActionStatusError   ActionStatus = "error"
-	ActionStatusSkipped ActionStatus = "skipped"
+	ActionStatusPassed  ActionStatus = "PASS"
+	ActionStatusFailed  ActionStatus = "FAIL"
+	ActionStatusError   ActionStatus = "ERROR"
+	ActionStatusSkipped ActionStatus = "SKIPPED"
 )
