@@ -141,7 +141,8 @@ func runTest(filename string) {
 
 func listActions() {
 	fmt.Println("Available actions:")
-	for _, action := range actions.ListActions() {
+	registry := actions.NewActionRegistry()
+	for _, action := range registry.GetRegisteredActions() {
 		fmt.Printf("  - %s\n", action)
 	}
 }

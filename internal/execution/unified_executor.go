@@ -10,37 +10,12 @@ type UnifiedExecutor struct {
 	strategyRouter *ExecutionStrategyRouter
 }
 
-// NewUnifiedExecutor creates a new unified executor with all execution strategies
+// NewUnifiedExecutor creates a new unified executor using dependency injection
 func NewUnifiedExecutor(variables *common.Variables) *UnifiedExecutor {
-	router := NewExecutionStrategyRouter()
-	
-	// Create the basic action executor
-	actionExecutor := NewStepExecutor(variables)
-	
-	// Create condition evaluator
-	conditionEvaluator := NewBasicConditionEvaluator(variables)
-	
-	// Register strategies in order of priority (highest priority first)
-	// Note: The router automatically sorts by priority, but registering in logical order
-	
-	// 1. Loop execution (for/while - highest priority - most specific)
-	// For now, delegate to existing control flow to avoid import cycles
-	
-	// 2. Conditional execution (if statements) 
-	router.RegisterStrategy(NewConditionalExecutionStrategy(conditionEvaluator, router))
-	
-	// 3. Retry execution
-	router.RegisterStrategy(NewRetryExecutionStrategy(actionExecutor, variables))
-	
-	// 4. Nested steps execution
-	router.RegisterStrategy(NewNestedStepsExecutionStrategy(router))
-	
-	// 5. Basic execution (lowest priority - fallback)
-	router.RegisterStrategy(NewBasicExecutionStrategy(actionExecutor))
-	
-	return &UnifiedExecutor{
-		strategyRouter: router,
-	}
+	// Use dependency injection for clean architecture
+	deps := NewDependencies(variables)
+	injector := NewDependencyInjector(deps)
+	return injector.CreateUnifiedExecutor()
 }
 
 // Execute executes a step using the appropriate strategy
@@ -48,10 +23,6 @@ func (executor *UnifiedExecutor) Execute(step types.Step, stepNum int, loopCtx *
 	return executor.strategyRouter.Execute(step, stepNum, loopCtx)
 }
 
-// ExecuteStepWithContext implements the StepExecutor interface for compatibility
-func (executor *UnifiedExecutor) ExecuteStepWithContext(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
-	return executor.Execute(step, stepNum, loopCtx)
-}
 
 // ExecuteSteps executes multiple steps sequentially
 func (executor *UnifiedExecutor) ExecuteSteps(steps []types.Step, loopCtx *types.LoopContext) ([]types.StepResult, error) {

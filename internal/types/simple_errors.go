@@ -68,35 +68,6 @@ func ActionFailedError(details string) ActionResult {
 		Build(details)
 }
 
-func ExtractionFailedError(details string) ActionResult {
-	return NewErrorBuilder(ErrorCategoryExecution, "EXTRACTION_FAILED").
-		WithTemplate("Failed to extract data: %s").
-		Build(details)
-}
-
-func UnsupportedExtractionTypeError(extractionType string) ActionResult {
-	return NewErrorBuilder(ErrorCategoryValidation, "UNSUPPORTED_EXTRACTION_TYPE").
-		WithTemplate("Unsupported extraction type: %s").
-		Build(extractionType)
-}
-
-func InvalidRegexPatternError(pattern, details string) ActionResult {
-	return NewErrorBuilder(ErrorCategoryValidation, "INVALID_REGEX_PATTERN").
-		WithTemplate("Invalid regex pattern '%s': %s").
-		Build(pattern, details)
-}
-
-func NoRegexMatchError(pattern string) ActionResult {
-	return NewErrorBuilder(ErrorCategoryExecution, "NO_REGEX_MATCH").
-		WithTemplate("No matches found for pattern: %s").
-		Build(pattern)
-}
-
-func InvalidCaptureGroupError(group, available int) ActionResult {
-	return NewErrorBuilder(ErrorCategoryValidation, "INVALID_CAPTURE_GROUP").
-		WithTemplate("Capture group %d not found (only %d groups available)").
-		Build(group, available)
-}
 
 // Variable errors
 func UnresolvedVariableError(count int, args []int) ActionResult {

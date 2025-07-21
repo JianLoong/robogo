@@ -10,20 +10,16 @@ type Dependencies struct {
 	Variables          *common.Variables
 	ActionRegistry     *actions.ActionRegistry
 	ConditionEvaluator ConditionEvaluator
-	ActionExecutor     ActionExecutor
 }
 
 // NewDependencies creates a new dependencies container
 func NewDependencies(variables *common.Variables) *Dependencies {
 	actionRegistry := actions.NewActionRegistry()
-	actionExecutor := NewStepExecutor(variables)
-	// TODO: Inject action registry into action executor
 	
 	return &Dependencies{
 		Variables:          variables,
 		ActionRegistry:     actionRegistry,
 		ConditionEvaluator: NewBasicConditionEvaluator(variables),
-		ActionExecutor:     actionExecutor,
 	}
 }
 
@@ -49,10 +45,6 @@ func (di *DependencyInjector) GetConditionEvaluator() ConditionEvaluator {
 	return di.deps.ConditionEvaluator
 }
 
-// GetActionExecutor returns the action executor dependency
-func (di *DependencyInjector) GetActionExecutor() ActionExecutor {
-	return di.deps.ActionExecutor
-}
 
 // GetActionRegistry returns the action registry dependency
 func (di *DependencyInjector) GetActionRegistry() *actions.ActionRegistry {
@@ -63,28 +55,24 @@ func (di *DependencyInjector) GetActionRegistry() *actions.ActionRegistry {
 func (di *DependencyInjector) CreateUnifiedExecutor() *UnifiedExecutor {
 	router := NewExecutionStrategyRouter()
 	
-	// Register strategies with injected dependencies
+	// Register strategies with simplified dependencies - no more ActionExecutor interface
 	router.RegisterStrategy(NewConditionalExecutionStrategy(di.GetConditionEvaluator(), router))
-	router.RegisterStrategy(NewRetryExecutionStrategy(di.GetActionExecutor(), di.GetVariables()))
+	router.RegisterStrategy(NewRetryExecutionStrategy(di.GetVariables(), di.GetActionRegistry()))
 	router.RegisterStrategy(NewNestedStepsExecutionStrategy(router))
-	router.RegisterStrategy(NewBasicExecutionStrategy(di.GetActionExecutor()))
+	router.RegisterStrategy(NewBasicExecutionStrategy(di.GetVariables(), di.GetActionRegistry()))
 	
 	return &UnifiedExecutor{
 		strategyRouter: router,
 	}
 }
 
-// CreateRetryExecutor creates a retry executor with injected dependencies
-func (di *DependencyInjector) CreateRetryExecutor() *RetryExecutor {
-	return NewRetryExecutor(di.GetActionExecutor(), di.GetVariables())
-}
-
 // WithVariables creates a new dependency injector with different variables
 func (di *DependencyInjector) WithVariables(variables *common.Variables) *DependencyInjector {
+	// Reuse the same action registry but create new condition evaluator with new variables
 	newDeps := &Dependencies{
 		Variables:          variables,
+		ActionRegistry:     di.deps.ActionRegistry, // Reuse the same registry
 		ConditionEvaluator: NewBasicConditionEvaluator(variables),
-		ActionExecutor:     NewStepExecutor(variables),
 	}
 	return NewDependencyInjector(newDeps)
 }

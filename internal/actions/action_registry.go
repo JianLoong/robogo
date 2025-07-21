@@ -1,8 +1,6 @@
 package actions
 
 import (
-	"fmt"
-
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/types"
 )
@@ -117,18 +115,3 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("xml_build", xmlBuildAction)
 }
 
-// Global registry instance for backward compatibility
-// TODO: Remove this once all components use dependency injection
-var globalRegistry = NewActionRegistry()
-
-// GetAction retrieves an action from the global registry (DEPRECATED)
-func GetAction(name string) (ActionFunc, bool) {
-	fmt.Printf("[DEPRECATED] GetAction called for '%s' - use ActionRegistry instance instead\n", name)
-	return globalRegistry.Get(name)
-}
-
-// ListActions returns all registered actions from the global registry (DEPRECATED)  
-func ListActions() []string {
-	fmt.Println("[DEPRECATED] ListActions called - use ActionRegistry instance instead")
-	return globalRegistry.GetRegisteredActions()
-}
