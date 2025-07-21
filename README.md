@@ -35,6 +35,9 @@ go build -o robogo ./cmd/robogo
 # Run a single test
 ./robogo run my-test.yaml
 
+# Run test with custom .env file
+./robogo --env production.env run my-test.yaml
+
 # List available actions
 ./robogo list
 
@@ -75,6 +78,81 @@ Run it:
 ./robogo run hello-world.yaml
 ```
 
+## Environment Variables & Secret Management
+
+### Using Environment Variables
+
+Robogo supports environment variables for secure credential management using `${ENV:VARIABLE_NAME}` syntax:
+
+```yaml
+variables:
+  vars:
+    # Secure database connection using environment variables
+    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}?sslmode=disable"
+    
+    # API authentication
+    api_token: "${ENV:API_TOKEN}"
+    api_base_url: "${ENV:API_BASE_URL}"
+```
+
+### .env File Support
+
+**Option 1: Default .env file (recommended)**
+```bash
+# Copy example and edit with your values
+cp .env.example .env
+
+# Run test (automatically loads .env)
+./robogo run examples/03-postgres-secure.yaml
+```
+
+**Option 2: Custom .env file**
+```bash
+# Specify custom .env file
+./robogo --env production.env run my-test.yaml
+```
+
+**Option 3: Export environment variables**
+```bash
+export DB_USER=myuser
+export DB_PASSWORD=mypassword
+./robogo run my-test.yaml
+```
+
+**Note:** Explicitly set environment variables take precedence over .env file values.
+
+### Secret Management Philosophy
+
+**Robogo consumes secrets but does not manage them.** This design principle keeps the framework focused on test automation while allowing seamless integration with any secret management approach:
+
+**✅ Robogo's Responsibility:**
+- Execute tests efficiently
+- Provide clean variable substitution
+- Support standard patterns (env vars, .env files)
+
+**✅ Your Responsibility (choose your approach):**
+- **Development**: Use `.env` files for local testing
+- **CI/CD**: Inject secrets as environment variables
+- **Production**: Integrate with your secret management system
+
+**Integration Examples:**
+```bash
+# HashiCorp Vault
+eval $(vault kv get -format=json secret/robogo | jq -r '.data.data | to_entries[] | "export \(.key)=\(.value)"')
+./robogo run test.yaml
+
+# Kubernetes secrets
+export DB_PASSWORD=$(kubectl get secret db-creds -o jsonpath='{.data.password}' | base64 -d)
+./robogo run test.yaml
+
+# AWS Secrets Manager
+export API_KEY=$(aws secretsmanager get-secret-value --secret-id prod/api-key --query SecretString --output text)
+./robogo run test.yaml
+
+# Development with .env
+./robogo --env .env.local run test.yaml
+```
+
 ## Available Actions
 
 ### Core Actions
@@ -83,6 +161,22 @@ Run it:
 - **`variable`** - Set and manage variables
 - **`uuid`** - Generate UUID values
 - **`time`** - Generate timestamps (RFC3339, Unix, custom formats)
+- **`sleep`** - Pause execution for specified duration (supports ns, μs, ms, s, m, h)
+
+### Encoding Actions
+- **`base64_encode`** - Encode data to base64 format
+- **`base64_decode`** - Decode base64 data to original format
+- **`url_encode`** - URL encode data for query parameters
+- **`url_decode`** - URL decode data back to original format
+- **`hash`** - Generate hash using MD5, SHA1, SHA256, or SHA512
+
+### File Actions
+- **`file_read`** - Read files with automatic format detection (JSON, YAML, CSV, text)
+
+### String Actions
+- **`string_random`** - Generate random strings with various charsets (numeric, alphabetic, alphanumeric, hex, custom)
+- **`string_replace`** - Replace substrings with support for occurrence limits
+- **`string_format`** - Format strings with placeholder substitution
 
 ### HTTP Actions  
 - **`http`** - HTTP requests (GET, POST, PUT, DELETE, etc.)
@@ -286,20 +380,198 @@ steps:
 - `retry_on`: Specific error types - ["assertion_failed", "http_error", "timeout", "connection_error", "all"]
 - `stop_on_success`: Stop retrying immediately on success (default: true)
 
+### Sleep & Timing Control
+
+Control test execution timing for async operations, polling, and delays:
+
+```yaml
+steps:
+  # Basic sleep with different duration formats
+  - name: "Short delay"
+    action: sleep
+    args: ["500ms"]  # Milliseconds
+    
+  - name: "Medium delay"
+    action: sleep
+    args: ["2s"]     # Seconds
+    
+  - name: "Long delay"
+    action: sleep
+    args: ["1m30s"]  # Minutes and seconds
+    
+  # Variable-based delays
+  - name: "Configurable delay"
+    action: sleep
+    args: ["${retry_delay}"]  # From variable
+    result: sleep_info
+    
+  # Polling simulation
+  - name: "Check status"
+    action: http
+    args: ["GET", "${status_url}"]
+    result: status_response
+    
+  - name: "Wait before next poll"
+    action: sleep
+    args: ["${polling_interval}"]
+```
+
+**Supported duration formats**: `ns`, `us`/`μs`, `ms`, `s`, `m`, `h` (e.g., "100ms", "2.5s", "1m30s")
+
+### Encoding & Security
+
+Handle authentication, data integrity, and URL formatting:
+
+```yaml
+steps:
+  # Basic Authentication
+  - name: "Create Basic Auth header"
+    action: base64_encode
+    args: ["${username}:${password}"]
+    result: auth_token
+    
+  - name: "Make authenticated request"
+    action: http
+    args: ["GET", "${api_url}"]
+    options:
+      headers:
+        Authorization: "Basic ${auth_token}"
+    
+  # URL encoding for query parameters
+  - name: "Encode search query"
+    action: url_encode
+    args: ["user name with spaces & symbols"]
+    result: encoded_query
+    
+  - name: "Build search URL"
+    action: variable
+    args: ["search_url", "${base_url}/search?q=${encoded_query}"]
+    
+  # Data integrity with hashing
+  - name: "Generate payload hash"
+    action: hash
+    args: ["${json_payload}", "sha256"]
+    result: payload_hash
+    
+  - name: "Extract hash value"
+    action: jq
+    args: ["${payload_hash}", ".hash"]
+    result: hash_value
+```
+
+**Supported hash algorithms**: `md5`, `sha1`, `sha256`, `sha512`
+
+### File Operations & Data-Driven Testing
+
+Load external data files for comprehensive test scenarios:
+
+```yaml
+steps:
+  # Load JSON test data
+  - name: "Load user data"
+    action: file_read
+    args: ["testdata/users.json"]
+    result: users
+    
+  - name: "Extract first user"
+    action: jq
+    args: ["${users}", ".content[0].name"]
+    result: first_user_name
+    
+  # Load YAML configuration
+  - name: "Load config"
+    action: file_read
+    args: ["config/api.yaml"]
+    result: config
+    
+  - name: "Get API URL from config"
+    action: jq
+    args: ["${config}", ".content.api.base_url"]
+    result: api_url
+    
+  # Load CSV test cases for data-driven testing
+  - name: "Load test cases"
+    action: file_read
+    args: ["testdata/test_cases.csv"]
+    result: test_cases
+    
+  - name: "Run first test case"
+    action: jq
+    args: ["${test_cases}", ".content[0]"]
+    result: first_test
+    
+  # Load plain text templates
+  - name: "Load request template"
+    action: file_read
+    args: ["templates/soap_request.xml"]
+    result: template
+```
+
+**Supported formats**: JSON (parsed), YAML (parsed), CSV (array of objects), Text (raw string)
+**Security**: Path traversal protection, working directory restrictions
+
+### String Operations & Unique Data Generation
+
+Generate unique test data and manipulate strings for comprehensive testing:
+
+```yaml
+steps:
+  # Generate unique identifiers
+  - name: "Generate unique user ID"
+    action: string_random
+    args: [8, "alphanumeric"]
+    result: user_id_data
+    
+  - name: "Extract user ID"
+    action: jq
+    args: ["${user_id_data}", ".value"]
+    result: user_id
+    
+  # Generate different types of random data
+  - name: "Generate numeric ID"
+    action: string_random
+    args: [6, "numeric"]
+    result: numeric_id
+    
+  - name: "Generate API key"
+    action: string_random
+    args: [32, "hex"]
+    result: api_key
+    
+  # Format strings with generated data
+  - name: "Create unique email"
+    action: string_format
+    args: ["test-{}@example.com", "${user_id}"]
+    result: email_data
+    
+  # String replacement for templates
+  - name: "Personalize message"
+    action: string_replace
+    args: ["Hello {{USER}}, welcome!", "{{USER}}", "${user_id}"]
+    result: personalized_msg
+```
+
+**Supported charsets**: `numeric`, `lowercase`, `uppercase`, `alphabetic`, `alphanumeric`, `hex`, `special`, `all`, `custom`
+**Use cases**: Unique user data, API keys, database names, email addresses, test isolation
+
 ### Variable Substitution & Data Extraction
 
-Variables use simple `${variable}` substitution. For complex data extraction, use dedicated actions:
+Variables use simple `${variable}` substitution and `${ENV:VARIABLE_NAME}` for environment variables. For complex data extraction, use dedicated actions:
 
 ```yaml
 variables:
   vars:
-    api_url: "https://api.example.com"
+    api_url: "${ENV:API_BASE_URL}"  # From environment variable
+    auth_token: "${ENV:API_TOKEN}"  # From environment variable
 
 steps:
-  # Simple variable substitution
-  - name: "Make request"
+  # Variable substitution with environment variables
+  - name: "Make authenticated request"
     action: http
     args: ["GET", "${api_url}/users"]
+    options:
+      headers:
+        Authorization: "Bearer ${auth_token}"
     result: response
     
   # Extract data with jq for JSON/structured data
@@ -368,10 +640,26 @@ docker-compose up -d
 
 ### Database Setup
 
-**PostgreSQL** - Ready to use:
+**PostgreSQL** - Use environment variables for credentials:
 ```yaml
-- action: postgres
-  args: ["query", "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable", "SELECT 1"]
+# Secure approach using environment variables
+variables:
+  vars:
+    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}?sslmode=disable"
+
+steps:
+  - action: postgres
+    args: ["query", "${db_url}", "SELECT 1"]
+```
+
+**For development** - Set up .env file:
+```bash
+# Create .env file
+echo "DB_USER=robogo_testuser" >> .env
+echo "DB_PASSWORD=robogo_testpass" >> .env  
+echo "DB_HOST=localhost" >> .env
+echo "DB_PORT=5432" >> .env
+echo "DB_NAME=robogo_testdb" >> .env
 ```
 
 **Spanner** - Run setup first:
@@ -409,6 +697,8 @@ robogo/
 │   │   ├── variable.go         # Variable management
 │   │   ├── uuid.go             # UUID generation
 │   │   ├── time.go             # Time/timestamp generation
+│   │   ├── sleep.go            # Sleep/delay action
+│   │   ├── string.go           # String operations and random generation
 │   │   └── registry.go         # Action registry
 │   ├── common/                  # Shared utilities
 │   │   └── variables.go        # Variable substitution with expr

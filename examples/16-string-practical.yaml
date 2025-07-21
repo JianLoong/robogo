@@ -1,0 +1,174 @@
+testcase: "TC-STRING-PRACTICAL"
+description: "Practical string operations for real-world testing scenarios"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org"
+    base_email: "test@example.com"
+
+steps:
+  # Scenario 1: Generate unique user data for registration
+  - name: "Generate unique user ID"
+    action: string_random
+    args: [8, "alphanumeric"]
+    result: user_id
+
+  - name: "Generate unique username"
+    action: string_random
+    args: [12, "lowercase"]
+    result: username
+
+  - name: "Create unique email with random suffix"
+    action: string_random
+    args: [6, "numeric"]
+    result: email_suffix
+
+  - name: "Format unique email address"
+    action: string_format
+    args: ["test-{}@example.com", "${email_suffix.value}"]
+    result: unique_email
+
+  - name: "Log generated user data"
+    action: log
+    args: ["Generated User Data:", "ID: ${user_id.value}", "Username: ${username.value}", "Email: ${unique_email.result}"]
+
+  # Scenario 2: API Key generation and usage
+  - name: "Generate API key"
+    action: string_random
+    args: [32, "hex"]
+    result: api_key
+
+  - name: "Format API key header"
+    action: string_format
+    args: ["Bearer {}", "${api_key.value}"]
+    result: auth_header
+
+  - name: "Log API key info"
+    action: log
+    args: ["Generated API Key: ${api_key.value}", "Auth Header: ${auth_header.result}"]
+
+  # Scenario 3: Test data with string replacement
+  - name: "Load template data"
+    action: variable
+    args: ["user_template", "Hello {{NAME}}, your ID is {{ID}} and email is {{EMAIL}}"]
+
+  - name: "Replace name placeholder"
+    action: string_replace
+    args: ["${user_template}", "{{NAME}}", "User-${username.value}"]
+    result: template_with_name
+
+  - name: "Replace ID placeholder"
+    action: string_replace
+    args: ["${template_with_name.result}", "{{ID}}", "${user_id.value}"]
+    result: template_with_id
+
+  - name: "Replace email placeholder"
+    action: string_replace
+    args: ["${template_with_id.result}", "{{EMAIL}}", "${unique_email.result}"]
+    result: final_message
+
+  - name: "Log personalized message"
+    action: log
+    args: ["Personalized message: ${final_message.result}"]
+
+  # Scenario 4: Generate test passwords
+  - name: "Generate secure password"
+    action: string_random
+    args: [16, "all"]
+    result: secure_password
+
+  - name: "Generate simple password"
+    action: string_random
+    args: [8, "alphanumeric"]
+    result: simple_password
+
+  - name: "Log password info (masked for security)"
+    action: log
+    args: ["Generated passwords (lengths):", "Secure: ${secure_password.length} chars", "Simple: ${simple_password.length} chars"]
+
+  # Scenario 5: Database/Resource naming
+  - name: "Generate database name"
+    action: string_random
+    args: [8, "lowercase"]
+    result: db_suffix
+
+  - name: "Format database name"
+    action: string_format
+    args: ["test_db_{}", "${db_suffix.value}"]
+    result: database_name
+
+  - name: "Generate table name"
+    action: string_random
+    args: [6, "lowercase"]
+    result: table_suffix
+
+  - name: "Format table name"
+    action: string_format
+    args: ["users_{}", "${table_suffix.value}"]
+    result: table_name
+
+  - name: "Log database resources"
+    action: log
+    args: ["Database Resources:", "DB: ${database_name.result}", "Table: ${table_name.result}"]
+
+  # Scenario 6: Test with actual API call using generated data
+  - name: "Make API call with generated data"
+    action: http
+    args: ["GET", "${api_url}/get?user_id=${user_id.value}&username=${username.value}"]
+    result: api_response
+
+  - name: "Extract API response status"
+    action: jq
+    args: ["${api_response}", ".status_code"]
+    result: api_status
+
+  - name: "Verify API call succeeded"
+    action: assert
+    args: ["${api_status}", "==", "200"]
+
+  - name: "Extract query parameters from response"
+    action: jq
+    args: ["${api_response}", ".body | fromjson | .args"]
+    result: returned_params
+
+  - name: "Verify our generated user_id was returned"
+    action: jq
+    args: ["${returned_params}", ".user_id"]
+    result: returned_user_id
+
+  - name: "Verify user ID matches"
+    action: assert
+    args: ["${returned_user_id}", "==", "${user_id.value}"]
+
+  - name: "Log API verification"
+    action: log
+    args: ["✓ API call successful with generated data:", "Sent user_id: ${user_id.value}", "Returned user_id: ${returned_user_id}"]
+
+  # Scenario 7: Generate multiple unique identifiers for batch operations
+  - name: "Generate batch of unique IDs"
+    action: string_random
+    args: [10, "alphanumeric"]
+    result: batch_id_1
+
+  - name: "Generate second batch ID"
+    action: string_random
+    args: [10, "alphanumeric"]
+    result: batch_id_2
+
+  - name: "Generate third batch ID"
+    action: string_random
+    args: [10, "alphanumeric"]
+    result: batch_id_3
+
+  - name: "Create batch processing list"
+    action: string_format
+    args: ["Batch IDs: {}, {}, {}", "${batch_id_1.value}", "${batch_id_2.value}", "${batch_id_3.value}"]
+    result: batch_list
+
+  - name: "Log batch processing"
+    action: log
+    args: ["${batch_list.result}"]
+
+  - name: "Final completion message"
+    action: log
+    args: ["✓ All practical string operations completed successfully!", "Generated unique test data for comprehensive testing scenarios"]

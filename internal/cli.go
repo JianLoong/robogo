@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/JianLoong/robogo/internal/actions"
+	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
@@ -17,6 +18,12 @@ const (
 	ExitUsageError  = 1 // Usage or argument error
 	ExitTestFailure = 2 // Test execution failed
 )
+
+// ParsedArgs holds parsed command line arguments
+type ParsedArgs struct {
+	envFile    string   // --env flag value
+	positional []string // non-flag arguments
+}
 
 // Table formatting and truncation widths for printTestSummary
 const (
@@ -32,8 +39,51 @@ const (
 	truncCategory = 9  // Truncate category to this length before adding '...'
 )
 
+// parseArgs parses command line arguments, handling flags and positional arguments
+func parseArgs() ParsedArgs {
+	args := ParsedArgs{
+		envFile:    "",
+		positional: []string{},
+	}
+
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		
+		if strings.HasPrefix(arg, "--env=") {
+			args.envFile = arg[6:] // Remove "--env=" prefix
+		} else if arg == "--env" && i+1 < len(os.Args) {
+			i++ // Move to next argument
+			args.envFile = os.Args[i]
+		} else if !strings.HasPrefix(arg, "-") {
+			args.positional = append(args.positional, arg)
+		} else {
+			fmt.Printf("Error: unknown flag '%s'\n", arg)
+			printUsage()
+			os.Exit(ExitUsageError)
+		}
+	}
+
+	return args
+}
+
 // SimpleCLI - direct, no-abstraction CLI
 func RunCLI() {
+	// Parse command line arguments first to check for --env flag
+	args := parseArgs()
+
+	// Load .env file - use custom file if specified, otherwise try default
+	if args.envFile != "" {
+		if err := common.LoadDotEnv(args.envFile); err != nil {
+			fmt.Printf("[ERROR] Failed to load specified .env file '%s': %v\n", args.envFile, err)
+			os.Exit(ExitUsageError)
+		}
+	} else {
+		// Try to load default .env file (no error if it doesn't exist)
+		if err := common.LoadDotEnvWithDefault(); err != nil {
+			fmt.Printf("[WARN] Failed to load .env file: %v\n", err)
+		}
+	}
+
 	// Setup signal handling for graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -44,23 +94,21 @@ func RunCLI() {
 		os.Exit(ExitSuccess)
 	}()
 
-	// No cleanup needed - connections close automatically
-
-	if len(os.Args) < 2 {
+	if len(args.positional) < 1 {
 		printUsage()
 		os.Exit(ExitUsageError)
 	}
 
-	command := os.Args[1]
+	command := args.positional[0]
 
 	switch command {
 	case "run":
-		if len(os.Args) < 3 {
+		if len(args.positional) < 2 {
 			fmt.Println("Error: run command requires a test file")
 			printUsage()
 			os.Exit(ExitUsageError)
 		}
-		runTest(os.Args[2])
+		runTest(args.positional[1])
 
 	case "list":
 		listActions()
@@ -100,9 +148,16 @@ func listActions() {
 
 func printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("  robogo run <test-file>        Run a single test")
-	fmt.Println("  robogo list                   List available actions")
-	fmt.Println("  robogo version                Show version")
+	fmt.Println("  robogo [flags] <command> [args]")
+	fmt.Println("")
+	fmt.Println("Commands:")
+	fmt.Println("  run <test-file>               Run a single test")
+	fmt.Println("  list                          List available actions")
+	fmt.Println("  version                       Show version")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --env <file>                  Load environment variables from specified file")
+	fmt.Println("                                (default: .env in current directory)")
 }
 
 // getCategory returns the category from ErrorInfo or FailureInfo

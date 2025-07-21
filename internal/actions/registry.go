@@ -16,8 +16,24 @@ var ActionRegistry = map[string]ActionFunc{
 	"variable": variableAction,
 
 	// Utility actions
-	"uuid": uuidAction,
-	"time": timeAction,
+	"uuid":  uuidAction,
+	"time":  timeAction,
+	"sleep": sleepAction,
+
+	// Encoding actions
+	"base64_encode": base64EncodeAction,
+	"base64_decode": base64DecodeAction,
+	"url_encode":    urlEncodeAction,
+	"url_decode":    urlDecodeAction,
+	"hash":          hashAction,
+
+	// File actions
+	"file_read": fileReadAction,
+
+	// String actions
+	"string_random":  stringRandomAction,
+	"string_replace": stringReplaceAction,
+	"string_format":  stringFormatAction,
 
 	// HTTP actions
 	"http": httpAction,

@@ -1,0 +1,157 @@
+testcase: "TC-STRING-PRACTICAL-SIMPLE"
+description: "Practical string operations with proper value extraction"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org"
+
+steps:
+  # Scenario 1: Generate unique user data
+  - name: "Generate unique user ID"
+    action: string_random
+    args: [8, "alphanumeric"]
+    result: user_id_data
+
+  - name: "Extract user ID value"
+    action: jq
+    args: ["${user_id_data}", ".value"]
+    result: user_id
+
+  - name: "Generate unique email suffix"
+    action: string_random
+    args: [6, "numeric"]
+    result: email_suffix_data
+
+  - name: "Extract email suffix"
+    action: jq
+    args: ["${email_suffix_data}", ".value"]
+    result: email_suffix
+
+  - name: "Create unique email"
+    action: string_format
+    args: ["test-{}@example.com", "${email_suffix}"]
+    result: email_data
+
+  - name: "Extract email value"
+    action: jq
+    args: ["${email_data}", ".result"]
+    result: unique_email
+
+  - name: "Log generated user data"
+    action: log
+    args: ["Generated User Data:", "ID: ${user_id}", "Email: ${unique_email}"]
+
+  # Scenario 2: Generate API key
+  - name: "Generate API key"
+    action: string_random
+    args: [32, "hex"]
+    result: api_key_data
+
+  - name: "Extract API key value"
+    action: jq
+    args: ["${api_key_data}", ".value"]
+    result: api_key
+
+  - name: "Log API key (first 8 chars for security)"
+    action: log
+    args: ["Generated API Key: ${api_key}..."]
+
+  # Scenario 3: Test with actual API call
+  - name: "Make API call with generated user ID"
+    action: http
+    args: ["GET", "${api_url}/get?user_id=${user_id}&email=${unique_email}"]
+    result: api_response
+
+  - name: "Extract API response status"
+    action: jq
+    args: ["${api_response}", ".status_code"]
+    result: api_status
+
+  - name: "Verify API call succeeded"
+    action: assert
+    args: ["${api_status}", "==", "200"]
+
+  - name: "Extract returned user_id from API"
+    action: jq
+    args: ["${api_response}", ".body | fromjson | .args.user_id"]
+    result: returned_user_id
+
+  - name: "Verify our generated user_id was returned correctly"
+    action: assert
+    args: ["${returned_user_id}", "==", "${user_id}"]
+
+  - name: "Log successful API verification"
+    action: log
+    args: ["✓ API call successful with generated data:", "Sent: ${user_id}", "Returned: ${returned_user_id}"]
+
+  # Scenario 4: Generate multiple unique identifiers
+  - name: "Generate first batch ID"
+    action: string_random
+    args: [10, "alphanumeric"]
+    result: batch_1_data
+
+  - name: "Extract first batch ID"
+    action: jq
+    args: ["${batch_1_data}", ".value"]
+    result: batch_id_1
+
+  - name: "Generate second batch ID"
+    action: string_random
+    args: [10, "alphanumeric"]
+    result: batch_2_data
+
+  - name: "Extract second batch ID"
+    action: jq
+    args: ["${batch_2_data}", ".value"]
+    result: batch_id_2
+
+  - name: "Verify batch IDs are unique"
+    action: assert
+    args: ["${batch_id_1}", "!=", "${batch_id_2}"]
+
+  - name: "Create batch processing message"
+    action: string_format
+    args: ["Processing batch IDs: {} and {}", "${batch_id_1}", "${batch_id_2}"]
+    result: batch_message_data
+
+  - name: "Extract batch message"
+    action: jq
+    args: ["${batch_message_data}", ".result"]
+    result: batch_message
+
+  - name: "Log batch processing"
+    action: log
+    args: ["${batch_message}"]
+
+  # Scenario 5: String replacement for templates
+  - name: "Create template message"
+    action: variable
+    args: ["template", "Hello {{USER}}, your account {{ACCOUNT}} is ready!"]
+
+  - name: "Replace user placeholder"
+    action: string_replace
+    args: ["${template}", "{{USER}}", "User-${user_id}"]
+    result: template_with_user_data
+
+  - name: "Extract template with user"
+    action: jq
+    args: ["${template_with_user_data}", ".result"]
+    result: template_with_user
+
+  - name: "Replace account placeholder"
+    action: string_replace
+    args: ["${template_with_user}", "{{ACCOUNT}}", "${unique_email}"]
+    result: final_template_data
+
+  - name: "Extract final message"
+    action: jq
+    args: ["${final_template_data}", ".result"]
+    result: final_message
+
+  - name: "Log personalized message"
+    action: log
+    args: ["Personalized: ${final_message}"]
+
+  - name: "Final success message"
+    action: log
+    args: ["✓ All practical string operations completed successfully!", "Generated unique test data for real-world scenarios"]

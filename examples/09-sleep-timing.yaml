@@ -1,0 +1,46 @@
+testcase: "TC-SLEEP-TIMING"
+description: "Test sleep action with various duration formats"
+
+variables:
+  vars:
+    short_delay: "500ms"
+    medium_delay: "2s"
+
+steps:
+  - name: "Log start time"
+    action: time
+    args: ["now"]
+    result: start_time
+
+  - name: "Short sleep with milliseconds"
+    action: sleep
+    args: ["500ms"]
+
+  - name: "Log after short sleep"
+    action: log
+    args: ["Completed 500ms sleep"]
+
+  - name: "Medium sleep with variable"
+    action: sleep
+    args: ["${medium_delay}"]
+
+  - name: "Log after medium sleep"
+    action: log
+    args: ["Completed ${medium_delay} sleep"]
+
+  - name: "Complex duration format"
+    action: sleep
+    args: ["1m30s"]
+
+  - name: "Log completion"
+    action: time
+    args: ["now"]
+    result: end_time
+
+  - name: "Log timing summary"
+    action: log
+    args: ["Test started at: ${start_time}", "Test ended at: ${end_time}"]
+
+  - name: "Final message"
+    action: log
+    args: ["All sleep tests completed successfully!"]

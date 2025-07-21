@@ -1,0 +1,6 @@
+test_name,input_value,expected_result,description
+positive_test,100,success,Test with positive number
+negative_test,-50,error,Test with negative number
+zero_test,0,success,Test with zero value
+large_test,999999,success,Test with large number
+string_test,abc,error,Test with string input

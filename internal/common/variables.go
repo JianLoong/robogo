@@ -27,9 +27,19 @@ func (v *Variables) Get(key string) any {
 	return v.store.Get(key)
 }
 
-// Load bulk loads variables
+// Load bulk loads variables with environment variable substitution
 func (v *Variables) Load(vars map[string]any) {
-	v.store.Load(vars)
+	// Substitute environment variables in the values before storing
+	substitutedVars := make(map[string]any)
+	for key, value := range vars {
+		if str, ok := value.(string); ok {
+			// Perform substitution on string values
+			substitutedVars[key] = v.engine.Substitute(str)
+		} else {
+			substitutedVars[key] = value
+		}
+	}
+	v.store.Load(substitutedVars)
 }
 
 // GetSnapshot returns a copy of all current variables for context enrichment

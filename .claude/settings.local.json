@@ -26,7 +26,20 @@
       "Bash(go list:*)",
       "Bash(SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh)",
       "Bash(go vet:*)",
-      "Bash(go get:*)"
+      "Bash(go get:*)",
+      "Bash(export DB_USER=robogo_testuser)",
+      "Bash(export DB_PASSWORD=robogo_testpass)",
+      "Bash(export DB_HOST=localhost)",
+      "Bash(export DB_PORT=5432)",
+      "Bash(export DB_NAME=robogo_testdb)",
+      "Bash(export POSTGRES_USER=robogo_testuser)",
+      "Bash(export POSTGRES_PASSWORD=robogo_testpass)",
+      "Bash(export POSTGRES_HOST=localhost)",
+      "Bash(export POSTGRES_PORT=5432)",
+      "Bash(export POSTGRES_DB=robogo_testdb)",
+      "Bash(cp:*)",
+      "Bash(export POSTGRES_USER=override_user)",
+      "Bash(unset POSTGRES_USER)"
     ],
     "deny": []
   }

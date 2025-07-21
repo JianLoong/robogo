@@ -1,0 +1,154 @@
+testcase: "TC-ENCODING-PRACTICAL"
+description: "Practical encoding scenarios in API testing"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org"
+    username: "testuser"
+    password: "testpass123"
+    search_query: "test query with spaces & special chars"
+    file_content: "This is test file content for checksum verification"
+
+steps:
+  # Scenario 1: Basic Authentication with Base64
+  - name: "Create Basic Auth credentials"
+    action: base64_encode
+    args: ["${username}:${password}"]
+    result: basic_auth
+
+  - name: "Log Basic Auth header"
+    action: log
+    args: ["Authorization header would be: Basic ${basic_auth}"]
+
+  - name: "Verify credentials can be decoded back"
+    action: base64_decode
+    args: ["${basic_auth}"]
+    result: decoded_creds
+
+  - name: "Verify credential round-trip"
+    action: assert
+    args: ["${decoded_creds}", "==", "${username}:${password}"]
+
+  - name: "Log successful credential encoding"
+    action: log
+    args: ["✓ Basic Auth credentials encoded successfully: ${decoded_creds}"]
+
+  # Scenario 2: URL encoding for query parameters
+  - name: "Encode search query for URL"
+    action: url_encode
+    args: ["${search_query}"]
+    result: encoded_query
+
+  - name: "Make API call with encoded query"
+    action: http
+    args: ["GET", "${api_url}/get?q=${encoded_query}&type=search"]
+    result: search_response
+
+  - name: "Extract search response status"
+    action: jq
+    args: ["${search_response}", ".status_code"]
+    result: search_status
+
+  - name: "Verify search API call succeeded"
+    action: assert
+    args: ["${search_status}", "==", "200"]
+
+  - name: "Extract query from response"
+    action: jq
+    args: ["${search_response}", ".body | fromjson | .args.q"]
+    result: returned_query
+
+  - name: "Verify query was properly encoded/decoded"
+    action: assert
+    args: ["${returned_query}", "==", "${search_query}"]
+
+  - name: "Log successful query encoding"
+    action: log
+    args: ["✓ URL encoding successful for query: ${search_query}"]
+
+  # Scenario 3: Content integrity with hashing
+  - name: "Generate SHA256 checksum of content"
+    action: hash
+    args: ["${file_content}", "sha256"]
+    result: content_hash
+
+  - name: "Extract content hash value"
+    action: jq
+    args: ["${content_hash}", ".hash"]
+    result: content_hash_value
+
+  - name: "Log content checksum"
+    action: log
+    args: ["Content SHA256: ${content_hash_value}"]
+
+  - name: "Simulate content transmission (Base64 encode)"
+    action: base64_encode
+    args: ["${file_content}"]
+    result: transmitted_content
+
+  - name: "Simulate content reception (Base64 decode)"
+    action: base64_decode
+    args: ["${transmitted_content}"]
+    result: received_content
+
+  - name: "Generate checksum of received content"
+    action: hash
+    args: ["${received_content}", "sha256"]
+    result: received_hash
+
+  - name: "Extract received hash value"
+    action: jq
+    args: ["${received_hash}", ".hash"]
+    result: received_hash_value
+
+  - name: "Verify content integrity"
+    action: assert
+    args: ["${received_hash_value}", "==", "${content_hash_value}"]
+
+  - name: "Log integrity verification"
+    action: log
+    args: ["✓ Content integrity verified via SHA256 checksum"]
+
+  # Scenario 4: Multiple hash algorithms for security
+  - name: "Generate multiple hashes for security verification"
+    action: hash
+    args: ["${password}", "md5"]
+    result: password_md5
+
+  - name: "Generate SHA1 hash"
+    action: hash
+    args: ["${password}", "sha1"]
+    result: password_sha1
+
+  - name: "Generate SHA256 hash"
+    action: hash
+    args: ["${password}", "sha256"]
+    result: password_sha256
+
+  - name: "Extract hash values for logging"
+    action: jq
+    args: ["${password_sha256}", ".hash"]
+    result: sha256_value
+
+  - name: "Log security hashes"
+    action: log
+    args: ["Password SHA256 hash: ${sha256_value}"]
+
+  # Scenario 5: JWT-like token creation (simplified)
+  - name: "Create JWT header (Base64)"
+    action: base64_encode
+    args: ['{"alg":"HS256","typ":"JWT"}']
+    result: jwt_header
+
+  - name: "Create JWT payload (Base64)"
+    action: base64_encode
+    args: ['{"sub":"${username}","exp":1234567890}']
+    result: jwt_payload
+
+  - name: "Log JWT components"
+    action: log
+    args: ["JWT Header: ${jwt_header}", "JWT Payload: ${jwt_payload}"]
+
+  - name: "Final completion message"
+    action: log
+    args: ["✓ All practical encoding scenarios completed successfully!"]

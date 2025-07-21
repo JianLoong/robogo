@@ -1,0 +1,142 @@
+testcase: "TC-FILE-READ-PRACTICAL"
+description: "Practical file reading scenarios for data-driven testing"
+
+variables:
+  vars:
+    api_base: "https://httpbin.org"
+
+steps:
+  # Scenario 1: Load configuration and use in API calls
+  - name: "Load test configuration"
+    action: file_read
+    args: ["testdata/config.yaml"]
+    result: config
+
+  - name: "Extract API timeout from config"
+    action: jq
+    args: ["${config}", ".content.api.timeout"]
+    result: api_timeout
+
+  - name: "Log loaded configuration"
+    action: log
+    args: ["Using API timeout: ${api_timeout} seconds"]
+
+  # Scenario 2: Data-driven testing with CSV
+  - name: "Load test cases from CSV"
+    action: file_read
+    args: ["testdata/test_cases.csv"]
+    result: test_cases
+
+  - name: "Extract first test case"
+    action: jq
+    args: ["${test_cases}", ".content[0]"]
+    result: first_test
+
+  - name: "Log first test case"
+    action: log
+    args: ["Running test: ${first_test.test_name} - ${first_test.description}"]
+
+  - name: "Use test case input value"
+    action: jq
+    args: ["${first_test}", ".input_value"]
+    result: test_input
+
+  - name: "Make API call with test data"
+    action: http
+    args: ["GET", "${api_base}/get?value=${test_input}"]
+    result: api_response
+
+  - name: "Extract response status"
+    action: jq
+    args: ["${api_response}", ".status_code"]
+    result: response_status
+
+  - name: "Verify API call succeeded"
+    action: assert
+    args: ["${response_status}", "==", "200"]
+
+  - name: "Log test case completion"
+    action: log
+    args: ["✓ Test case '${first_test.test_name}' completed successfully"]
+
+  # Scenario 3: Template-based request generation
+  - name: "Load XML request template"
+    action: file_read
+    args: ["testdata/request_template.xml"]
+    result: xml_template
+
+  - name: "Create request with template substitution"
+    action: string_replace
+    args: ["${xml_template.content}", "{{USERNAME}}", "testuser"]
+    result: xml_with_user
+    if: "false"  # Skip for now since string_replace isn't implemented yet
+
+  - name: "Log template usage"
+    action: log
+    args: ["✓ XML template loaded for request generation"]
+
+  # Scenario 4: User data processing
+  - name: "Load user test data"
+    action: file_read
+    args: ["testdata/users.json"]
+    result: users
+
+  - name: "Count total users"
+    action: jq
+    args: ["${users}", ".content | length"]
+    result: user_count
+
+  - name: "Log user count"
+    action: log
+    args: ["Processing ${user_count} users from test data"]
+
+  - name: "Extract active users"
+    action: jq
+    args: ["${users}", ".content | map(select(.active == true))"]
+    result: active_users
+
+  - name: "Count active users"
+    action: jq
+    args: ["${active_users}", "length"]
+    result: active_count
+
+  - name: "Log active user count"
+    action: log
+    args: ["Found ${active_count} active users"]
+
+  - name: "Verify we have active users"
+    action: assert
+    args: ["${active_count}", ">", "0"]
+
+  # Scenario 5: Process each user (loop simulation)
+  - name: "Get first active user"
+    action: jq
+    args: ["${active_users}", ".[0]"]
+    result: first_active_user
+
+  - name: "Extract user email"
+    action: jq
+    args: ["${first_active_user}", ".email"]
+    result: user_email
+
+  - name: "Make API call for user"
+    action: http
+    args: ["GET", "${api_base}/get?email=${user_email}"]
+    result: user_api_response
+
+  - name: "Extract user API status"
+    action: jq
+    args: ["${user_api_response}", ".status_code"]
+    result: user_api_status
+
+  - name: "Verify user API call"
+    action: assert
+    args: ["${user_api_status}", "==", "200"]
+
+  - name: "Log user processing"
+    action: log
+    args: ["✓ Processed user: ${user_email}"]
+
+  - name: "Final completion message"
+    action: log
+    args: ["✓ All data-driven testing scenarios completed successfully!"]

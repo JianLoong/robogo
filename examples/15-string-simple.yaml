@@ -1,0 +1,65 @@
+testcase: "TC-STRING-SIMPLE"
+description: "Simple test of string random generation"
+
+steps:
+  # Test basic random string generation
+  - name: "Generate random string"
+    action: string_random
+    args: [8]
+    result: random_str
+
+  - name: "Log random string data"
+    action: log
+    args: ["Random string result: ${random_str}"]
+
+  - name: "Extract random value"
+    action: jq
+    args: ["${random_str}", ".value"]
+    result: str_value
+
+  - name: "Extract random length"
+    action: jq
+    args: ["${random_str}", ".length"]
+    result: str_length
+
+  - name: "Log extracted values"
+    action: log
+    args: ["Generated string: ${str_value}", "Length: ${str_length}"]
+
+  - name: "Verify length is correct"
+    action: assert
+    args: ["${str_length}", "==", "8"]
+
+  # Test numeric generation
+  - name: "Generate numeric string"
+    action: string_random
+    args: [6, "numeric"]
+    result: numeric_str
+
+  - name: "Extract numeric value"
+    action: jq
+    args: ["${numeric_str}", ".value"]
+    result: numeric_value
+
+  - name: "Log numeric string"
+    action: log
+    args: ["Generated numeric: ${numeric_value}"]
+
+  # Test string formatting
+  - name: "Format string with generated values"
+    action: string_format
+    args: ["User: {}, ID: {}", "${str_value}", "${numeric_value}"]
+    result: formatted_str
+
+  - name: "Extract formatted result"
+    action: jq
+    args: ["${formatted_str}", ".result"]
+    result: final_string
+
+  - name: "Log formatted string"
+    action: log
+    args: ["Formatted: ${final_string}"]
+
+  - name: "Success message"
+    action: log
+    args: ["✓ String operations working correctly!"]

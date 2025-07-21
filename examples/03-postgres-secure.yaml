@@ -1,0 +1,71 @@
+testcase: "TC-DATABASE-SECURE"
+description: "Database operations test using environment variables for secure credential management"
+
+variables:
+  vars:
+    # Secure PostgreSQL connection using environment variables
+    # Required environment variables:
+    # - POSTGRES_USER: Database username
+    # - POSTGRES_PASSWORD: Database password  
+    # - POSTGRES_HOST: Database host (default: localhost)
+    # - POSTGRES_PORT: Database port (default: 5432)
+    # - POSTGRES_DB: Database name
+    db_url: "postgres://${ENV:POSTGRES_USER}:${ENV:POSTGRES_PASSWORD}@${ENV:POSTGRES_HOST}:${ENV:POSTGRES_PORT}/${ENV:POSTGRES_DB}?sslmode=disable"
+    test_name: "Jane Secure"
+    test_email: "jane.secure@example.com"
+
+steps:
+  # Create test table
+  - name: "Create secure_users table"
+    action: postgres
+    args: ["execute", "${db_url}", "CREATE TABLE IF NOT EXISTS secure_users (id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100), created_at TIMESTAMP DEFAULT NOW())"]
+
+  # Insert test data
+  - name: "Insert secure test user"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO secure_users (name, email) VALUES ('${test_name}', '${test_email}')"]
+    result: "insert_result"
+
+  # Verify insert worked
+  - name: "Check insert result"
+    action: log
+    args: ["Secure insert result:", "${insert_result}"]
+
+  # Query the data back
+  - name: "Query inserted secure user"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT name, email, created_at FROM secure_users WHERE email = '${test_email}' LIMIT 1"]
+    result: "query_result"
+
+  # Verify query results
+  - name: "Show secure query result"
+    action: log
+    args: ["Found secure user:", "${query_result}"]
+
+  - name: "Extract user data with jq"
+    action: jq
+    args: ["${query_result}", ".rows[0]"]
+    result: "user_data"
+
+  - name: "Verify secure user email"
+    action: jq
+    args: ["${query_result}", ".rows[0][1]"]
+    result: "user_email"
+
+  - name: "Assert user email matches"
+    action: assert
+    args: ["${user_email}", "==", "${test_email}"]
+
+  # Cleanup
+  - name: "Delete secure test user"
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM secure_users WHERE email = '${test_email}'"]
+    result: "delete_result"
+
+  - name: "Verify deletion"
+    action: log
+    args: ["Secure delete result:", "${delete_result}"]
+
+  - name: "Log secure test completion"
+    action: log
+    args: ["Secure database test completed successfully"]

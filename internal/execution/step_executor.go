@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
@@ -123,7 +124,9 @@ func (executor *StepExecutorImpl) printStepExecution(
 	fmt.Printf("  Action: %s\n", step.Action)
 
 	if len(args) > 0 {
-		fmt.Printf("  Args: %v\n", args)
+		// Mask sensitive information in arguments for database actions
+		maskedArgs := maskSensitiveArgs(step.Action, args)
+		fmt.Printf("  Args: %v\n", maskedArgs)
 	}
 
 	if len(options) > 0 {
@@ -214,4 +217,43 @@ func convertToInterfaceMap(m map[string]any) map[string]interface{} {
 		result[k] = v
 	}
 	return result
+}
+
+// maskSensitiveArgs masks sensitive information in step arguments based on action type
+func maskSensitiveArgs(action string, args []any) []any {
+	if len(args) == 0 {
+		return args
+	}
+
+	// List of actions that commonly have connection strings as the second argument
+	dbActions := map[string]bool{
+		"postgres":  true,
+		"mysql":     true,
+		"sqlite":    true,
+		"rabbitmq":  true,
+		"spanner":   true,
+	}
+
+	maskedArgs := make([]any, len(args))
+	copy(maskedArgs, args)
+
+	// For database actions, mask the connection string (typically the second argument)
+	if dbActions[strings.ToLower(action)] && len(args) >= 2 {
+		if connStr, ok := args[1].(string); ok {
+			maskedArgs[1] = common.MaskConnectionString(connStr)
+		}
+	}
+
+	// For HTTP actions, mask potential auth headers or sensitive data
+	if strings.ToLower(action) == "http" {
+		// Args structure for HTTP: [method, url, body?, options?]
+		for i, arg := range maskedArgs {
+			if str, ok := arg.(string); ok {
+				// Mask potential auth tokens, API keys, etc.
+				maskedArgs[i] = common.MaskSensitiveData(str, common.DefaultSensitiveKeys)
+			}
+		}
+	}
+
+	return maskedArgs
 }

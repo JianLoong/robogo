@@ -1,0 +1,18 @@
+testcase: "TC-ENV-VAR-TEST"
+description: "Test environment variable handling"
+
+variables:
+  vars:
+    # Test environment variable that exists
+    test_var: "${ENV:TEST_ENV_VAR}"
+    # Test environment variable that doesn't exist
+    missing_var: "${ENV:NONEXISTENT_VAR}"
+
+steps:
+  - name: "Log environment variable values"
+    action: log
+    args: ["Test var: ${test_var}", "Missing var: ${missing_var}"]
+
+  - name: "Test if environment variable exists"
+    action: assert
+    args: ["${test_var}", "==", "test_value"]

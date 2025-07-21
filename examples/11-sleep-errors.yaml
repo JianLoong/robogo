@@ -1,0 +1,11 @@
+testcase: "TC-SLEEP-ERRORS"
+description: "Test sleep action error handling and edge cases"
+
+steps:
+  - name: "Test invalid duration format"
+    action: sleep
+    args: ["invalid_duration"]
+
+  - name: "This should not run due to error above"
+    action: log
+    args: ["This step should not execute"]

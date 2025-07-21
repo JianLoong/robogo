@@ -1,0 +1,104 @@
+testcase: "TC-ENCODING-BASIC"
+description: "Test basic encoding and decoding operations"
+
+variables:
+  vars:
+    test_string: "Hello, World! This is a test string with special chars: @#$%"
+    credentials: "username:password123"
+    url_param: "search query with spaces & symbols"
+
+steps:
+  # Base64 encoding/decoding tests
+  - name: "Encode string to base64"
+    action: base64_encode
+    args: ["${test_string}"]
+    result: encoded_string
+
+  - name: "Log encoded result"
+    action: log
+    args: ["Base64 encoded: ${encoded_string}"]
+
+  - name: "Decode base64 back to original"
+    action: base64_decode
+    args: ["${encoded_string}"]
+    result: decoded_string
+
+  - name: "Verify round-trip encoding"
+    action: assert
+    args: ["${decoded_string}", "==", "${test_string}"]
+
+  - name: "Log successful round-trip"
+    action: log
+    args: ["✓ Base64 round-trip successful: ${decoded_string}"]
+
+  # URL encoding/decoding tests
+  - name: "Encode URL parameter"
+    action: url_encode
+    args: ["${url_param}"]
+    result: encoded_url
+
+  - name: "Log URL encoded result"
+    action: log
+    args: ["URL encoded: ${encoded_url}"]
+
+  - name: "Decode URL parameter back"
+    action: url_decode
+    args: ["${encoded_url}"]
+    result: decoded_url
+
+  - name: "Verify URL round-trip encoding"
+    action: assert
+    args: ["${decoded_url}", "==", "${url_param}"]
+
+  - name: "Log URL round-trip success"
+    action: log
+    args: ["✓ URL round-trip successful: ${decoded_url}"]
+
+  # Hash generation tests
+  - name: "Generate MD5 hash"
+    action: hash
+    args: ["${test_string}", "md5"]
+    result: md5_hash
+
+  - name: "Generate SHA256 hash"
+    action: hash
+    args: ["${test_string}", "sha256"]
+    result: sha256_hash
+
+  - name: "Generate SHA512 hash"
+    action: hash
+    args: ["${test_string}", "sha512"]
+    result: sha512_hash
+
+  - name: "Extract MD5 hash value"
+    action: jq
+    args: ["${md5_hash}", ".hash"]
+    result: md5_value
+
+  - name: "Extract SHA256 hash value"
+    action: jq
+    args: ["${sha256_hash}", ".hash"]
+    result: sha256_value
+
+  - name: "Extract SHA512 hash value"
+    action: jq
+    args: ["${sha512_hash}", ".hash"]
+    result: sha512_value
+
+  - name: "Log hash results"
+    action: log
+    args: ["MD5: ${md5_value}", "SHA256: ${sha256_value}", "SHA512: ${sha512_value}"]
+
+  # Test with credentials (common use case)
+  - name: "Encode credentials for Basic Auth"
+    action: base64_encode
+    args: ["${credentials}"]
+    result: auth_header
+
+  - name: "Log Basic Auth header"
+    action: log
+    args: ["Authorization: Basic ${auth_header}"]
+
+  - name: "Final success message"
+    action: log
+    args: ["✓ All encoding operations completed successfully!"]

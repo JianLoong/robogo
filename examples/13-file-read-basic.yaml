@@ -1,0 +1,105 @@
+testcase: "TC-FILE-READ-BASIC"
+description: "Test file reading with different formats"
+
+steps:
+  # Test JSON file reading
+  - name: "Read JSON test data"
+    action: file_read
+    args: ["testdata/users.json"]
+    result: users_data
+
+  - name: "Log users data"
+    action: log
+    args: ["Loaded users:", "${users_data}"]
+
+  - name: "Extract first user name"
+    action: jq
+    args: ["${users_data}", ".content[0].name"]
+    result: first_user_name
+
+  - name: "Verify first user"
+    action: assert
+    args: ["${first_user_name}", "==", "John Doe"]
+
+  - name: "Log first user verification"
+    action: log
+    args: ["✓ First user verified: ${first_user_name}"]
+
+  # Test YAML file reading
+  - name: "Read YAML configuration"
+    action: file_read
+    args: ["testdata/config.yaml"]
+    result: config_data
+
+  - name: "Extract API base URL"
+    action: jq
+    args: ["${config_data}", ".content.api.base_url"]
+    result: api_url
+
+  - name: "Verify API URL"
+    action: assert
+    args: ["${api_url}", "==", "https://api.example.com"]
+
+  - name: "Log API URL verification"
+    action: log
+    args: ["✓ API URL verified: ${api_url}"]
+
+  # Test CSV file reading
+  - name: "Read CSV test cases"
+    action: file_read
+    args: ["testdata/test_cases.csv"]
+    result: csv_data
+
+  - name: "Log CSV data"
+    action: log
+    args: ["Loaded CSV test cases:", "${csv_data}"]
+
+  - name: "Extract first test case name"
+    action: jq
+    args: ["${csv_data}", ".content[0].test_name"]
+    result: first_test_name
+
+  - name: "Verify first test case"
+    action: assert
+    args: ["${first_test_name}", "==", "positive_test"]
+
+  - name: "Log CSV verification"
+    action: log
+    args: ["✓ First test case verified: ${first_test_name}"]
+
+  # Test plain text file reading
+  - name: "Read XML template"
+    action: file_read
+    args: ["testdata/request_template.xml"]
+    result: xml_template
+
+  - name: "Extract XML content"
+    action: jq
+    args: ["${xml_template}", ".content"]
+    result: xml_content
+
+  - name: "Verify XML template contains placeholder"
+    action: assert
+    args: ["${xml_content}", "contains", "{{USERNAME}}"]
+
+  - name: "Log XML template verification"
+    action: log
+    args: ["✓ XML template loaded successfully"]
+
+  # Test file info
+  - name: "Check file size info"
+    action: jq
+    args: ["${users_data}", ".size_bytes"]
+    result: file_size
+
+  - name: "Verify file size is reasonable"
+    action: assert
+    args: ["${file_size}", ">", "100"]
+
+  - name: "Log file size"
+    action: log
+    args: ["✓ Users file size: ${file_size} bytes"]
+
+  - name: "Final success message"
+    action: log
+    args: ["✓ All file reading tests completed successfully!"]

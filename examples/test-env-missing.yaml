@@ -1,0 +1,17 @@
+testcase: "TC-ENV-MISSING"
+description: "Test what happens with missing environment variables"
+
+variables:
+  vars:
+    missing_var: "${ENV:DOES_NOT_EXIST}"
+    api_url: "${ENV:MISSING_API_URL}"
+
+steps:
+  - name: "Log missing variables"
+    action: log
+    args: ["Missing var: ${missing_var}", "API URL: ${api_url}"]
+
+  - name: "Try to use missing env var in HTTP call"
+    action: http
+    args: ["GET", "${api_url}/test"]
+    result: response

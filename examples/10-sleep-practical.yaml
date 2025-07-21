@@ -1,0 +1,107 @@
+testcase: "TC-SLEEP-PRACTICAL"
+description: "Practical sleep usage scenarios in testing"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org/delay/1"
+    polling_url: "https://httpbin.org/status/200"
+    retry_delay: "1s"
+    polling_interval: "500ms"
+
+steps:
+  # Scenario 1: Wait before making API call (rate limiting)
+  - name: "Log rate limiting scenario"
+    action: log
+    args: ["Scenario 1: Rate limiting - wait before API call"]
+
+  - name: "Wait to respect rate limits"
+    action: sleep
+    args: ["${retry_delay}"]
+
+  - name: "Make API call after delay"
+    action: http
+    args: ["GET", "${api_url}"]
+    result: delayed_response
+
+  - name: "Extract status code"
+    action: jq
+    args: ["${delayed_response}", ".status_code"]
+    result: status_code
+
+  - name: "Verify delayed API call succeeded"
+    action: assert
+    args: ["${status_code}", "==", "200"]
+
+  # Scenario 2: Polling with intervals
+  - name: "Log polling scenario"
+    action: log
+    args: ["Scenario 2: Polling with intervals"]
+
+  - name: "First polling attempt"
+    action: http
+    args: ["GET", "${polling_url}"]
+    result: poll_1
+
+  - name: "Wait between polls"
+    action: sleep
+    args: ["${polling_interval}"]
+
+  - name: "Second polling attempt"
+    action: http
+    args: ["GET", "${polling_url}"]
+    result: poll_2
+
+  - name: "Extract polling status"
+    action: jq
+    args: ["${poll_2}", ".status_code"]
+    result: poll_status
+
+  - name: "Verify polling worked"
+    action: assert
+    args: ["${poll_status}", "==", "200"]
+
+  # Scenario 3: Simulating processing time
+  - name: "Log processing simulation"
+    action: log
+    args: ["Scenario 3: Simulating background processing"]
+
+  - name: "Trigger background process (simulated)"
+    action: log
+    args: ["Background process started..."]
+
+  - name: "Wait for processing to complete"
+    action: sleep
+    args: ["2s"]
+
+  - name: "Check process completion (simulated)"
+    action: log
+    args: ["Background process completed"]
+
+  # Scenario 4: Testing with different sleep durations in loops
+  - name: "Log loop scenario"
+    action: log
+    args: ["Scenario 4: Sleep in loops for batch processing"]
+
+  - name: "Process batch with delay"
+    for: "1..3"
+    action: sleep
+    args: ["200ms"]
+
+  - name: "Log batch processing complete"
+    action: log
+    args: ["Batch processing with delays completed"]
+
+  # Scenario 5: Conditional sleep based on response
+  - name: "Make test API call"
+    action: http
+    args: ["GET", "https://httpbin.org/status/200"]
+    result: test_response
+
+  - name: "Conditional sleep if response is slow"
+    if: "${test_response.status_code} == 200"
+    action: sleep
+    args: ["100ms"]
+
+  - name: "Final completion message"
+    action: log
+    args: ["All practical sleep scenarios completed successfully!"]

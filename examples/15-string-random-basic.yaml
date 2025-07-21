@@ -1,0 +1,152 @@
+testcase: "TC-STRING-RANDOM-BASIC"
+description: "Test string random generation with different charsets"
+
+steps:
+  # Test basic random string generation
+  - name: "Generate alphanumeric string (default)"
+    action: string_random
+    args: [8]
+    result: random_alphanum
+
+  - name: "Extract alphanumeric value"
+    action: jq
+    args: ["${random_alphanum}", ".value"]
+    result: alphanum_value
+
+  - name: "Log alphanumeric string"
+    action: log
+    args: ["Generated alphanumeric: ${alphanum_value}"]
+
+  - name: "Extract alphanumeric length"
+    action: jq
+    args: ["${random_alphanum}", ".length"]
+    result: alphanum_length
+
+  - name: "Verify alphanumeric length"
+    action: assert
+    args: ["${alphanum_length}", "==", "8"]
+
+  # Test different charsets
+  - name: "Generate numeric string"
+    action: string_random
+    args: [6, "numeric"]
+    result: random_numeric
+
+  - name: "Extract numeric value"
+    action: jq
+    args: ["${random_numeric}", ".value"]
+    result: numeric_value
+
+  - name: "Log numeric string"
+    action: log
+    args: ["Generated numeric: ${numeric_value}"]
+
+  - name: "Generate lowercase string"
+    action: string_random
+    args: [10, "lowercase"]
+    result: random_lower
+
+  - name: "Log lowercase string"
+    action: log
+    args: ["Generated lowercase: ${random_lower.value}"]
+
+  - name: "Generate uppercase string"
+    action: string_random
+    args: [5, "uppercase"]
+    result: random_upper
+
+  - name: "Log uppercase string"
+    action: log
+    args: ["Generated uppercase: ${random_upper.value}"]
+
+  - name: "Generate hex string"
+    action: string_random
+    args: [16, "hex"]
+    result: random_hex
+
+  - name: "Log hex string"
+    action: log
+    args: ["Generated hex: ${random_hex.value}"]
+
+  - name: "Generate alphabetic string"
+    action: string_random
+    args: [12, "alphabetic"]
+    result: random_alpha
+
+  - name: "Log alphabetic string"
+    action: log
+    args: ["Generated alphabetic: ${random_alpha.value}"]
+
+  # Test custom charset
+  - name: "Generate custom charset string"
+    action: string_random
+    args: [8, "custom"]
+    options:
+      custom_chars: "ABC123XYZ"
+    result: random_custom
+
+  - name: "Log custom string"
+    action: log
+    args: ["Generated custom: ${random_custom.value}"]
+
+  # Test different lengths
+  - name: "Generate short string"
+    action: string_random
+    args: [3, "alphanumeric"]
+    result: random_short
+
+  - name: "Generate long string"
+    action: string_random
+    args: [32, "alphanumeric"]
+    result: random_long
+
+  - name: "Log length variations"
+    action: log
+    args: ["Short (3): ${random_short.value}", "Long (32): ${random_long.value}"]
+
+  # Verify uniqueness (generate multiple strings)
+  - name: "Generate first unique string"
+    action: string_random
+    args: [16, "alphanumeric"]
+    result: unique_1
+
+  - name: "Generate second unique string"
+    action: string_random
+    args: [16, "alphanumeric"]
+    result: unique_2
+
+  - name: "Generate third unique string"
+    action: string_random
+    args: [16, "alphanumeric"]
+    result: unique_3
+
+  - name: "Extract unique values for comparison"
+    action: jq
+    args: ["${unique_1}", ".value"]
+    result: unique_val_1
+
+  - name: "Extract second unique value"
+    action: jq
+    args: ["${unique_2}", ".value"]
+    result: unique_val_2
+
+  - name: "Extract third unique value"
+    action: jq
+    args: ["${unique_3}", ".value"]
+    result: unique_val_3
+
+  - name: "Verify strings are different"
+    action: assert
+    args: ["${unique_val_1}", "!=", "${unique_val_2}"]
+
+  - name: "Verify second and third are different"
+    action: assert
+    args: ["${unique_val_2}", "!=", "${unique_val_3}"]
+
+  - name: "Log uniqueness verification"
+    action: log
+    args: ["✓ Generated unique strings:", "1: ${unique_val_1}", "2: ${unique_val_2}", "3: ${unique_val_3}"]
+
+  - name: "Final success message"
+    action: log
+    args: ["✓ All string random generation tests completed successfully!"]

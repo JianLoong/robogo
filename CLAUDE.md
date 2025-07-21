@@ -18,6 +18,9 @@ go build -o robogo ./cmd/robogo
 # Run a single test
 ./robogo run <test-file.yaml>
 
+# Run test with custom .env file
+./robogo --env production.env run <test-file.yaml>
+
 # List available actions
 ./robogo list
 
@@ -69,9 +72,50 @@ Actions are registered in `internal/actions/registry.go` and include:
 ### Variable System
 
 - Uses `${variable}` syntax for simple variable substitution
+- Uses `${ENV:VARIABLE_NAME}` syntax for environment variable access
 - For complex data extraction, use `jq` action for JSON/structured data or `xpath` action for XML
 - Simple substitution engine replaces `${variable_name}` patterns
 - Unresolved variables show warnings with hints to use `jq` for complex access
+
+#### Environment Variables
+
+Environment variables provide secure credential management:
+```yaml
+variables:
+  vars:
+    # Secure database connection using environment variables
+    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}?sslmode=disable"
+    
+    # API authentication
+    api_token: "${ENV:API_TOKEN}"
+    api_base_url: "${ENV:API_BASE_URL}"
+```
+
+Required environment variables can be set in multiple ways:
+
+**Option 1: Using .env file (recommended)**
+```bash
+# Copy example file and edit with your values
+cp .env.example .env
+
+# Run test (automatically loads .env)
+./robogo run examples/03-postgres-secure.yaml
+
+# Or specify custom .env file
+./robogo --env my-custom.env run examples/03-postgres-secure.yaml
+```
+
+**Option 2: Export environment variables**
+```bash
+export DB_USER=robogo_testuser
+export DB_PASSWORD=robogo_testpass
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=robogo_testdb
+./robogo run examples/03-postgres-secure.yaml
+```
+
+**Note:** Explicitly set environment variables take precedence over .env file values.
 
 ### Test Structure
 
