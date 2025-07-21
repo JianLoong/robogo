@@ -1,0 +1,29 @@
+testcase: Fixed extraction test
+description: Test extraction with correct JSON paths
+
+steps:
+  - name: "Get JSON with correct extraction path"
+    action: http
+    args: ["GET", "http://localhost:8000/json"]
+    extract:
+      type: "jq"
+      path: ".body | fromjson | .slideshow.title"
+    result: extracted_title
+    
+  - name: "Log extracted title"
+    action: log
+    args: ["Extracted title: ${extracted_title}"]
+    
+  - name: "Test JQ action directly"
+    action: http
+    args: ["GET", "http://localhost:8000/json"]
+    result: http_data
+    
+  - name: "Extract from http_data with JQ action"
+    action: jq  
+    args: ["${http_data}", ".body"]
+    result: json_body
+    
+  - name: "Log JSON body"
+    action: log
+    args: ["JSON body: ${json_body}"]

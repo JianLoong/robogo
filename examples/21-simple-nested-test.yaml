@@ -1,0 +1,20 @@
+testcase: Simple Nested Steps Test
+description: Test basic nested steps without loops
+
+steps:
+  - name: "Step 1 - Regular action"
+    action: log
+    args: ["This is step 1"]
+
+  - name: "Step 2 - Nested steps"
+    steps:
+      - name: "Nested step A"
+        action: log
+        args: ["This is nested step A"]
+      - name: "Nested step B"
+        action: log  
+        args: ["This is nested step B"]
+
+  - name: "Step 3 - Regular action"
+    action: log
+    args: ["This is step 3"]

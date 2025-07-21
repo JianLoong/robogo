@@ -1,0 +1,47 @@
+testcase: Nested Steps in While Loop
+description: |
+  Demonstrates using multiple steps inside a while loop for polling scenarios.
+  This shows how to make an HTTP request, extract data, and check conditions
+  all within a single while loop iteration.
+
+variables:
+  vars:
+    # https://httpbin.org/ image is used to demostrate actions
+    # base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    base_url: "http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+
+    json_url: http://localhost:8000/json
+
+    # Section for expected id from the endpoint
+    expected_value: "HTTPBIN is awesome"
+
+    status_code: 0
+
+steps:
+  # - name: "Initialize status"
+  #   action: variable
+  #   args: ["status", "pending"]
+
+  - name: "Poll API until ready"
+    while: ${status_code}", "!=", "200"
+    steps:
+      - name: "Make simple HTTP request"
+        action: http
+        args: ["GET", "${base_url}"]
+        options:
+          timeout: "5s"
+        result: "http_response"
+
+      - name: "Log pretty formatted response"
+        action: log
+        args: ["Pretty response:", "${http_response}"]
+
+      - name: "Extract status code with jq"
+        action: jq
+        args: ["${http_response}", ".status_code"]
+        result: "status_code"
+
+
+  - name: "Final status check"
+    action: log
+    args: ["Polling completed with status: ${status_code}"]

@@ -56,3 +56,17 @@ func (v *Variables) Substitute(template string) string {
 func (v *Variables) SubstituteArgs(args []any) []any {
 	return v.engine.SubstituteArgs(args)
 }
+
+// Clone creates a copy of the Variables with the same data
+func (v *Variables) Clone() *Variables {
+	// Create new Variables instance
+	newVars := NewVariables()
+	
+	// Copy all variables from current instance
+	snapshot := v.GetSnapshot()
+	for key, value := range snapshot {
+		newVars.Set(key, value)
+	}
+	
+	return newVars
+}

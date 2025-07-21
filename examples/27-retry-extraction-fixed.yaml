@@ -1,0 +1,35 @@
+testcase: Retry with Extraction - Fixed
+description: Test retry logic with proper extraction paths
+
+variables:
+  vars:
+    api_url: "http://localhost:8000/json"
+
+steps:
+  - name: "Test retry with correct extraction"
+    action: http
+    args: ["GET", "${api_url}"]
+    extract:
+      type: "jq"
+      path: ".body | fromjson | .slideshow.author"
+    result: author
+    retry:
+      attempts: 3
+      delay: "1s"
+      retry_if: "${author} != 'Yours Truly'"
+      
+  - name: "Log final author"
+    action: log
+    args: ["Final author: ${author}"]
+    
+  - name: "Test extraction without retry"
+    action: http
+    args: ["GET", "${api_url}"]
+    extract:
+      type: "jq"
+      path: ".body | fromjson | .slideshow.title"
+    result: title
+    
+  - name: "Log title"
+    action: log
+    args: ["Title: ${title}"]

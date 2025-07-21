@@ -1,0 +1,38 @@
+testcase: Plain Text Extraction
+description: Test regex extraction from plain text responses
+
+steps:
+  - name: "Get plain text response"
+    action: http
+    args: ["GET", "http://localhost:8000/robots.txt"]
+    result: plain_response
+    
+  - name: "Log raw response"
+    action: log
+    args: ["Raw response: ${plain_response}"]
+    
+  - name: "Extract with regex from body"
+    action: http
+    args: ["GET", "http://localhost:8000/robots.txt"]
+    extract:
+      type: "regex"
+      path: "User-agent: (.*)"
+      group: 1
+    result: user_agent
+    
+  - name: "Log extracted user agent"
+    action: log
+    args: ["Extracted user agent: ${user_agent}"]
+    
+  - name: "Extract status from HTTP response status line"
+    action: http
+    args: ["GET", "http://localhost:8000/status/404"]
+    extract:
+      type: "regex"
+      path: "status_code:(\\d+)"
+      group: 1
+    result: status_code
+    
+  - name: "Log extracted status code"
+    action: log
+    args: ["Extracted status code: ${status_code}"]

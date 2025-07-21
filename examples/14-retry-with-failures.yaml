@@ -6,26 +6,29 @@ variables:
     counter: 0
 
 steps:
-  # Test 1: Assertion that will fail initially then succeed
-  - name: "Test assertion retry (will fail first, then succeed)"
-    action: variable
-    args: ["retry_test_value", "wrong_value"]
-
-  - name: "Assert with retry (should fail then we'll fix it)"
-    action: assert
-    args: ["${retry_test_value}", "==", "correct_value", "Testing retry behavior"]
+  # Test 1: HTTP retry with non-existent endpoint (demonstrates actual network failures)
+  - name: "Test HTTP retry with non-existent endpoint"
+    action: http
+    args: ["GET", "https://this-domain-does-not-exist-12345.com/test"]
     retry:
       attempts: 3
       delay: "1s"
-      retry_on: ["assertion_failed"]
-    result: assertion_result
+      retry_on: ["http_error", "connection_error", "all"]
+    result: http_failure_result
+    continue: true
+    
+  # Test 2: Follow up with successful request to show recovery
+  - name: "Test successful HTTP request after failure"
+    action: http
+    args: ["GET", "https://httpbin.org/get"]
+    result: http_success_result
 
-  # Test 2: Show that even with failures, we can continue
+  # Test 3: Show that even with failures, we can continue
   - name: "Log continuation after retry failure"
     action: log
     args: ["Test continued after retry failure - this is expected behavior"]
 
-  # Test 3: Variable that succeeds immediately
+  # Test 4: Variable assertion that succeeds immediately (no retries needed)
   - name: "Set correct value for next test"
     action: variable
     args: ["success_value", "expected"]
@@ -39,7 +42,7 @@ steps:
       retry_on: ["assertion_failed"]
     result: immediate_success
 
-  # Test 4: HTTP retry with a delayed endpoint
+  # Test 5: HTTP retry with a delayed endpoint
   - name: "Test HTTP with delay (simulates processing time)"
     action: http
     args: ["GET", "https://httpbin.org/delay/1"]
@@ -49,7 +52,7 @@ steps:
       backoff: "linear"
     result: delayed_response
 
-  # Test 5: Log completion
+  # Test 6: Log completion
   - name: "Final test summary"
     action: log
     args: ["Retry with failures demo completed - failures are expected and normal"]

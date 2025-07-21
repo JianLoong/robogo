@@ -66,7 +66,13 @@ func (r *TestRunner) RunTest(filename string) (*types.TestResult, error) {
 			result.Status = r.aggregateStatus(stepResults)
 			result.ErrorInfo = r.getFirstErrorInfo(stepResults)
 			testFailed = true
-			break
+			
+			// Check if step has continue flag
+			if !step.Continue {
+				break
+			}
+			
+			fmt.Printf("⚠️  Step failed but continuing due to continue flag: %s\n", step.Name)
 		}
 	}
 

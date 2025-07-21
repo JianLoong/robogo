@@ -1,0 +1,25 @@
+testcase: Debug While Loop with Nested Steps
+description: Debug why while loop with nested steps isn't executing
+
+variables:
+  vars:
+    counter: 0
+
+steps:
+  - name: "Initialize counter"
+    action: variable
+    args: ["counter", "1"]
+
+  - name: "While loop test"
+    while: "${counter} < 3"
+    steps:
+      - name: "Log iteration"
+        action: log
+        args: ["Counter is: ${counter}"]
+      - name: "Increment counter"
+        action: variable
+        args: ["counter", "2"]
+
+  - name: "Final check"
+    action: log
+    args: ["Final counter: ${counter}"]

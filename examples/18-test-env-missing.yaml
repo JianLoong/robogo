@@ -4,7 +4,8 @@ description: "Test what happens with missing environment variables"
 variables:
   vars:
     missing_var: "${ENV:DOES_NOT_EXIST}"
-    api_url: "${ENV:MISSING_API_URL}"
+    # api_url: "${ENV:MISSING_API_URL}"
+    api_url: "https://httpbin.org/"
 
 steps:
   - name: "Log missing variables"
@@ -15,3 +16,8 @@ steps:
     action: http
     args: ["GET", "${api_url}/test"]
     result: response
+
+  - name: "Try to use missing env var in HTTP call"
+    action: jq
+    args: ["${response}", ".status_code"]
+    result: status_code

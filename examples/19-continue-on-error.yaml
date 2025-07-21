@@ -1,0 +1,56 @@
+testcase: Continue on Error Example
+description: |
+  Demonstrates the continue feature that allows steps to fail 
+  without stopping the entire test execution.
+
+variables:
+  vars:
+    test_var: "initial_value"
+
+steps:
+  - name: "Step 1 - This will succeed"
+    action: log
+    args:
+      - "This step should pass"
+
+  - name: "Step 2 - This will fail but continue"
+    action: assert
+    args:
+      - "false"
+      - "This assertion will fail intentionally"
+    continue: true
+
+  - name: "Step 3 - This runs despite Step 2 failure"
+    action: log
+    args:
+      - "This step runs even though Step 2 failed"
+
+  - name: "Step 4 - Another failing step with continue"
+    action: http
+    args:
+      - "http://nonexistent-domain-12345.com/api"
+      - "GET"
+    continue: true
+
+  - name: "Step 5 - Final step that should execute"
+    action: variable
+    args:
+      - "test_var"
+      - "updated_value"
+
+  - name: "Step 6 - Verify variable was updated"
+    action: log
+    args:
+      - "Final variable value: ${test_var}"
+
+  - name: "Step 7 - This fails and STOPS execution"
+    action: assert
+    args:
+      - "false"
+      - "This will stop the test execution"
+    # No continue flag, so this will stop here
+
+  - name: "Step 8 - This should NOT execute"
+    action: log
+    args:
+      - "This should not be reached due to Step 7 failure"

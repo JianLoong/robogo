@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -105,12 +106,119 @@ func (executor *StepExecutorImpl) ExecuteSingleStep(
 		return result, fmt.Errorf("action failed: %s", output.GetErrorMessage())
 	}
 
+	// Apply extraction if specified
+	var finalData any = output.Data
+	if step.Extract != nil && output.Status == constants.ActionStatusPassed {
+		extractedData, err := executor.applyExtraction(output.Data, step.Extract)
+		if err != nil {
+			// Extraction failed - convert to error result
+			errorResult := types.NewErrorBuilder(types.ErrorCategoryExecution, "EXTRACTION_FAILED").
+				WithTemplate("Failed to extract data: %s").
+				WithContext("extraction_type", step.Extract.Type).
+				WithContext("extraction_path", step.Extract.Path).
+				WithContext("error", err.Error()).
+				Build(err)
+			result.Result = errorResult
+			return result, fmt.Errorf("extraction failed: %s", err.Error())
+		}
+		finalData = extractedData
+		// Update the result data with extracted value
+		result.Result.Data = finalData
+	}
+
 	// Store result variable if specified
 	if step.Result != "" {
-		executor.variables.Set(step.Result, output.Data)
+		executor.variables.Set(step.Result, finalData)
 	}
 
 	return result, nil
+}
+
+// applyExtraction applies the specified extraction to the data
+func (executor *StepExecutorImpl) applyExtraction(data any, config *types.ExtractConfig) (any, error) {
+	if data == nil {
+		return nil, fmt.Errorf("cannot extract from nil data")
+	}
+
+	switch config.Type {
+	case "jq":
+		return executor.applyJQExtraction(data, config.Path)
+	case "xpath":
+		return executor.applyXPathExtraction(data, config.Path)
+	case "regex":
+		return executor.applyRegexExtraction(data, config.Path, config.Group)
+	default:
+		return nil, fmt.Errorf("unsupported extraction type: %s", config.Type)
+	}
+}
+
+// applyJQExtraction applies JQ extraction to data
+func (executor *StepExecutorImpl) applyJQExtraction(data any, path string) (any, error) {
+	// Import and use the existing JQ action logic
+	// This is simplified - we'd reuse the actual JQ action implementation
+	jqAction, exists := actions.GetAction("jq")
+	if !exists {
+		return nil, fmt.Errorf("jq action not available")
+	}
+	
+	// Execute JQ with the data and path
+	result := jqAction([]any{data, path}, map[string]any{}, executor.variables)
+	if result.Status != constants.ActionStatusPassed {
+		return nil, fmt.Errorf("jq extraction failed: %s", result.GetErrorMessage())
+	}
+	
+	return result.Data, nil
+}
+
+// applyXPathExtraction applies XPath extraction to data  
+func (executor *StepExecutorImpl) applyXPathExtraction(data any, path string) (any, error) {
+	xpathAction, exists := actions.GetAction("xpath")
+	if !exists {
+		return nil, fmt.Errorf("xpath action not available")
+	}
+	
+	result := xpathAction([]any{data, path}, map[string]any{}, executor.variables)
+	if result.Status != constants.ActionStatusPassed {
+		return nil, fmt.Errorf("xpath extraction failed: %s", result.GetErrorMessage())
+	}
+	
+	return result.Data, nil
+}
+
+// applyRegexExtraction applies regex extraction to data
+func (executor *StepExecutorImpl) applyRegexExtraction(data any, pattern string, group int) (any, error) {
+	// Convert data to string
+	var text string
+	switch v := data.(type) {
+	case string:
+		text = v
+	case []byte:
+		text = string(v)
+	default:
+		text = fmt.Sprintf("%v", v)
+	}
+	
+	// Apply regex
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid regex pattern: %s", err.Error())
+	}
+	
+	matches := re.FindStringSubmatch(text)
+	if matches == nil {
+		return nil, fmt.Errorf("no matches found for pattern: %s", pattern)
+	}
+	
+	// Default to group 1, or use specified group
+	if group == 0 {
+		group = 1
+	}
+	
+	if group >= len(matches) {
+		return nil, fmt.Errorf("capture group %d not found (only %d groups)", group, len(matches)-1)
+	}
+	
+	return matches[group], nil
 }
 
 // printStepExecution prints step execution details to console
