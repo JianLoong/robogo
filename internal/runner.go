@@ -6,21 +6,23 @@ import (
 	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/execution"
 	"github.com/JianLoong/robogo/internal/types"
 )
 
 // TestRunner executes a test case and manages variables and control flow.
 type TestRunner struct {
-	variables           *common.Variables
-	controlFlowExecutor *ControlFlowExecutor
+	variables *common.Variables
+	pipeline  *execution.ExecutionPipeline
 }
 
-// NewTestRunner creates a new TestRunner with fresh variables.
+// NewTestRunner creates a new TestRunner with clean execution pipeline.
 func NewTestRunner() *TestRunner {
 	variables := common.NewVariables()
+	pipeline := execution.NewExecutionPipeline(variables)
 	return &TestRunner{
-		variables:           variables,
-		controlFlowExecutor: NewControlFlowExecutor(variables),
+		variables: variables,
+		pipeline:  pipeline,
 	}
 }
 
@@ -59,7 +61,7 @@ func (r *TestRunner) RunTest(filename string) (*types.TestResult, error) {
 	// 2. Run main test steps
 	testFailed := false
 	for i, step := range testCase.Steps {
-		stepResults, stepErr := r.controlFlowExecutor.ExecuteStepWithControlFlow(step, i+1)
+		stepResults, stepErr := r.pipeline.ExecuteStepWithControlFlow(step, i+1)
 		result.Steps = append(result.Steps, stepResults...)
 
 		if r.anyStepFailedOrErrored(stepResults, stepErr) {
@@ -107,7 +109,7 @@ func (r *TestRunner) runSetupPhase(setupSteps []types.Step) ([]types.StepResult,
 	var results []types.StepResult
 	
 	for i, step := range setupSteps {
-		stepResults, stepErr := r.controlFlowExecutor.ExecuteStepWithControlFlow(step, i+1)
+		stepResults, stepErr := r.pipeline.ExecuteStepWithControlFlow(step, i+1)
 		results = append(results, stepResults...)
 
 		// Check for critical failures that should skip the test
@@ -135,7 +137,7 @@ func (r *TestRunner) runTeardownPhase(teardownSteps []types.Step, testFailed boo
 	var results []types.StepResult
 	
 	for i, step := range teardownSteps {
-		stepResults, stepErr := r.controlFlowExecutor.ExecuteStepWithControlFlow(step, i+1)
+		stepResults, stepErr := r.pipeline.ExecuteStepWithControlFlow(step, i+1)
 		results = append(results, stepResults...)
 
 		// Log teardown failures but don't affect test outcome
