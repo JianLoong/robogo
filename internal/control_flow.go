@@ -57,7 +57,7 @@ func (adapter *stepExecutorAdapter) ExecuteStepWithContext(step types.Step, step
 	}
 
 	// Otherwise, execute normally
-	return adapter.stepExecutor.ExecuteSingleStep(step, stepNum, loopCtx)
+	return adapter.stepExecutor.ExecuteAction(step, stepNum, loopCtx)
 }
 
 // executeNestedSteps executes a group of nested steps and aggregates their results
@@ -223,7 +223,7 @@ func (executor *ControlFlowExecutor) executeStepWithContext(
 	}
 
 	// Otherwise, execute normally
-	return executor.stepExecutor.ExecuteSingleStep(step, stepNum, loopCtx)
+	return executor.stepExecutor.ExecuteAction(step, stepNum, loopCtx)
 }
 
 // printParentStepExecution prints step execution details for parent steps with nested steps

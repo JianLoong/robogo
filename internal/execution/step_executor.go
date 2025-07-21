@@ -26,7 +26,8 @@ func NewStepExecutor(variables *common.Variables) *StepExecutorImpl {
 }
 
 // ExecuteSingleStep executes a step once without retry
-func (executor *StepExecutorImpl) ExecuteSingleStep(
+// ExecuteAction implements ActionExecutor interface
+func (executor *StepExecutorImpl) ExecuteAction(
 	step types.Step,
 	stepNum int,
 	loopCtx *types.LoopContext,
@@ -119,7 +120,7 @@ func (executor *StepExecutorImpl) ExecuteSingleStep(
 				WithContext("error", err.Error()).
 				Build(err)
 			result.Result = errorResult
-			return result, fmt.Errorf("extraction failed: %s", err.Error())
+			return result, types.NewExtractionError(err.Error())
 		}
 		finalData = extractedData
 		// Update the result data with extracted value
@@ -137,7 +138,7 @@ func (executor *StepExecutorImpl) ExecuteSingleStep(
 // applyExtraction applies the specified extraction to the data
 func (executor *StepExecutorImpl) applyExtraction(data any, config *types.ExtractConfig) (any, error) {
 	if data == nil {
-		return nil, fmt.Errorf("cannot extract from nil data")
+		return nil, types.NewNilDataError()
 	}
 
 	switch config.Type {
@@ -148,7 +149,7 @@ func (executor *StepExecutorImpl) applyExtraction(data any, config *types.Extrac
 	case "regex":
 		return executor.applyRegexExtraction(data, config.Path, config.Group)
 	default:
-		return nil, fmt.Errorf("unsupported extraction type: %s", config.Type)
+		return nil, types.NewUnsupportedExtractionTypeError(config.Type)
 	}
 }
 
@@ -158,13 +159,13 @@ func (executor *StepExecutorImpl) applyJQExtraction(data any, path string) (any,
 	// This is simplified - we'd reuse the actual JQ action implementation
 	jqAction, exists := actions.GetAction("jq")
 	if !exists {
-		return nil, fmt.Errorf("jq action not available")
+		return nil, types.NewExtractionError("jq action not available")
 	}
 	
 	// Execute JQ with the data and path
 	result := jqAction([]any{data, path}, map[string]any{}, executor.variables)
 	if result.Status != constants.ActionStatusPassed {
-		return nil, fmt.Errorf("jq extraction failed: %s", result.GetErrorMessage())
+		return nil, types.NewExtractionError(result.GetErrorMessage())
 	}
 	
 	return result.Data, nil
@@ -174,12 +175,12 @@ func (executor *StepExecutorImpl) applyJQExtraction(data any, path string) (any,
 func (executor *StepExecutorImpl) applyXPathExtraction(data any, path string) (any, error) {
 	xpathAction, exists := actions.GetAction("xpath")
 	if !exists {
-		return nil, fmt.Errorf("xpath action not available")
+		return nil, types.NewExtractionError("xpath action not available")
 	}
 	
 	result := xpathAction([]any{data, path}, map[string]any{}, executor.variables)
 	if result.Status != constants.ActionStatusPassed {
-		return nil, fmt.Errorf("xpath extraction failed: %s", result.GetErrorMessage())
+		return nil, types.NewExtractionError(result.GetErrorMessage())
 	}
 	
 	return result.Data, nil
@@ -201,12 +202,12 @@ func (executor *StepExecutorImpl) applyRegexExtraction(data any, pattern string,
 	// Apply regex
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		return nil, fmt.Errorf("invalid regex pattern: %s", err.Error())
+		return nil, types.NewInvalidRegexPatternError(pattern, err.Error())
 	}
 	
 	matches := re.FindStringSubmatch(text)
 	if matches == nil {
-		return nil, fmt.Errorf("no matches found for pattern: %s", pattern)
+		return nil, types.NewNoRegexMatchError(pattern)
 	}
 	
 	// Default to group 1, or use specified group
@@ -215,7 +216,7 @@ func (executor *StepExecutorImpl) applyRegexExtraction(data any, pattern string,
 	}
 	
 	if group >= len(matches) {
-		return nil, fmt.Errorf("capture group %d not found (only %d groups)", group, len(matches)-1)
+		return nil, types.NewInvalidCaptureGroupError(group, len(matches)-1)
 	}
 	
 	return matches[group], nil

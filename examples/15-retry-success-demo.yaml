@@ -38,6 +38,7 @@ steps:
       attempts: 4
       delay: "1s"
       backoff: "exponential"
+      retry_if: "${step_status} == 'FAILED'"
     result: exponential_demo
 
   # This step won't be reached due to failure above, but shows test structure

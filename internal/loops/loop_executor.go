@@ -5,6 +5,7 @@ import (
 
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/constants"
+	"github.com/JianLoong/robogo/internal/execution"
 	"github.com/JianLoong/robogo/internal/templates"
 	"github.com/JianLoong/robogo/internal/types"
 )
@@ -12,23 +13,15 @@ import (
 // LoopExecutor handles execution of for and while loops
 type LoopExecutor struct {
 	variables          *common.Variables
-	conditionEvaluator ConditionEvaluator
-	stepExecutor       StepExecutor
+	conditionEvaluator execution.ConditionEvaluator
+	stepExecutor       execution.StepExecutor
 	parser             *LoopParser
 }
 
-// ConditionEvaluator interface for condition evaluation
-type ConditionEvaluator interface {
-	Evaluate(condition string) (bool, error)
-}
-
-// StepExecutor interface for step execution
-type StepExecutor interface {
-	ExecuteStepWithContext(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error)
-}
+// Import unified interfaces from execution package
 
 // NewLoopExecutor creates a new loop executor
-func NewLoopExecutor(variables *common.Variables, conditionEvaluator ConditionEvaluator, stepExecutor StepExecutor) *LoopExecutor {
+func NewLoopExecutor(variables *common.Variables, conditionEvaluator execution.ConditionEvaluator, stepExecutor execution.StepExecutor) *LoopExecutor {
 	return &LoopExecutor{
 		variables:          variables,
 		conditionEvaluator: conditionEvaluator,

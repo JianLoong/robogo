@@ -13,7 +13,7 @@ steps:
     retry:
       attempts: 3
       delay: "1s"
-      retry_on: ["http_error", "connection_error", "all"]
+      retry_if: "${error_occurred} == true"
     result: http_failure_result
     continue: true
     
@@ -39,7 +39,7 @@ steps:
     retry:
       attempts: 5
       delay: "500ms"
-      retry_on: ["assertion_failed"]
+      retry_if: "${step_status} == 'FAILED'"
     result: immediate_success
 
   # Test 5: HTTP retry with a delayed endpoint

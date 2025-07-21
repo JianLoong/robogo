@@ -1,0 +1,79 @@
+testcase: Kafka Extraction Test
+description: Test extract feature with Kafka actions
+
+variables:
+  vars:
+    kafka_broker: "localhost:9092"
+    test_topic: "test-topic"
+
+steps:
+  - name: "Publish test message to Kafka"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${test_topic}", "Hello Kafka World"]
+    result: publish_result
+    
+  - name: "Log publish result"
+    action: log
+    args: ["Publish result: ${publish_result}"]
+    
+  - name: "Consume messages without extraction"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${test_topic}"]
+    result: raw_messages
+    
+  - name: "Log raw consumption result"
+    action: log
+    args: ["Raw consumption: ${raw_messages}"]
+    
+  - name: "Consume messages with extraction - first message only"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${test_topic}"]
+    extract:
+      type: "jq"
+      path: ".messages[0]"
+    result: first_message
+    
+  - name: "Log extracted first message"
+    action: log
+    args: ["First message: ${first_message}"]
+    
+  - name: "Consume messages with extraction - message count"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${test_topic}"]
+    extract:
+      type: "jq"
+      path: ".count"
+    result: message_count
+    
+  - name: "Log message count"
+    action: log
+    args: ["Message count: ${message_count}"]
+    
+  - name: "Consume messages with extraction - partition info"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${test_topic}"]
+    extract:
+      type: "jq"
+      path: ".partition"
+    result: partition_num
+    
+  - name: "Log partition number"
+    action: log
+    args: ["Partition: ${partition_num}"]
+    
+  - name: "Publish JSON message for regex demo"
+    action: kafka
+    args: ["publish", "${kafka_broker}", "${test_topic}", "{\"user\":\"john\", \"action\":\"login\", \"timestamp\":\"2024-01-01T10:00:00Z\"}"]
+    result: json_publish_result
+    
+  - name: "Extract JSON content with JQ then demonstrate regex use case"
+    action: kafka
+    args: ["consume", "${kafka_broker}", "${test_topic}"]
+    extract:
+      type: "jq"
+      path: ".messages | join(\", \")"
+    result: all_messages_text
+    
+  - name: "Log all messages as text for regex example"
+    action: log
+    args: ["All messages: ${all_messages_text}"]

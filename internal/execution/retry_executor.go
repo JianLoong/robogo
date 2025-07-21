@@ -3,8 +3,6 @@ package execution
 import (
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/common"
@@ -14,20 +12,17 @@ import (
 
 // RetryExecutor handles retry logic for step execution
 type RetryExecutor struct {
-	stepExecutor StepExecutorInterface
-	variables    *common.Variables
+	actionExecutor ActionExecutor
+	variables      *common.Variables
 }
 
-// StepExecutorInterface interface for step execution
-type StepExecutorInterface interface {
-	ExecuteSingleStep(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error)
-}
+// Removed - now using unified interfaces.StepExecutor
 
 // NewRetryExecutor creates a new retry executor
-func NewRetryExecutor(stepExecutor StepExecutorInterface, variables *common.Variables) *RetryExecutor {
+func NewRetryExecutor(actionExecutor ActionExecutor, variables *common.Variables) *RetryExecutor {
 	return &RetryExecutor{
-		stepExecutor: stepExecutor,
-		variables:    variables,
+		actionExecutor: actionExecutor,
+		variables:      variables,
 	}
 }
 
@@ -80,7 +75,7 @@ func (executor *RetryExecutor) ExecuteStepWithRetry(
 		}
 
 		// Execute the step
-		result, err := executor.stepExecutor.ExecuteSingleStep(step, stepNum, loopCtx)
+		result, err := executor.actionExecutor.ExecuteAction(step, stepNum, loopCtx)
 		lastResult = result
 		lastErr = err
 
@@ -136,10 +131,8 @@ func (executor *RetryExecutor) evaluateRetryCondition(result *types.StepResult, 
 	// Set error variables for condition evaluation
 	executor.setErrorVariables(tempVars, result, err)
 	
-	// Create condition evaluator
-	conditionEvaluator := &ConditionEvaluator{
-		variables: tempVars,
-	}
+	// Create condition evaluator using the execution package implementation
+	conditionEvaluator := NewBasicConditionEvaluator(tempVars)
 	
 	return conditionEvaluator.Evaluate(condition)
 }
@@ -212,94 +205,3 @@ func (executor *RetryExecutor) getRetryReason(result *types.StepResult, err erro
 	return "Unknown error"
 }
 
-// ConditionEvaluator for retry logic
-type ConditionEvaluator struct {
-	variables *common.Variables
-}
-
-// Evaluate evaluates a condition string
-func (evaluator *ConditionEvaluator) Evaluate(condition string) (bool, error) {
-	// Substitute variables first
-	condition = evaluator.variables.Substitute(condition)
-
-	// Handle simple boolean values
-	if condition == "true" {
-		return true, nil
-	}
-	if condition == "false" {
-		return false, nil
-	}
-
-	// Handle comparison operators
-	operators := []string{">=", "<=", ">", "<", "==", "!=", "contains", "starts_with", "ends_with"}
-
-	for _, op := range operators {
-		if strings.Contains(condition, op) {
-			return evaluator.evaluateComparison(condition, op)
-		}
-	}
-
-	// If no operators found, treat non-empty strings as true
-	return strings.TrimSpace(condition) != "" && strings.TrimSpace(condition) != "0", nil
-}
-
-// evaluateComparison evaluates a comparison expression
-func (evaluator *ConditionEvaluator) evaluateComparison(condition, operator string) (bool, error) {
-	parts := strings.SplitN(condition, operator, 2)
-	if len(parts) != 2 {
-		return false, fmt.Errorf("invalid comparison: %s", condition)
-	}
-
-	left := strings.TrimSpace(parts[0])
-	right := strings.TrimSpace(parts[1])
-
-	switch operator {
-	case "==":
-		return left == right, nil
-	case "!=":
-		return left != right, nil
-	case "contains":
-		return strings.Contains(left, right), nil
-	case "starts_with":
-		return strings.HasPrefix(left, right), nil
-	case "ends_with":
-		return strings.HasSuffix(left, right), nil
-	case ">", "<", ">=", "<=":
-		return evaluator.compareNumeric(left, right, operator)
-	}
-
-	return false, fmt.Errorf("unsupported operator: %s", operator)
-}
-
-// compareNumeric compares two values numerically
-func (evaluator *ConditionEvaluator) compareNumeric(left, right, operator string) (bool, error) {
-	leftNum, err1 := strconv.ParseFloat(left, 64)
-	rightNum, err2 := strconv.ParseFloat(right, 64)
-
-	if err1 != nil || err2 != nil {
-		// Fall back to string comparison
-		switch operator {
-		case ">":
-			return left > right, nil
-		case "<":
-			return left < right, nil
-		case ">=":
-			return left >= right, nil
-		case "<=":
-			return left <= right, nil
-		}
-	}
-
-	switch operator {
-	case ">":
-		return leftNum > rightNum, nil
-	case "<":
-		return leftNum < rightNum, nil
-	case ">=":
-		return leftNum >= rightNum, nil
-	case "<=":
-		return leftNum <= rightNum, nil
-	}
-
-	return false, fmt.Errorf("invalid numeric operator: %s", operator)
-}
