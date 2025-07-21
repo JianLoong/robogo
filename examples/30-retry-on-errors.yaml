@@ -1,0 +1,61 @@
+testcase: Retry on Error Examples
+description: Test retry_if with error conditions using error variables
+
+variables:
+  vars:
+    bad_url: "http://localhost:9999/nonexistent"
+    good_url: "http://localhost:8000/json"
+    db_url: "postgres://robogo_testuser:robogo_testpass@localhost:5432/robogo_testdb?sslmode=disable"
+
+steps:
+  - name: "Retry on any error occurrence"
+    action: http
+    args: ["GET", "${bad_url}"]
+    result: response
+    retry:
+      attempts: 3
+      delay: "1s"
+      retry_if: "${error_occurred} == true"
+    continue: true
+      
+  - name: "Retry on specific error message"
+    action: http
+    args: ["GET", "${bad_url}"]
+    result: response
+    retry:
+      attempts: 2
+      delay: "500ms"
+      retry_if: "${error_occurred} == true && '${error_message}' contains 'connection refused'"
+    continue: true
+      
+  - name: "Retry on step failure (not error)"
+    action: assert
+    args: ["1 == 2"]  # This will always fail
+    retry:
+      attempts: 3
+      delay: "1s" 
+      retry_if: "${step_status} == 'FAILED'"
+    continue: true
+      
+  - name: "Complex error condition with database"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT * FROM nonexistent_table"]
+    result: db_result
+    retry:
+      attempts: 2
+      delay: "1s"
+      retry_if: "${error_occurred} == true && '${error_message}' contains 'does not exist'"
+    continue: true
+      
+  - name: "This step will run even if previous steps failed"
+    action: log
+    args: ["Test continues despite previous failures"]
+      
+  - name: "Retry until no error occurs"
+    action: http
+    args: ["GET", "${good_url}"]
+    result: final_response
+    retry:
+      attempts: 5
+      delay: "200ms"
+      retry_if: "${error_occurred} == true"

@@ -146,38 +146,43 @@ func (executor *RetryExecutor) evaluateRetryCondition(result *types.StepResult, 
 
 // setErrorVariables sets error-related variables for retry condition evaluation
 func (executor *RetryExecutor) setErrorVariables(vars *common.Variables, result *types.StepResult, err error) {
-	// Clear any existing error variables
-	vars.Set("_error_category", "")
-	vars.Set("_error_code", "")
-	vars.Set("_error_message", "")
-	vars.Set("_status_code", "")
-	vars.Set("_has_error", "false")
+	// Set default values
+	vars.Set("error_occurred", false)
+	vars.Set("error_message", "")
+	vars.Set("step_status", "PASSED")
 	
-	if result != nil && result.Result.Status != constants.ActionStatusPassed {
-		vars.Set("_has_error", "true")
-		
-		// Set error info from technical errors
-		if result.Result.ErrorInfo != nil {
-			vars.Set("_error_category", string(result.Result.ErrorInfo.Category))
-			vars.Set("_error_code", result.Result.ErrorInfo.Code)
-			vars.Set("_error_message", result.Result.ErrorInfo.Message)
+	if result != nil {
+		// Set step status
+		switch result.Result.Status {
+		case constants.ActionStatusPassed:
+			vars.Set("step_status", "PASSED")
+		case constants.ActionStatusFailed:
+			vars.Set("step_status", "FAILED")
+		case constants.ActionStatusError:
+			vars.Set("step_status", "ERROR")
 		}
 		
-		// Set failure info from logical failures  
-		if result.Result.FailureInfo != nil {
-			vars.Set("_error_category", string(result.Result.FailureInfo.Category))
-			vars.Set("_error_code", result.Result.FailureInfo.Code)
-			vars.Set("_error_message", result.Result.FailureInfo.Message)
-		}
-		
-		// Extract HTTP status code if available
-		if result.Result.Data != nil {
-			if dataMap, ok := result.Result.Data.(map[string]any); ok {
-				if statusCode, exists := dataMap["status_code"]; exists {
-					vars.Set("_status_code", fmt.Sprintf("%v", statusCode))
-				}
+		// Set error variables if step didn't pass
+		if result.Result.Status != constants.ActionStatusPassed {
+			vars.Set("error_occurred", true)
+			
+			// Set error message from technical errors
+			if result.Result.ErrorInfo != nil {
+				vars.Set("error_message", result.Result.ErrorInfo.Message)
+			}
+			
+			// Set failure message from logical failures  
+			if result.Result.FailureInfo != nil {
+				vars.Set("error_message", result.Result.FailureInfo.Message)
 			}
 		}
+	}
+	
+	// Handle direct errors (like network failures)
+	if err != nil {
+		vars.Set("error_occurred", true)
+		vars.Set("error_message", err.Error())
+		vars.Set("step_status", "ERROR")
 	}
 }
 
