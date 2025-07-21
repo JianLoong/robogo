@@ -1,0 +1,134 @@
+package actions
+
+import (
+	"fmt"
+
+	"github.com/JianLoong/robogo/internal/common"
+	"github.com/JianLoong/robogo/internal/types"
+)
+
+// ActionFunc defines the signature for action functions
+type ActionFunc func(args []any, options map[string]any, vars *common.Variables) types.ActionResult
+
+// ActionRegistry manages action registration and lookup without global state
+type ActionRegistry struct {
+	actions map[string]ActionFunc
+}
+
+// NewActionRegistry creates a new action registry
+func NewActionRegistry() *ActionRegistry {
+	registry := &ActionRegistry{
+		actions: make(map[string]ActionFunc),
+	}
+	
+	// Register all built-in actions
+	registry.registerBuiltinActions()
+	
+	return registry
+}
+
+// Register registers a new action
+func (registry *ActionRegistry) Register(name string, action ActionFunc) {
+	registry.actions[name] = action
+}
+
+// Get retrieves an action by name
+func (registry *ActionRegistry) Get(name string) (ActionFunc, bool) {
+	action, exists := registry.actions[name]
+	return action, exists
+}
+
+// Has checks if an action exists
+func (registry *ActionRegistry) Has(name string) bool {
+	_, exists := registry.actions[name]
+	return exists
+}
+
+// GetRegisteredActions returns a list of all registered action names
+func (registry *ActionRegistry) GetRegisteredActions() []string {
+	names := make([]string, 0, len(registry.actions))
+	for name := range registry.actions {
+		names = append(names, name)
+	}
+	return names
+}
+
+// Unregister removes an action (useful for testing)
+func (registry *ActionRegistry) Unregister(name string) {
+	delete(registry.actions, name)
+}
+
+// Clone creates a copy of the registry
+func (registry *ActionRegistry) Clone() *ActionRegistry {
+	newRegistry := NewActionRegistry()
+	// Clear the built-ins and copy from original
+	newRegistry.actions = make(map[string]ActionFunc)
+	for name, action := range registry.actions {
+		newRegistry.actions[name] = action
+	}
+	return newRegistry
+}
+
+// registerBuiltinActions registers all built-in actions (based on existing registry)
+func (registry *ActionRegistry) registerBuiltinActions() {
+	// Core actions
+	registry.Register("assert", assertAction)
+	registry.Register("log", logAction)
+	registry.Register("variable", variableAction)
+
+	// Utility actions
+	registry.Register("uuid", uuidAction)
+	registry.Register("time", timeAction)
+	registry.Register("sleep", sleepAction)
+
+	// Encoding actions
+	registry.Register("base64_encode", base64EncodeAction)
+	registry.Register("base64_decode", base64DecodeAction)
+	registry.Register("url_encode", urlEncodeAction)
+	registry.Register("url_decode", urlDecodeAction)
+	registry.Register("hash", hashAction)
+
+	// File actions
+	registry.Register("file_read", fileReadAction)
+
+	// String actions
+	registry.Register("string_random", stringRandomAction)
+
+	// Data processing actions
+	registry.Register("jq", jqAction)
+	registry.Register("xpath", xpathAction)
+
+	// HTTP actions
+	registry.Register("http", httpAction)
+
+	// Database actions
+	registry.Register("postgres", postgresAction)
+	registry.Register("spanner", spannerAction)
+
+	// Messaging actions
+	registry.Register("kafka", kafkaAction)
+	registry.Register("rabbitmq", rabbitmqAction)
+	registry.Register("swift_message", swiftMessageAction)
+
+	// JSON/XML actions
+	registry.Register("json_parse", jsonParseAction)
+	registry.Register("json_build", jsonBuildAction)
+	registry.Register("xml_parse", xmlParseAction)
+	registry.Register("xml_build", xmlBuildAction)
+}
+
+// Global registry instance for backward compatibility
+// TODO: Remove this once all components use dependency injection
+var globalRegistry = NewActionRegistry()
+
+// GetAction retrieves an action from the global registry (DEPRECATED)
+func GetAction(name string) (ActionFunc, bool) {
+	fmt.Printf("[DEPRECATED] GetAction called for '%s' - use ActionRegistry instance instead\n", name)
+	return globalRegistry.Get(name)
+}
+
+// ListActions returns all registered actions from the global registry (DEPRECATED)  
+func ListActions() []string {
+	fmt.Println("[DEPRECATED] ListActions called - use ActionRegistry instance instead")
+	return globalRegistry.GetRegisteredActions()
+}

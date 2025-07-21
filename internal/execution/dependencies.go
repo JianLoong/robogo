@@ -1,22 +1,29 @@
 package execution
 
 import (
+	"github.com/JianLoong/robogo/internal/actions"
 	"github.com/JianLoong/robogo/internal/common"
 )
 
 // Dependencies contains all the dependencies needed for execution
 type Dependencies struct {
 	Variables          *common.Variables
+	ActionRegistry     *actions.ActionRegistry
 	ConditionEvaluator ConditionEvaluator
 	ActionExecutor     ActionExecutor
 }
 
 // NewDependencies creates a new dependencies container
 func NewDependencies(variables *common.Variables) *Dependencies {
+	actionRegistry := actions.NewActionRegistry()
+	actionExecutor := NewStepExecutor(variables)
+	// TODO: Inject action registry into action executor
+	
 	return &Dependencies{
 		Variables:          variables,
+		ActionRegistry:     actionRegistry,
 		ConditionEvaluator: NewBasicConditionEvaluator(variables),
-		ActionExecutor:     NewStepExecutor(variables),
+		ActionExecutor:     actionExecutor,
 	}
 }
 
@@ -45,6 +52,11 @@ func (di *DependencyInjector) GetConditionEvaluator() ConditionEvaluator {
 // GetActionExecutor returns the action executor dependency
 func (di *DependencyInjector) GetActionExecutor() ActionExecutor {
 	return di.deps.ActionExecutor
+}
+
+// GetActionRegistry returns the action registry dependency
+func (di *DependencyInjector) GetActionRegistry() *actions.ActionRegistry {
+	return di.deps.ActionRegistry
 }
 
 // CreateUnifiedExecutor creates a unified executor with injected dependencies
