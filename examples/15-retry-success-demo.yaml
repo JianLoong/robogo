@@ -14,16 +14,20 @@ steps:
       attempts: 3
       delay: "1s"
       stop_on_success: true
-    result: immediate_success
+    extract:
+      type: "jq"
+      path: ".status_code"
+    result: status_code
 
   # Test 2: Simple assertion that works
   - name: "Assertion - succeeds immediately"
     action: assert
-    args: ["${immediate_success.status_code}", "==", "200", "Status should be 200"]
+    args: ["${status_code}", "==", "200", "Status should be 200"]
     retry:
       attempts: 3
       delay: "500ms"
     result: assertion_success
+    continue: true
 
   # Test 3: Demonstrate exponential backoff timing
   - name: "Log exponential backoff demo"

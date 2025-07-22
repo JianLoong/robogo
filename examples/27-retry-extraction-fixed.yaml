@@ -15,7 +15,7 @@ steps:
     result: author
     retry:
       attempts: 3
-      delay: "1s"
+      delay: "6s"
       retry_if: "${author} != 'Yours Truly'"
       
   - name: "Log final author"

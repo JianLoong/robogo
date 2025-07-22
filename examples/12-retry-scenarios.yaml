@@ -47,17 +47,21 @@ steps:
       delay: "1s"
       retry_on: ["http_error"]
       stop_on_success: true
-    result: success_result
+    extract:
+      type: "jq"
+      path: ".status_code"
+    result: status_code
 
   # Test 5: Assertion retry (will fail all attempts)
   - name: "Test assertion retry"
     action: assert
-    args: ["${success_result.status_code}", "==", "404", "This should fail and retry"]
+    args: ["${status_code}", "==", "404", "This should fail and retry"]
     retry:
       attempts: 3
       delay: "500ms"
       retry_on: ["assertion_failed"]
     result: assertion_retry_result
+    continue: true
 
   # Test 6: Successful retry scenario (using delay endpoint)
   - name: "Test eventual success with delay endpoint"
