@@ -761,33 +761,59 @@ docker exec kafka /opt/bitnami/kafka/bin/kafka-topics.sh --create --topic test-t
 robogo/
 ├── cmd/robogo/                  # CLI entry point
 ├── internal/
-│   ├── actions/                 # Action implementations
+│   ├── actions/                 # Action implementations (19 actions)
+│   │   ├── action_registry.go  # Action registry and validation helpers
 │   │   ├── assert.go           # Enhanced assertion logic
+│   │   ├── encoding.go         # Base64, URL encoding, hashing
+│   │   ├── file.go             # File operations
 │   │   ├── http.go             # HTTP operations
-│   │   ├── kafka.go            # Kafka with auto-commit
-│   │   ├── postgres.go         # PostgreSQL operations
-│   │   ├── spanner.go          # Spanner operations
-│   │   ├── rabbitmq.go         # RabbitMQ operations
-│   │   ├── swift.go            # SWIFT message generation
-│   │   ├── json.go             # JSON construction utilities
+│   │   ├── jq.go               # JSON querying
+│   │   ├── json.go             # JSON construction utilities  
+│   │   ├── kafka.go            # Kafka messaging
 │   │   ├── log.go              # Logging action
-│   │   ├── variable.go         # Variable management
-│   │   ├── uuid.go             # UUID generation
-│   │   ├── time.go             # Time/timestamp generation
+│   │   ├── postgres.go         # PostgreSQL operations
+│   │   ├── rabbitmq.go         # RabbitMQ operations
 │   │   ├── sleep.go            # Sleep/delay action
-│   │   ├── string.go           # String operations and random generation
-│   │   └── registry.go         # Action registry
+│   │   ├── spanner.go          # Google Cloud Spanner operations
+│   │   ├── string_random.go    # Random string generation
+│   │   ├── string_utils.go     # String manipulation utilities
+│   │   ├── swift.go            # SWIFT message generation
+│   │   ├── time.go             # Time/timestamp generation
+│   │   ├── uuid.go             # UUID generation
+│   │   ├── variable.go         # Variable management
+│   │   ├── xml_build.go        # XML construction
+│   │   ├── xml_parse.go        # XML parsing
+│   │   └── xpath.go            # XPath querying
 │   ├── common/                  # Shared utilities
-│   │   └── variables.go        # Variable substitution with expr
+│   │   ├── dotenv.go           # Environment file handling
+│   │   ├── security.go         # Security utilities
+│   │   └── variables.go        # Variable substitution system
+│   ├── constants/               # Configuration constants
+│   │   ├── config.go           # Error templates, timeouts, limits
+│   │   └── execution.go        # Status, operators, operations
+│   ├── execution/               # Execution strategy system
+│   │   ├── basic_strategy.go   # Basic action execution
+│   │   ├── condition_evaluator.go # Condition evaluation
+│   │   ├── control_flow_strategies.go # Conditional execution
+│   │   ├── execution_strategy.go # Strategy interface
+│   │   ├── nested_steps_strategy.go # Nested step execution
+│   │   ├── retry_strategy.go   # Retry logic with backoff
+│   │   └── strategy_router.go  # Priority-based strategy routing
+│   ├── templates/               # Template management
+│   │   └── init.go             # Template initialization
 │   ├── types/                   # Data structures
 │   │   ├── action_result.go    # Action result types
-│   │   ├── step.go             # Step definitions
-│   │   └── testcase.go         # Test case structures
+│   │   ├── error_handling.go   # ErrorInfo and structured errors
+│   │   ├── failure_handling.go # FailureInfo and structured failures
+│   │   ├── loop_context.go     # Loop execution context
+│   │   ├── simple_errors.go    # Convenience error functions
+│   │   ├── step.go             # Step definitions with retry/conditions
+│   │   ├── testcase.go         # Test case structures
+│   │   └── testresult.go       # Test result structures
 │   ├── cli.go                   # CLI interface
-│   ├── runner.go                # Test execution
 │   ├── parser.go                # YAML parsing
-│   └── control_flow.go          # Control flow execution
-├── examples/                    # Example tests
+│   └── runner.go                # Test execution orchestration
+├── examples/                    # Example tests (18 examples)
 ├── templates/                   # Message templates
 │   └── swift/                  # SWIFT message templates
 │       └── mt103.txt           # MT103 credit transfer template
