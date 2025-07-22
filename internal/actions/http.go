@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -76,7 +77,28 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 
 		// Log the request body for debugging if debug option is set
 		if debugOpt, ok := options["debug"].(bool); ok && debugOpt {
-			fmt.Printf("HTTP Request Body: %s\n", bodyStr)
+			// Check if this is a no_log step
+			if noLogOpt, ok := options["__no_log"].(bool); ok && noLogOpt {
+				fmt.Printf("HTTP Request Body: [body suppressed - no_log enabled]\n")
+			} else {
+				// Mask sensitive data in the body before logging
+				var maskedBody string
+				if sensitiveFields, ok := options["sensitive_fields"]; ok {
+					if fieldsSlice, ok := sensitiveFields.([]any); ok {
+						// Convert []any to []string for custom sensitive fields
+						customKeys := make([]string, len(fieldsSlice))
+						for i, field := range fieldsSlice {
+							customKeys[i] = fmt.Sprintf("%v", field)
+						}
+						maskedBody = maskSensitiveHTTPData(bodyStr, customKeys)
+					} else {
+						maskedBody = maskSensitiveHTTPData(bodyStr)
+					}
+				} else {
+					maskedBody = maskSensitiveHTTPData(bodyStr)
+				}
+				fmt.Printf("HTTP Request Body: %s\n", maskedBody)
+			}
 		}
 	}
 
@@ -143,4 +165,122 @@ func isSlice(v any) bool {
 	t := reflect.TypeOf(v)
 	kind := t.Kind()
 	return kind == reflect.Slice || kind == reflect.Array
+}
+
+// maskSensitiveHTTPData masks sensitive information in HTTP request bodies
+// Now accepts custom sensitive fields from options for enhanced masking
+func maskSensitiveHTTPData(data string, customFields ...[]string) string {
+	// Combine default sensitive keys with custom fields
+	sensitiveKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key",
+		"authorization", "auth", "bearer",
+		"credential", "cred", "access_token", "refresh_token",
+		"session", "cookie", "jwt",
+	}
+	
+	// Add custom sensitive fields if provided
+	for _, customKeySet := range customFields {
+		sensitiveKeys = append(sensitiveKeys, customKeySet...)
+	}
+	
+	// Try to parse as JSON first for more intelligent masking
+	var jsonData map[string]any
+	if json.Unmarshal([]byte(data), &jsonData) == nil {
+		// For JSON data, use field-based masking with custom fields
+		return maskJSONSensitiveFieldsWithCustom(data, sensitiveKeys)
+	}
+	
+	// Fallback to regex-based masking for non-JSON data
+	result := data
+	for _, key := range sensitiveKeys {
+		// Match various patterns: "key":"value", key=value, key: value
+		patterns := []string{
+			fmt.Sprintf(`(?i)"%s"\s*:\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)"%s"\s*:\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*[^\s&;]+`, key),
+		}
+		
+		for _, pattern := range patterns {
+			re := regexp.MustCompile(pattern)
+			result = re.ReplaceAllStringFunc(result, func(match string) string {
+				// Keep the key but mask the value
+				if strings.Contains(match, ":") {
+					if strings.Contains(match, `"`) {
+						return fmt.Sprintf(`"%s": "***"`, key)
+					} else {
+						return fmt.Sprintf(`"%s": '***'`, key)
+					}
+				} else {
+					return fmt.Sprintf(`%s=***`, key)
+				}
+			})
+		}
+	}
+	
+	return result
+}
+
+// maskJSONSensitiveFields masks sensitive fields in JSON strings using default keys
+func maskJSONSensitiveFields(jsonStr string) string {
+	defaultKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key", "access_token",
+		"authorization", "auth", "bearer", "credential", "cred",
+		"session", "cookie", "jwt", "refresh_token",
+	}
+	return maskJSONSensitiveFieldsWithCustom(jsonStr, defaultKeys)
+}
+
+// maskJSONSensitiveFieldsWithCustom masks sensitive fields in JSON strings with custom keys
+func maskJSONSensitiveFieldsWithCustom(jsonStr string, sensitiveKeys []string) string {
+	var data map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return jsonStr // Return original if not valid JSON
+	}
+	
+	maskSensitiveJSONValuesWithCustom(data, sensitiveKeys)
+	
+	maskedBytes, err := json.Marshal(data)
+	if err != nil {
+		return jsonStr // Return original if can't re-marshal
+	}
+	
+	return string(maskedBytes)
+}
+
+// maskSensitiveJSONValues recursively masks sensitive values in JSON objects using default keys
+func maskSensitiveJSONValues(obj map[string]any) {
+	defaultKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key", "access_token",
+		"authorization", "auth", "bearer", "credential", "cred",
+		"session", "cookie", "jwt", "refresh_token",
+	}
+	maskSensitiveJSONValuesWithCustom(obj, defaultKeys)
+}
+
+// maskSensitiveJSONValuesWithCustom recursively masks sensitive values in JSON objects with custom keys
+func maskSensitiveJSONValuesWithCustom(obj map[string]any, sensitiveKeys []string) {
+	for key, value := range obj {
+		lowerKey := strings.ToLower(key)
+		
+		// Check if this key should be masked
+		shouldMask := false
+		for _, sensitiveKey := range sensitiveKeys {
+			if strings.Contains(lowerKey, sensitiveKey) {
+				shouldMask = true
+				break
+			}
+		}
+		
+		if shouldMask {
+			obj[key] = "***"
+		} else if nested, ok := value.(map[string]any); ok {
+			// Recursively process nested objects
+			maskSensitiveJSONValuesWithCustom(nested, sensitiveKeys)
+		}
+	}
 }

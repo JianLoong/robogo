@@ -1,0 +1,52 @@
+testcase: "Step-Level Sensitive Fields Testing"
+description: "Demonstrates step-level sensitive_fields for comprehensive masking across different actions"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org"
+    user_data: '{"username": "john", "ssn": "123-45-6789", "credit_card": "4444-3333-2222-1111", "phone": "555-0123"}'
+
+steps:
+  # HTTP action with step-level sensitive fields
+  - name: "HTTP request with step-level masking"
+    action: http
+    args: ["POST", "${api_url}/post", "${user_data}"]
+    options:
+      debug: true
+    sensitive_fields: ["ssn", "credit_card"]  # Step-level custom masking
+    result: http_response
+    
+  # Log action with step-level sensitive fields
+  - name: "Log sensitive data with custom masking"
+    action: log
+    args: ["Processing user: ${user_data}"]
+    sensitive_fields: ["phone", "credit_card"]  # Different fields than HTTP step
+    
+  # Assert action with step-level sensitive fields
+  - name: "Assert with sensitive comparison"
+    action: assert
+    args: ["${user_data}", "contains", "john"]
+    sensitive_fields: ["ssn", "phone", "credit_card"]  # All custom fields
+    
+  # JSON build with step-level sensitive fields
+  - name: "Build JSON with sensitive data"
+    action: json_build
+    args:
+      - username: "admin"
+        ssn: "987-65-4321"
+        api_key: "secret-key-123"
+        credit_card: "5555-4444-3333-2222"
+    sensitive_fields: ["ssn", "api_key"]  # Selective masking
+    result: json_data
+    
+  # Variable action with step-level sensitive fields
+  - name: "Set sensitive variable"
+    action: variable
+    args: ["sensitive_data", '{"password": "secret123", "token": "abc-xyz", "ssn": "111-22-3333"}']
+    sensitive_fields: ["password", "ssn"]  # Only mask specific fields
+    
+  # No custom fields - should use default masking
+  - name: "Default masking without custom fields"
+    action: log
+    args: ["Default masking: password=secret, token=abc123, custom_field=sensitive"]
+    # No sensitive_fields specified - uses default patterns only

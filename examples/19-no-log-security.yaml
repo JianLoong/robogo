@@ -1,0 +1,55 @@
+testcase: "Security Testing with no_log"
+description: "Demonstrates no_log functionality for protecting sensitive data in logs"
+
+variables:
+  vars:
+    api_url: "https://httpbin.org"
+    secret_token: "super-secret-api-key-123456"
+    user_password: "my-secret-password"
+
+steps:
+  # Regular step - sensitive data will be masked but visible
+  - name: "Normal HTTP request with sensitive data"
+    action: http
+    args: ["POST", "${api_url}/post", '{"password": "${user_password}", "token": "${secret_token}"}']
+    options:
+      headers:
+        Authorization: "Bearer ${secret_token}"
+      debug: true  # This will show masked request body
+    result: normal_response
+    
+  # no_log step - completely suppress sensitive logging
+  - name: "Secure authentication request"
+    action: http
+    args: ["POST", "${api_url}/post", '{"login": "admin", "password": "${user_password}"}']
+    options:
+      headers:
+        Authorization: "Bearer ${secret_token}"
+      debug: true  # This will show suppression message
+    no_log: true  # 🔒 Suppress all sensitive output
+    result: secure_response
+    
+  # Step with custom sensitive field masking
+  - name: "Request with custom sensitive fields"
+    action: http
+    args: ["POST", "${api_url}/post", '{"username": "admin", "ssn": "123-45-6789", "account": "ACC-789"}']
+    options:
+      debug: true
+    sensitive_fields: ["ssn", "account"]  # Step-level custom fields to mask
+    result: custom_response
+    
+  # Demonstrate log action with no_log
+  - name: "Log sensitive information (normal)"
+    action: log
+    args: ["User authenticated with password: ${user_password}"]
+    
+  - name: "Log sensitive information (secure)"
+    action: log
+    args: ["Processing secure transaction for user with sensitive data"]
+    no_log: true  # 🔒 Suppress sensitive log output
+    
+  # Assert with sensitive data
+  - name: "Verify authentication token (secure)"
+    action: assert
+    args: ["${secret_token}", "!=", ""]
+    no_log: true  # 🔒 Don't show token in assertion logs

@@ -1,8 +1,10 @@
 package execution
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
@@ -62,17 +64,44 @@ func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *
 			options[k] = v
 		}
 	}
+	
+	// Pass security information to actions for security-aware behavior
+	if step.NoLog {
+		options["__no_log"] = true
+	}
+	if len(step.SensitiveFields) > 0 {
+		// Convert []string to []any for options interface
+		sensitiveFieldsAny := make([]any, len(step.SensitiveFields))
+		for i, field := range step.SensitiveFields {
+			sensitiveFieldsAny[i] = field
+		}
+		options["sensitive_fields"] = sensitiveFieldsAny
+	}
 
-	// Print step execution details
-	s.printStepExecution(step, stepNum, args, options)
+	// Print step execution details (unless no_log is enabled)
+	if !step.NoLog {
+		// Apply masking using step-level sensitive fields
+		maskedArgs := s.getMaskedArgsForPrinting(step.Action, args, step.SensitiveFields)
+		s.printStepExecution(step, stepNum, maskedArgs, options)
+	} else {
+		// For no_log steps, print minimal info without sensitive details
+		fmt.Printf("Step %d: %s [no_log enabled]\n", stepNum, step.Name)
+		fmt.Printf("  Action: %s\n", step.Action)
+		fmt.Println("  Executing... ")
+	}
 
 	// Execute action directly
 	output := action(args, options, s.variables)
 	result.Duration = time.Since(start)
 	result.Result = output
 
-	// Print execution result
-	s.printStepResult(output, result.Duration)
+	// Print execution result (unless no_log is enabled)
+	if !step.NoLog {
+		s.printStepResult(output, result.Duration)
+	} else {
+		// For no_log steps, print only status and duration, no sensitive data
+		s.printSecureStepResult(output, result.Duration)
+	}
 
 	// Apply extraction if specified and action was successful
 	var finalData any = output.Data
@@ -212,9 +241,8 @@ func (s *BasicExecutionStrategy) printStepExecution(
 	fmt.Printf("  Action: %s\n", step.Action)
 
 	if len(args) > 0 {
-		// Mask sensitive information in arguments for database actions
-		maskedArgs := s.maskSensitiveArgs(step.Action, args)
-		fmt.Printf("  Args: %v\n", maskedArgs)
+		// Args are already masked at this point
+		fmt.Printf("  Args: %v\n", args)
 	}
 
 	if len(options) > 0 {
@@ -284,19 +312,307 @@ func (s *BasicExecutionStrategy) printStepResult(result types.ActionResult, dura
 
 // maskSensitiveArgs masks sensitive information in step arguments based on action type
 func (s *BasicExecutionStrategy) maskSensitiveArgs(action string, args []any) []any {
-	// For database actions, mask connection strings that might contain passwords
-	if action == "postgres" || action == "spanner" {
+	maskedArgs := make([]any, len(args))
+	copy(maskedArgs, args)
+	
+	switch action {
+	case "postgres", "spanner":
+		// Database actions: mask connection strings (usually first argument)
 		if len(args) > 0 {
 			if connStr, ok := args[0].(string); ok {
-				// Mask password in connection string
-				maskedConnStr := regexp.MustCompile(`password=([^;]+)`).ReplaceAllString(connStr, "password=***")
-				maskedArgs := make([]any, len(args))
-				maskedArgs[0] = maskedConnStr
-				copy(maskedArgs[1:], args[1:])
-				return maskedArgs
+				maskedArgs[0] = common.MaskConnectionString(connStr)
+			}
+		}
+		
+	case "http":
+		// HTTP actions: mask request bodies that might contain sensitive data
+		if len(args) > 2 { // method, url, body
+			if bodyStr, ok := args[2].(string); ok {
+				maskedArgs[2] = s.maskHTTPBody(bodyStr)
+			}
+		}
+		
+	case "kafka", "rabbitmq":
+		// Messaging actions: mask connection strings/brokers (usually second argument)
+		if len(args) > 1 {
+			if connStr, ok := args[1].(string); ok {
+				maskedArgs[1] = common.MaskConnectionString(connStr)
+			}
+		}
+		
+	case "assert":
+		// Assertion actions: be careful with sensitive comparison values
+		for i, arg := range args {
+			if str, ok := arg.(string); ok {
+				maskedArgs[i] = s.maskSensitiveStringArg(str)
+			}
+		}
+		
+	case "log":
+		// Log actions: mask any sensitive data in log messages
+		for i, arg := range args {
+			if str, ok := arg.(string); ok {
+				maskedArgs[i] = s.maskSensitiveStringArg(str)
+			}
+		}
+		
+	default:
+		// For all other actions, scan string arguments for sensitive patterns
+		for i, arg := range args {
+			if str, ok := arg.(string); ok {
+				maskedArgs[i] = s.maskSensitiveStringArg(str)
 			}
 		}
 	}
 	
-	return args
+	return maskedArgs
+}
+
+// maskHTTPBody masks sensitive data in HTTP request bodies
+func (s *BasicExecutionStrategy) maskHTTPBody(body string) string {
+	// Use the same sophisticated JSON-aware masking as the HTTP action
+	return s.maskSensitiveHTTPData(body)
+}
+
+// maskSensitiveStringArg masks sensitive data in string arguments
+func (s *BasicExecutionStrategy) maskSensitiveStringArg(str string) string {
+	// Use common security utilities for general string masking
+	return common.MaskSensitiveData(str, common.DefaultSensitiveKeys)
+}
+
+// getMaskedArgsForPrinting returns masked arguments for printing, considering step-level sensitive_fields
+func (s *BasicExecutionStrategy) getMaskedArgsForPrinting(action string, args []any, sensitiveFields []string) []any {
+	// Start with the standard masking
+	maskedArgs := s.maskSensitiveArgs(action, args)
+	
+	// Apply additional masking with step-level custom sensitive fields
+	if len(sensitiveFields) > 0 {
+		// Apply additional masking with custom keys
+		for i, arg := range maskedArgs {
+			if str, ok := arg.(string); ok {
+				// For HTTP actions, use sophisticated JSON-aware masking for body arguments
+				if action == "http" && i == 2 { // HTTP body is the 3rd argument
+					maskedArgs[i] = s.maskSensitiveHTTPDataWithCustom(str, sensitiveFields)
+				} else {
+					// For other arguments and actions, use general string masking
+					maskedArgs[i] = common.MaskSensitiveData(str, sensitiveFields)
+				}
+			}
+		}
+	}
+	
+	return maskedArgs
+}
+
+// printSecureStepResult prints the result of step execution for no_log steps
+// Only shows status and duration, no sensitive data
+func (s *BasicExecutionStrategy) printSecureStepResult(result types.ActionResult, duration time.Duration) {
+	// Print status with color-like indicators, but no sensitive data
+	switch result.Status {
+	case constants.ActionStatusPassed:
+		fmt.Printf("✓ PASSED (%s) [no sensitive data logged]\n", duration)
+	case constants.ActionStatusFailed:
+		fmt.Printf("✗ FAILED (%s) [no sensitive data logged]\n", duration)
+		// Don't show error message as it might contain sensitive information
+		fmt.Printf("    Error details suppressed for security\n")
+	case constants.ActionStatusSkipped:
+		fmt.Printf("- SKIPPED (%s) [no sensitive data logged]\n", duration)
+		fmt.Printf("    Reason details suppressed for security\n")
+	case constants.ActionStatusError:
+		fmt.Printf("! ERROR (%s) [no sensitive data logged]\n", duration)
+		fmt.Printf("    Error details suppressed for security\n")
+	default:
+		fmt.Printf("? %s (%s) [no sensitive data logged]\n", result.Status, duration)
+	}
+
+	// Never show result data for no_log steps
+	fmt.Println() // Add blank line for readability
+}
+
+// maskSensitiveHTTPData masks sensitive information in HTTP request bodies
+// This mirrors the implementation from the HTTP action for consistency
+func (s *BasicExecutionStrategy) maskSensitiveHTTPData(data string) string {
+	// Try to parse as JSON first for more intelligent masking
+	var jsonData map[string]any
+	if json.Unmarshal([]byte(data), &jsonData) == nil {
+		// For JSON data, use field-based masking
+		return s.maskJSONSensitiveFields(data)
+	}
+	
+	// Fallback to regex-based masking for non-JSON data
+	sensitiveKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key",
+		"authorization", "auth", "bearer",
+		"credential", "cred", "access_token", "refresh_token",
+		"session", "cookie", "jwt",
+	}
+	
+	result := data
+	for _, key := range sensitiveKeys {
+		// Match various patterns: "key":"value", key=value, key: value
+		patterns := []string{
+			fmt.Sprintf(`(?i)"%s"\s*:\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)"%s"\s*:\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*[^\s&;]+`, key),
+		}
+		
+		for _, pattern := range patterns {
+			re := regexp.MustCompile(pattern)
+			result = re.ReplaceAllStringFunc(result, func(match string) string {
+				// Keep the key but mask the value
+				if strings.Contains(match, ":") {
+					if strings.Contains(match, `"`) {
+						return fmt.Sprintf(`"%s": "***"`, key)
+					} else {
+						return fmt.Sprintf(`"%s": '***'`, key)
+					}
+				} else {
+					return fmt.Sprintf(`%s=***`, key)
+				}
+			})
+		}
+	}
+	
+	return result
+}
+
+// maskJSONSensitiveFields masks sensitive fields in JSON strings
+func (s *BasicExecutionStrategy) maskJSONSensitiveFields(jsonStr string) string {
+	var data map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return jsonStr // Return original if not valid JSON
+	}
+	
+	s.maskSensitiveJSONValues(data)
+	
+	maskedBytes, err := json.Marshal(data)
+	if err != nil {
+		return jsonStr // Return original if can't re-marshal
+	}
+	
+	return string(maskedBytes)
+}
+
+// maskSensitiveJSONValues recursively masks sensitive values in JSON objects
+func (s *BasicExecutionStrategy) maskSensitiveJSONValues(obj map[string]any) {
+	sensitiveKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key", "access_token",
+		"authorization", "auth", "bearer", "credential", "cred",
+		"session", "cookie", "jwt", "refresh_token",
+	}
+	
+	for key, value := range obj {
+		lowerKey := strings.ToLower(key)
+		
+		// Check if this key should be masked
+		shouldMask := false
+		for _, sensitiveKey := range sensitiveKeys {
+			if strings.Contains(lowerKey, sensitiveKey) {
+				shouldMask = true
+				break
+			}
+		}
+		
+		if shouldMask {
+			obj[key] = "***"
+		} else if nested, ok := value.(map[string]any); ok {
+			// Recursively process nested objects
+			s.maskSensitiveJSONValues(nested)
+		}
+	}
+}
+
+// maskSensitiveHTTPDataWithCustom masks sensitive information in HTTP request bodies with custom fields
+func (s *BasicExecutionStrategy) maskSensitiveHTTPDataWithCustom(data string, customKeys []string) string {
+	// Combine default sensitive keys with custom fields
+	sensitiveKeys := []string{
+		"password", "pass", "passwd", "pwd",
+		"secret", "token", "key", "apikey", "api_key",
+		"authorization", "auth", "bearer",
+		"credential", "cred", "access_token", "refresh_token",
+		"session", "cookie", "jwt",
+	}
+	sensitiveKeys = append(sensitiveKeys, customKeys...)
+	
+	// Try to parse as JSON first for more intelligent masking
+	var jsonData map[string]any
+	if json.Unmarshal([]byte(data), &jsonData) == nil {
+		// For JSON data, use field-based masking with custom fields
+		return s.maskJSONSensitiveFieldsWithCustom(data, sensitiveKeys)
+	}
+	
+	// Fallback to regex-based masking for non-JSON data
+	result := data
+	for _, key := range sensitiveKeys {
+		// Match various patterns: "key":"value", key=value, key: value
+		patterns := []string{
+			fmt.Sprintf(`(?i)"%s"\s*:\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)"%s"\s*:\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*"[^"]*"`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*'[^']*'`, key),
+			fmt.Sprintf(`(?i)%s\s*=\s*[^\s&;]+`, key),
+		}
+		
+		for _, pattern := range patterns {
+			re := regexp.MustCompile(pattern)
+			result = re.ReplaceAllStringFunc(result, func(match string) string {
+				// Keep the key but mask the value
+				if strings.Contains(match, ":") {
+					if strings.Contains(match, `"`) {
+						return fmt.Sprintf(`"%s": "***"`, key)
+					} else {
+						return fmt.Sprintf(`"%s": '***'`, key)
+					}
+				} else {
+					return fmt.Sprintf(`%s=***`, key)
+				}
+			})
+		}
+	}
+	
+	return result
+}
+
+// maskJSONSensitiveFieldsWithCustom masks sensitive fields in JSON strings with custom keys
+func (s *BasicExecutionStrategy) maskJSONSensitiveFieldsWithCustom(jsonStr string, sensitiveKeys []string) string {
+	var data map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return jsonStr // Return original if not valid JSON
+	}
+	
+	s.maskSensitiveJSONValuesWithCustom(data, sensitiveKeys)
+	
+	maskedBytes, err := json.Marshal(data)
+	if err != nil {
+		return jsonStr // Return original if can't re-marshal
+	}
+	
+	return string(maskedBytes)
+}
+
+// maskSensitiveJSONValuesWithCustom recursively masks sensitive values in JSON objects with custom keys
+func (s *BasicExecutionStrategy) maskSensitiveJSONValuesWithCustom(obj map[string]any, sensitiveKeys []string) {
+	for key, value := range obj {
+		lowerKey := strings.ToLower(key)
+		
+		// Check if this key should be masked
+		shouldMask := false
+		for _, sensitiveKey := range sensitiveKeys {
+			if strings.Contains(lowerKey, sensitiveKey) {
+				shouldMask = true
+				break
+			}
+		}
+		
+		if shouldMask {
+			obj[key] = "***"
+		} else if nested, ok := value.(map[string]any); ok {
+			// Recursively process nested objects
+			s.maskSensitiveJSONValuesWithCustom(nested, sensitiveKeys)
+		}
+	}
 }

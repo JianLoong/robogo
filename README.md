@@ -156,8 +156,8 @@ export API_KEY=$(aws secretsmanager get-secret-value --secret-id prod/api-key --
 ## Available Actions
 
 ### Core Actions
-- **`log`** - Print messages with immediate output
-- **`assert`** - Verify conditions with multiple operators
+- **`log`** - Print messages with immediate output (supports `no_log` for sensitive data)
+- **`assert`** - Verify conditions with multiple operators (supports `no_log` for sensitive comparisons)  
 - **`variable`** - Set and manage variables
 - **`uuid`** - Generate UUID values
 - **`time`** - Generate timestamps (RFC3339, Unix, custom formats)
@@ -252,6 +252,111 @@ steps:
     action: assert
     args: ["${response_body}", "contains", "${user_email}"]
 ```
+
+### Security & Sensitive Data Protection
+
+Robogo provides enterprise-grade security features to protect sensitive data in logs and outputs through **step-level security controls**:
+
+#### **`no_log` for Complete Step Suppression**
+
+```yaml
+steps:
+  # Sensitive authentication - suppress all logging
+  - name: "Login with credentials"
+    action: http
+    args: ["POST", "${auth_url}", '{"username": "admin", "password": "${secret}"}']
+    no_log: true  # 🔒 Completely suppress step output
+    result: auth_token
+    
+  # Normal step - sensitive data automatically masked
+  - name: "Create user account"
+    action: http
+    args: ["POST", "${api_url}/users", "${user_data}"]
+    result: user_response
+```
+
+#### **Step-Level Custom Field Masking**
+
+```yaml
+steps:
+  - name: "Process payment data"
+    action: http
+    args: ["POST", "/payments", "${payment_data}"]
+    sensitive_fields: ["credit_card", "ssn", "bank_account"]  # Step-level custom fields to mask
+    result: payment_response
+    
+  - name: "Log user activity"
+    action: log
+    args: ["User ${username} processed payment for account ${account_id}"]
+    sensitive_fields: ["account_id", "transaction_id"]  # Different fields per step
+    
+  - name: "Query user database"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT * FROM users WHERE ssn = '${user_ssn}'"]
+    sensitive_fields: ["ssn", "phone", "email"]  # Works with any action
+```
+
+**Step-Level Security Properties:**
+- **`no_log: true`** - Complete suppression of all step output and logging
+- **`sensitive_fields: [...]`** - Custom field masking while preserving other data
+- **Flexible per step** - Different security settings for different steps
+- **Universal support** - Works with all actions automatically
+
+#### **Automatic Security Masking**
+
+Robogo automatically masks sensitive data patterns:
+
+- **Database connections**: `password=***`, `pwd=***` in connection strings
+- **HTTP requests**: JSON fields like `password`, `token`, `secret`, `authorization`  
+- **API keys**: Headers containing `Authorization`, `X-API-Key`, etc.
+- **Credentials**: Any field containing `credential`, `auth`, `bearer`, `jwt`
+
+#### **Security Best Practices**
+
+```yaml
+variables:
+  vars:
+    # ✅ Use environment variables for secrets
+    db_password: "${ENV:DB_PASSWORD}"
+    api_token: "${ENV:API_TOKEN}"
+    
+steps:
+  # ✅ Use no_log for complete suppression of sensitive steps
+  - name: "Authenticate"
+    action: http
+    args: ["POST", "/auth", '{"token": "${api_token}"}']
+    no_log: true  # Completely suppress all output
+    
+  # ✅ Use sensitive_fields for selective masking
+  - name: "Process user data" 
+    action: http
+    args: ["POST", "/users", "${user_data}"]
+    sensitive_fields: ["phone", "address", "dob"]  # Mask specific fields only
+    
+  # ✅ Combine both approaches as needed
+  - name: "Critical operation with partial logging"
+    action: postgres
+    args: ["execute", "${db_url}", "UPDATE users SET status = 'active' WHERE id = ${user_id}"]
+    sensitive_fields: ["user_id", "email"]  # Mask user data but allow query logging
+    # no_log: false (implicit) - allows operation status logging
+    
+  # ✅ Different security per step
+  - name: "Public API call"
+    action: http
+    args: ["GET", "/public/status"]
+    # No security properties - full logging enabled
+    
+  - name: "Private data processing"
+    action: log
+    args: ["Processing sensitive data: ${sensitive_payload}"]
+    sensitive_fields: ["ssn", "credit_card", "account"]  # Custom masking
+```
+
+**Benefits:**
+- **Compliance Ready**: Meets SOC2, GDPR, PCI-DSS requirements
+- **Developer Safe**: Prevents accidental credential exposure in CI/CD
+- **Zero Configuration**: Works automatically with sensible defaults
+- **Granular Control**: From complete suppression to field-level masking
 
 ### JSON Construction
 

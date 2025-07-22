@@ -13,6 +13,8 @@ type Step struct {
 	While    string         `yaml:"while,omitempty"`
 	Retry    *RetryConfig   `yaml:"retry,omitempty"`
 	Continue bool           `yaml:"continue,omitempty"`
+	NoLog           bool     `yaml:"no_log,omitempty"`           // Suppress logging for sensitive steps
+	SensitiveFields []string `yaml:"sensitive_fields,omitempty"` // Custom fields to mask in logs and output
 }
 
 // ExtractConfig defines data extraction from action results

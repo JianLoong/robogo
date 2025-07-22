@@ -182,6 +182,46 @@ Tests are defined in YAML with:
 - `setup`: Optional setup steps (run before main steps)
 - `steps`: Array of test steps with `name`, `action`, `args`, and optional `result`
 - `teardown`: Optional teardown steps (always run, even if test fails)
+- `no_log`: Optional step-level flag to suppress sensitive data logging
+
+### Security Features
+
+#### **`no_log` Sensitive Data Protection**
+
+Robogo provides comprehensive sensitive data protection similar to Ansible's `no_log` directive:
+
+**Step-Level Protection:**
+```yaml
+steps:
+  - name: "Authenticate with API"
+    action: http
+    args: ["POST", "${auth_url}", '{"password": "${secret}"}']
+    no_log: true  # 🔒 Suppress all logging for this step
+    result: auth_response
+```
+
+**Custom Field Masking:**
+```yaml
+steps:
+  - name: "Process user data"
+    action: http
+    args: ["POST", "/users", "${user_data}"]
+    sensitive_fields: ["ssn", "credit_card", "phone"]  # Step-level custom fields to mask
+    result: user_response
+```
+
+**Built-in Security Masking:**
+- **Database connections**: Automatically masks `password=`, `pwd=`, etc. in connection strings
+- **HTTP requests**: Masks sensitive fields in JSON bodies and headers
+- **Message queues**: Masks credentials in broker connection strings
+- **Assertions**: Protects sensitive comparison values
+- **Log statements**: Masks sensitive data in log messages
+
+**Security Benefits:**
+- **Compliance Ready**: Meets SOC2, GDPR, PCI-DSS logging requirements
+- **Developer Safe**: Prevents credential exposure in CI/CD logs
+- **Enterprise Grade**: Granular control from complete suppression to field-level masking
+- **Zero Config**: Sensible defaults with opt-in enhanced security
 
 ### Connection Management
 
