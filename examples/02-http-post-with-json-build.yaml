@@ -1,0 +1,74 @@
+testcase: "TC-HTTP-POST-WITH-JSON-BUILD"
+description: "HTTP POST test with json_build"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org/post"
+    test_data: "Test Data"
+    
+steps:
+  # Create JSON using json_build
+  - name: "Create JSON data"
+    action: json_build
+    args:
+      - name: "Test Name"
+        items:
+          - id: 1
+            name: "John Doe"
+          - id: 2
+            name: "Jane Smith"
+    # Using structured data (default) - HTTP action will serialize it
+    result: json_data
+
+  - name: "Log JSON data"
+    action: log
+    args: ["JSON data:", "${json_data}"]
+
+  - name: "Make HTTP POST request with JSON"
+    action: http
+    args: ["POST", "${base_url}", "${json_data}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+    result: "http_response"
+    
+  - name: "Log HTTP response"
+    action: log
+    args: ["HTTP response:", "${http_response}"]
+
+  - name: "Extract status code"
+    action: jq
+    args: ["${http_response}", ".status_code"]
+    result: status_code
+
+  - name: "Assert HTTP success"
+    action: assert
+    args: ["${status_code}", "==", "200", "HTTP request should succeed"]
+
+  - name: "Extract response body"
+    action: jq
+    args: ["${http_response}", ".body"]
+    result: body
+
+  - name: "Parse response JSON"
+    action: json_parse
+    args: ["${body}"]
+    result: parsed_body
+
+  - name: "Extract name from response"
+    action: jq
+    args: ["${parsed_body}", ".json.name"]
+    result: "extracted_name"
+
+  - name: "Assert name was received correctly"
+    action: assert
+    args: ["${extracted_name}", "==", "Test Name", "Name should match what we sent"]
+
+  - name: "Extract first item name"
+    action: jq
+    args: ["${parsed_body}", ".json.items[0].name"]
+    result: "first_item_name"
+    
+  - name: "Assert first item name was received correctly"
+    action: assert
+    args: ["${first_item_name}", "==", "John Doe", "First item name should match what we sent"]

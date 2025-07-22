@@ -248,3 +248,19 @@ func stringFormatAction(args []any, options map[string]any, vars *common.Variabl
 		},
 	}
 }
+
+// stringAction converts a value to a string
+// Args: [value] - value to convert to string
+func stringAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
+	if len(args) < 1 {
+		return types.MissingArgsError("string", 1, len(args))
+	}
+
+	// Convert value to string
+	value := fmt.Sprintf("%v", args[0])
+
+	return types.ActionResult{
+		Status: constants.ActionStatusPassed,
+		Data:   value,
+	}
+}

@@ -35,7 +35,8 @@ func jsonParseAction(args []any, options map[string]any, vars *common.Variables)
 	}
 }
 
-// jsonBuildAction creates a JSON string from nested YAML arguments
+// jsonBuildAction creates a JSON structure from nested YAML arguments
+// Can optionally return a JSON string if format: "string" is specified in options
 func jsonBuildAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 	// The args slice should contain the JSON data structure
 	// For json_build, we expect all args to be the JSON structure
@@ -48,7 +49,20 @@ func jsonBuildAction(args []any, options map[string]any, vars *common.Variables)
 	} else if len(args) == 0 {
 		// No args, build from options if provided
 		if len(options) > 0 {
-			jsonData = options
+			// Create a copy of options to avoid modifying the original
+			jsonDataOptions := make(map[string]any)
+			for k, v := range options {
+				// Skip the format option as it's used for controlling output format
+				if k != "format" {
+					jsonDataOptions[k] = v
+				}
+			}
+
+			if len(jsonDataOptions) > 0 {
+				jsonData = jsonDataOptions
+			} else {
+				return types.InvalidArgError("json_build", "JSON data", "at least one argument or options")
+			}
 		} else {
 			return types.InvalidArgError("json_build", "JSON data", "at least one argument or options")
 		}
@@ -60,9 +74,27 @@ func jsonBuildAction(args []any, options map[string]any, vars *common.Variables)
 	// Perform variable substitution on the data structure
 	substitutedData := substituteVariablesInData(jsonData, vars)
 
+	// Check if we should return a JSON string instead of structured data
+	if format, ok := options["format"].(string); ok && format == "string" {
+		// Marshal the data to a JSON string
+		jsonBytes, err := json.Marshal(substitutedData)
+		if err != nil {
+			return types.NewErrorBuilder(types.ErrorCategoryValidation, "JSON_BUILD_ERROR").
+				WithTemplate("Failed to marshal JSON: %s").
+				Build(err.Error())
+		}
+
+		// Return the JSON string
+		return types.ActionResult{
+			Status: constants.ActionStatusPassed,
+			Data:   string(jsonBytes),
+		}
+	}
+
+	// Default: return the structured data
 	return types.ActionResult{
 		Status: constants.ActionStatusPassed,
-		Data:   substitutedData, // Return the parsed data directly
+		Data:   substitutedData,
 	}
 }
 

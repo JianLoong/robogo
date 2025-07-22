@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/JianLoong/robogo/internal/actions"
@@ -45,6 +46,9 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 	var lastResult *types.StepResult
 	var lastError error
 
+	// Create a condition evaluator for retry_if conditions
+	conditionEvaluator := NewBasicConditionEvaluator(s.variables)
+
 	for attempt := 1; attempt <= config.Attempts; attempt++ {
 		if attempt > 1 {
 			fmt.Printf("  [Retry] Attempt %d/%d\n", attempt, config.Attempts)
@@ -54,9 +58,76 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 		lastResult = result
 		lastError = err
 
-		// Check if step succeeded
+		// Check if we should stop retrying based on success
 		if err == nil && result != nil && result.Result.Status == constants.ActionStatusPassed {
-			return result, nil
+			// If stop_on_success is true or not specified, stop retrying on success
+			if config.StopOnSuccess {
+				return result, nil
+			}
+		}
+
+		// Set error variables for condition evaluation
+		errorOccurred := err != nil || (result != nil && result.Result.Status != constants.ActionStatusPassed)
+		errorMessage := ""
+		if err != nil {
+			errorMessage = err.Error()
+		}
+
+		// Store error info in variables for potential use in retry_if conditions
+		s.variables.Set("error_occurred", errorOccurred)
+		s.variables.Set("error_message", errorMessage)
+		if result != nil {
+			s.variables.Set("step_status", string(result.Result.Status))
+		}
+
+		// Check if we should retry based on retry_on error types
+		if len(config.RetryOn) > 0 {
+			shouldRetry := false
+
+			// Check if the error type matches any in the retry_on list
+			for _, errorType := range config.RetryOn {
+				switch strings.ToLower(errorType) {
+				case "all":
+					shouldRetry = errorOccurred
+				case "http_error":
+					shouldRetry = errorOccurred && strings.Contains(errorMessage, "HTTP")
+				case "timeout":
+					shouldRetry = errorOccurred && strings.Contains(errorMessage, "timeout")
+				case "connection_error":
+					shouldRetry = errorOccurred && (strings.Contains(errorMessage, "connection") ||
+						strings.Contains(errorMessage, "dial") ||
+						strings.Contains(errorMessage, "network"))
+				case "assertion_failed":
+					shouldRetry = errorOccurred && strings.Contains(errorMessage, "assertion")
+				}
+
+				if shouldRetry {
+					fmt.Printf("  [Retry] Error type '%s' matched, continuing retry\n", errorType)
+					break
+				}
+			}
+
+			if !shouldRetry {
+				fmt.Printf("  [Retry] Error type doesn't match retry_on criteria, stopping retry\n")
+				return lastResult, lastError
+			}
+		}
+
+		// Check if we should retry based on retry_if condition
+		if config.RetryIf != "" {
+			// Evaluate the retry_if condition
+			shouldRetry, evalErr := conditionEvaluator.Evaluate(config.RetryIf)
+
+			if evalErr != nil {
+				fmt.Printf("  [Retry] Warning: Failed to evaluate retry_if condition: %v\n", evalErr)
+				// Continue with default behavior on evaluation error
+			} else if !shouldRetry {
+				// If the condition evaluates to false, stop retrying
+				fmt.Printf("  [Retry] Condition evaluated to false, stopping retry\n")
+				return lastResult, lastError
+			} else {
+				fmt.Printf("  [Retry] Condition evaluated to true, continuing retry\n")
+			}
 		}
 
 		// If this was the last attempt, don't wait

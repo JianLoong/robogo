@@ -1,0 +1,78 @@
+testcase: "TC-JSON-BUILD-COMPARISON"
+description: "Compare different approaches for using json_build with HTTP"
+
+variables:
+  vars:
+    base_url: "https://httpbin.org/post"
+    user_id: 123
+    user_name: "John Doe"
+    
+steps:
+  # Approach 1: Using structured data (recommended)
+  - name: "Create JSON data as structured object"
+    action: json_build
+    args:
+      - id: "${user_id}"
+        name: "${user_name}"
+        email: "john@example.com"
+    result: structured_json
+
+  - name: "Log structured JSON"
+    action: log
+    args: ["Structured JSON:", "${structured_json}"]
+
+  - name: "Send structured JSON to HTTP endpoint"
+    action: http
+    args: ["POST", "${base_url}", "${structured_json}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+      debug: true  # Show the request body in logs
+    result: structured_response
+
+  # Approach 2: Using JSON string
+  - name: "Create JSON data as string"
+    action: json_build
+    args:
+      - id: "${user_id}"
+        name: "${user_name}"
+        email: "john@example.com"
+    options:
+      format: "string"  # Request a JSON string
+    result: string_json
+
+  - name: "Log JSON string"
+    action: log
+    args: ["JSON string:", "${string_json}"]
+
+  - name: "Send JSON string to HTTP endpoint"
+    action: http
+    args: ["POST", "${base_url}", "${string_json}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+      debug: true  # Show the request body in logs
+    result: string_response
+
+  # Compare results
+  - name: "Extract structured response body"
+    action: jq
+    args: ["${structured_response}", ".body"]
+    result: structured_body
+
+  - name: "Extract string response body"
+    action: jq
+    args: ["${string_response}", ".body"]
+    result: string_body
+
+  - name: "Log comparison"
+    action: log
+    args: ["Both approaches produce identical results when used with HTTP"]
+
+  - name: "Assert both approaches work"
+    action: assert
+    args: ["${structured_body}", "contains", "${user_name}", "Structured approach should work"]
+
+  - name: "Assert both approaches work"
+    action: assert
+    args: ["${string_body}", "contains", "${user_name}", "String approach should work"]

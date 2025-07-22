@@ -181,6 +181,18 @@ export API_KEY=$(aws secretsmanager get-secret-value --secret-id prod/api-key --
 ### HTTP Actions  
 - **`http`** - HTTP requests (GET, POST, PUT, DELETE, etc.)
   - Extract data with jq: `.status_code`, `.body`, `.headers`
+  - Automatically serializes maps/objects to JSON when Content-Type is application/json
+  - Example:
+  ```yaml
+  - name: "Make HTTP POST request"
+    action: http
+    args: ["POST", "https://api.example.com/data", "${json_data}"]
+    options:
+      headers:
+        Content-Type: "application/json"
+      debug: true  # Optional: logs the request body for debugging
+    result: http_response
+  ```
 
 ### Database Actions
 - **`postgres`** - PostgreSQL operations (query, execute)
@@ -270,7 +282,44 @@ steps:
 
 The `json_build` action automatically handles:
 - Variable substitution in nested structures
-- Proper JSON marshaling for HTTP requests
+- Creates a structured data object that can be used with other actions
+
+By default, `json_build` returns a structured data object (map or array), which is ideal for:
+- Passing to HTTP requests with Content-Type: application/json (automatic serialization)
+- Further manipulation with other actions
+- Accessing specific fields using variable references
+
+You can also request a JSON string instead of a structured object when needed:
+
+```yaml
+- name: "Create user object as JSON string"
+  action: json_build
+  args:
+    - id: "${user_id}"
+      name: "${user_name}"
+  options:
+    format: "string"  # Returns a JSON string instead of structured data
+  result: user_json_string
+```
+
+**Best Practice**: For HTTP requests with JSON data, use the default structured output from `json_build` and set the Content-Type header to "application/json". The HTTP action will automatically serialize the data.
+```yaml
+# Recommended approach for HTTP with JSON
+- name: "Create user data"
+  action: json_build
+  args:
+    - name: "John Doe"
+      email: "john@example.com"
+  result: user_data
+
+- name: "Send user data"
+  action: http
+  args: ["POST", "https://api.example.com/users", "${user_data}"]
+  options:
+    headers:
+      Content-Type: "application/json"
+  result: response
+```
 - Property access via dot notation (e.g., `${user_json.name}`)
 
 ### SWIFT Message Generation
@@ -377,8 +426,36 @@ steps:
 - `attempts`: Number of total attempts (including first try)
 - `delay`: Base delay between attempts (e.g., "1s", "500ms")
 - `backoff`: Strategy - "fixed", "linear", or "exponential"
-- `retry_on`: Specific error types - ["assertion_failed", "http_error", "timeout", "connection_error", "all"]
+- `retry_on`: Specific error types to retry on - ["assertion_failed", "http_error", "timeout", "connection_error", "all"]
 - `stop_on_success`: Stop retrying immediately on success (default: true)
+- `retry_if`: Custom condition to determine if retry should continue
+
+**Advanced Retry with Conditions:**
+
+```yaml
+steps:
+  # Retry based on extracted value
+  - name: "Poll until author changes"
+    action: http
+    args: ["GET", "${api_url}/content"]
+    extract:
+      type: "jq"
+      path: ".body | fromjson | .author"
+    result: author
+    retry:
+      attempts: 5
+      delay: "3s"
+      retry_if: "${author} == 'Pending'"  # Retry as long as author is 'Pending'
+      
+  # Retry based on error condition
+  - name: "Retry on specific errors"
+    action: http
+    args: ["GET", "${api_url}/status"]
+    retry:
+      attempts: 3
+      delay: "1s"
+      retry_if: "${error_occurred} == true && '${error_message}' contains 'timeout'"
+```
 
 ### Sleep & Timing Control
 

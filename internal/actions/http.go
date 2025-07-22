@@ -1,9 +1,11 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -31,10 +33,46 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		}
 	}
 
-	var body string
+	var bodyReader io.Reader
 	if len(args) > 2 {
-		// Simple body handling - just convert to string, no auto-parsing
-		body = fmt.Sprintf("%v", args[2])
+		// Get the body argument
+		bodyArg := args[2]
+
+		// Always convert the body to a string first
+		var bodyStr string
+
+		// Check content type for special handling
+		contentType := ""
+		if headers, ok := options["headers"].(map[string]any); ok {
+			for k, v := range headers {
+				if strings.ToLower(k) == "content-type" {
+					contentType = strings.ToLower(fmt.Sprintf("%v", v))
+					break
+				}
+			}
+		}
+
+		// Special handling for JSON content type with map/slice data
+		if (contentType == "application/json" || strings.HasPrefix(contentType, "application/json")) &&
+			(isMap(bodyArg) || isSlice(bodyArg)) {
+			// For JSON content type with structured data, serialize it
+			jsonData, err := json.Marshal(bodyArg)
+			if err != nil {
+				return types.RequestError("JSON marshaling", err.Error())
+			}
+			bodyStr = string(jsonData)
+		} else {
+			// For all other cases, just convert to string
+			bodyStr = fmt.Sprintf("%v", bodyArg)
+		}
+
+		// Create the body reader from the string
+		bodyReader = strings.NewReader(bodyStr)
+
+		// Log the request body for debugging if debug option is set
+		if debugOpt, ok := options["debug"].(bool); ok && debugOpt {
+			fmt.Printf("HTTP Request Body: %s\n", bodyStr)
+		}
 	}
 
 	// Extract timeout for context
@@ -43,11 +81,6 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		if t, err := time.ParseDuration(timeoutStr); err == nil {
 			timeout = t
 		}
-	}
-
-	var bodyReader io.Reader
-	if body != "" {
-		bodyReader = strings.NewReader(body)
 	}
 
 	req, err := http.NewRequest(method, url, bodyReader)
@@ -86,4 +119,23 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		Status: constants.ActionStatusPassed,
 		Data:   result,
 	}
+}
+
+// Helper functions to check types
+func isMap(v any) bool {
+	if v == nil {
+		return false
+	}
+	t := reflect.TypeOf(v)
+	kind := t.Kind()
+	return kind == reflect.Map
+}
+
+func isSlice(v any) bool {
+	if v == nil {
+		return false
+	}
+	t := reflect.TypeOf(v)
+	kind := t.Kind()
+	return kind == reflect.Slice || kind == reflect.Array
 }

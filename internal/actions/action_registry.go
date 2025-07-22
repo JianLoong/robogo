@@ -18,10 +18,10 @@ func NewActionRegistry() *ActionRegistry {
 	registry := &ActionRegistry{
 		actions: make(map[string]ActionFunc),
 	}
-	
+
 	// Register all built-in actions
 	registry.registerBuiltinActions()
-	
+
 	return registry
 }
 
@@ -91,6 +91,7 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 
 	// String actions
 	registry.Register("string_random", stringRandomAction)
+	registry.Register("string", stringAction)
 
 	// Data processing actions
 	registry.Register("jq", jqAction)
@@ -114,4 +115,3 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("xml_parse", xmlParseAction)
 	registry.Register("xml_build", xmlBuildAction)
 }
-
