@@ -66,7 +66,7 @@ func (s *NestedStepsExecutionStrategy) CanHandle(step types.Step) bool {
 	return len(step.Steps) > 0
 }
 
-// Priority returns high priority as nested steps are specific
+// Priority returns medium priority as nested steps are specific
 func (s *NestedStepsExecutionStrategy) Priority() int {
-	return 4
+	return 2
 }

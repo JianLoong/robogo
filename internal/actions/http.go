@@ -13,7 +13,6 @@ import (
 )
 
 // httpAction performs an HTTP request. It always returns status code, headers, and raw body.
-// If options["parse_json"] == true and the body is valid JSON, the parsed JSON is included in Data.
 func httpAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
 
 	if len(args) < 2 {

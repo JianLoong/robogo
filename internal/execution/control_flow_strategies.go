@@ -6,12 +6,12 @@ import (
 
 // ConditionalExecutionStrategy handles if conditions
 type ConditionalExecutionStrategy struct {
-	conditionEvaluator ConditionEvaluator
+	conditionEvaluator *BasicConditionEvaluator
 	strategyRouter     *ExecutionStrategyRouter
 }
 
 // NewConditionalExecutionStrategy creates a new conditional execution strategy
-func NewConditionalExecutionStrategy(conditionEvaluator ConditionEvaluator, strategyRouter *ExecutionStrategyRouter) *ConditionalExecutionStrategy {
+func NewConditionalExecutionStrategy(conditionEvaluator *BasicConditionEvaluator, strategyRouter *ExecutionStrategyRouter) *ConditionalExecutionStrategy {
 	return &ConditionalExecutionStrategy{
 		conditionEvaluator: conditionEvaluator,
 		strategyRouter:     strategyRouter,
@@ -47,8 +47,8 @@ func (s *ConditionalExecutionStrategy) CanHandle(step types.Step) bool {
 	return step.If != ""
 }
 
-// Priority returns high priority as conditional logic is specific
+// Priority returns highest priority as conditional logic is most specific
 func (s *ConditionalExecutionStrategy) Priority() int {
-	return 6
+	return 4
 }
 

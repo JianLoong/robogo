@@ -9,7 +9,7 @@ import (
 type Dependencies struct {
 	Variables          *common.Variables
 	ActionRegistry     *actions.ActionRegistry
-	ConditionEvaluator ConditionEvaluator
+	ConditionEvaluator *BasicConditionEvaluator
 }
 
 // NewDependencies creates a new dependencies container
@@ -41,7 +41,7 @@ func (di *DependencyInjector) GetVariables() *common.Variables {
 }
 
 // GetConditionEvaluator returns the condition evaluator dependency
-func (di *DependencyInjector) GetConditionEvaluator() ConditionEvaluator {
+func (di *DependencyInjector) GetConditionEvaluator() *BasicConditionEvaluator {
 	return di.deps.ConditionEvaluator
 }
 

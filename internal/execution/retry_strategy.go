@@ -36,7 +36,7 @@ func (s *RetryExecutionStrategy) CanHandle(step types.Step) bool {
 
 // Priority returns high priority as retry is a specific concern
 func (s *RetryExecutionStrategy) Priority() int {
-	return 5
+	return 3
 }
 
 // executeStepWithRetry executes a step with retry logic (embedded from RetryExecutor)
