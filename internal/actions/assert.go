@@ -16,16 +16,8 @@ func assertAction(args []any, options map[string]any, vars *common.Variables) ty
 	}
 
 	// Check for unresolved variables in any argument
-	for i, arg := range args {
-		if str, ok := arg.(string); ok {
-			if strings.Contains(str, "__UNRESOLVED") {
-				return types.NewErrorBuilder(types.ErrorCategoryVariable, "UNRESOLVED_VARIABLE").
-					WithTemplate("Assertion failed due to unresolved variable").
-					WithContext("unresolved_value", str).
-					WithContext("argument_index", i).
-					Build(fmt.Sprintf("unresolved variable in assertion argument: %s", str))
-			}
-		}
+	if errorResult := validateArgsResolved("assert", args); errorResult != nil {
+		return *errorResult
 	}
 
 	// Handle single boolean argument

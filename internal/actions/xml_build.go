@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"encoding/xml"
 	"fmt"
 	"strings"
 
@@ -9,32 +8,6 @@ import (
 	"github.com/JianLoong/robogo/internal/constants"
 	"github.com/JianLoong/robogo/internal/types"
 )
-
-// xmlParseAction parses an XML string into structured data
-func xmlParseAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
-	if len(args) < 1 {
-		return types.MissingArgsError("xml_parse", 1, len(args))
-	}
-
-	// Get the XML string to parse
-	xmlStr, ok := args[0].(string)
-	if !ok {
-		return types.InvalidArgError("xml_parse", "XML string", "first argument must be a string")
-	}
-
-	// Parse the XML into a map-like structure
-	result, err := parseXMLToMap(xmlStr)
-	if err != nil {
-		return types.NewErrorBuilder(types.ErrorCategoryValidation, "XML_PARSE_ERROR").
-			WithTemplate("Failed to parse XML: %s").
-			Build(err.Error())
-	}
-
-	return types.ActionResult{
-		Status: constants.ActionStatusPassed,
-		Data:   result,
-	}
-}
 
 // xmlBuildAction creates an XML string from nested YAML arguments
 func xmlBuildAction(args []any, options map[string]any, vars *common.Variables) types.ActionResult {
@@ -70,84 +43,6 @@ func xmlBuildAction(args []any, options map[string]any, vars *common.Variables) 
 		Status: constants.ActionStatusPassed,
 		Data:   xmlString,
 	}
-}
-
-// XMLNode represents a parsed XML node
-type XMLNode struct {
-	Name       string                 `json:"name"`
-	Attributes map[string]string      `json:"attributes,omitempty"`
-	Text       string                 `json:"text,omitempty"`
-	Children   map[string]interface{} `json:"children,omitempty"`
-}
-
-// parseXMLToMap converts XML string to a map structure for easy access
-func parseXMLToMap(xmlStr string) (map[string]interface{}, error) {
-	decoder := xml.NewDecoder(strings.NewReader(xmlStr))
-	
-	result := make(map[string]interface{})
-	var current map[string]interface{} = result
-	var stack []map[string]interface{}
-
-	for {
-		token, err := decoder.Token()
-		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-			return nil, err
-		}
-
-		switch elem := token.(type) {
-		case xml.StartElement:
-			// Create new element
-			elementName := elem.Name.Local
-			
-			// Handle attributes
-			attributes := make(map[string]string)
-			for _, attr := range elem.Attr {
-				attributes[attr.Name.Local] = attr.Value
-			}
-			
-			// Create new level
-			newLevel := make(map[string]interface{})
-			if len(attributes) > 0 {
-				newLevel["@attributes"] = attributes
-			}
-			
-			// Add to current level
-			if existing, exists := current[elementName]; exists {
-				// Convert to array if not already
-				switch existingVal := existing.(type) {
-				case []interface{}:
-					current[elementName] = append(existingVal, newLevel)
-				default:
-					current[elementName] = []interface{}{existingVal, newLevel}
-				}
-			} else {
-				current[elementName] = newLevel
-			}
-			
-			// Push current to stack and move to new level
-			stack = append(stack, current)
-			current = newLevel
-
-		case xml.EndElement:
-			// Pop from stack
-			if len(stack) > 0 {
-				current = stack[len(stack)-1]
-				stack = stack[:len(stack)-1]
-			}
-
-		case xml.CharData:
-			// Add text content
-			text := strings.TrimSpace(string(elem))
-			if text != "" {
-				current["text"] = text
-			}
-		}
-	}
-
-	return result, nil
 }
 
 // buildXMLFromData converts structured data to XML string
@@ -238,3 +133,4 @@ func buildXMLElement(builder *strings.Builder, name string, data interface{}, in
 	
 	return nil
 }
+

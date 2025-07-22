@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/JianLoong/robogo/internal/types"
@@ -30,7 +29,7 @@ func (r *ExecutionStrategyRouter) RegisterStrategy(strategy ExecutionStrategy) {
 }
 
 // Execute selects the appropriate strategy and executes the step
-func (r *ExecutionStrategyRouter) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (r *ExecutionStrategyRouter) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	// Find the first strategy that can handle this step
 	for _, strategy := range r.strategies {
 		if strategy.CanHandle(step) {
@@ -38,8 +37,16 @@ func (r *ExecutionStrategyRouter) Execute(step types.Step, stepNum int, loopCtx 
 		}
 	}
 	
-	// No strategy found
-	return nil, fmt.Errorf("no execution strategy found for step: %s", step.Name)
+	// No strategy found - return error result
+	return &types.StepResult{
+		Name:   step.Name,
+		Action: step.Action,
+		Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "NO_STRATEGY_FOUND").
+			WithTemplate("No execution strategy found for step: %s").
+			WithContext("step_name", step.Name).
+			WithContext("action", step.Action).
+			Build(step.Name),
+	}
 }
 
 // GetApplicableStrategies returns all strategies that can handle the given step

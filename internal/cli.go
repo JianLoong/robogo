@@ -177,7 +177,7 @@ func printTestSummary(result *types.TestResult) {
 	fmt.Printf("  Name: %s\n", result.Name)
 	fmt.Printf("  Status: %s\n", result.Status)
 	fmt.Printf("  Duration: %s\n", result.Duration)
-	if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+	if errorMsg := result.GetMessage(); errorMsg != "" {
 		fmt.Printf("  Error: %s\n", errorMsg)
 	}
 	fmt.Println()

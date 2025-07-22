@@ -27,7 +27,7 @@ func NewBasicExecutionStrategy(variables *common.Variables, actionRegistry *acti
 }
 
 // Execute performs basic action execution directly
-func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	start := time.Now()
 
 	result := &types.StepResult{
@@ -47,7 +47,7 @@ func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *
 		
 		result.Result = errorResult
 		result.Duration = time.Since(start)
-		return result, fmt.Errorf("unknown action: %s", step.Action)
+		return result
 	}
 
 	// Substitute variables in arguments
@@ -74,12 +74,7 @@ func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *
 	// Print execution result
 	s.printStepResult(output, result.Duration)
 
-	// Return error only if the action status is error (for control flow purposes)
-	if output.Status == constants.ActionStatusError {
-		return result, fmt.Errorf("action failed: %s", output.GetErrorMessage())
-	}
-
-	// Apply extraction if specified
+	// Apply extraction if specified and action was successful
 	var finalData any = output.Data
 	if step.Extract != nil && output.Status == constants.ActionStatusPassed {
 		extractedData, err := s.applyExtraction(output.Data, step.Extract)
@@ -91,18 +86,18 @@ func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *
 				WithContext("error", err.Error()).
 				Build(err)
 			result.Result = errorResult
-			return result, types.NewExtractionError(err.Error())
+			return result
 		}
 		finalData = extractedData
 		result.Result.Data = finalData
 	}
 
-	// Store result variable if specified
-	if step.Result != "" {
+	// Store result variable if specified and action was successful
+	if step.Result != "" && (output.Status == constants.ActionStatusPassed || finalData != nil) {
 		s.variables.Set(step.Result, finalData)
 	}
 
-	return result, nil
+	return result
 }
 
 // CanHandle returns true for steps that have an action and no control flow
@@ -149,7 +144,7 @@ func (s *BasicExecutionStrategy) applyJQExtraction(data any, path string) (any, 
 	
 	result := jqAction([]any{data, path}, map[string]any{}, s.variables)
 	if result.Status != constants.ActionStatusPassed {
-		return nil, types.NewExtractionError(result.GetErrorMessage())
+		return nil, types.NewExtractionError(result.GetMessage())
 	}
 	
 	return result.Data, nil
@@ -164,7 +159,7 @@ func (s *BasicExecutionStrategy) applyXPathExtraction(data any, path string) (an
 	
 	result := xpathAction([]any{data, path}, map[string]any{}, s.variables)
 	if result.Status != constants.ActionStatusPassed {
-		return nil, types.NewExtractionError(result.GetErrorMessage())
+		return nil, types.NewExtractionError(result.GetMessage())
 	}
 	
 	return result.Data, nil
@@ -257,7 +252,7 @@ func (s *BasicExecutionStrategy) printStepResult(result types.ActionResult, dura
 		fmt.Printf("✓ PASSED (%s)\n", duration)
 	case constants.ActionStatusFailed:
 		fmt.Printf("✗ FAILED (%s)\n", duration)
-		if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+		if errorMsg := result.GetMessage(); errorMsg != "" {
 			fmt.Printf("    Error: %s\n", errorMsg)
 		}
 	case constants.ActionStatusSkipped:
@@ -267,7 +262,7 @@ func (s *BasicExecutionStrategy) printStepResult(result types.ActionResult, dura
 		}
 	case constants.ActionStatusError:
 		fmt.Printf("! ERROR (%s)\n", duration)
-		if errorMsg := result.GetErrorMessage(); errorMsg != "" {
+		if errorMsg := result.GetMessage(); errorMsg != "" {
 			fmt.Printf("    Error: %s\n", errorMsg)
 		}
 	default:

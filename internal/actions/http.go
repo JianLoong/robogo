@@ -21,6 +21,11 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		return types.MissingArgsError("http", 2, len(args))
 	}
 
+	// Check for unresolved variables in critical arguments (method and URL)
+	if errorResult := validateArgsResolved("http", args[:2]); errorResult != nil {
+		return *errorResult
+	}
+
 	method := fmt.Sprintf("%v", args[0])
 	url := fmt.Sprintf("%v", args[1])
 

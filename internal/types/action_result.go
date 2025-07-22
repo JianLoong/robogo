@@ -65,10 +65,6 @@ func (ar *ActionResult) GetMessage() string {
 	return ""
 }
 
-// GetErrorMessage returns the error or failure message
-func (ar *ActionResult) GetErrorMessage() string {
-	return ar.GetMessage()
-}
 
 // GetSkipReason returns the skip reason from ErrorInfo
 func (ar *ActionResult) GetSkipReason() string {

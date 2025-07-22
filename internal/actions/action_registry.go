@@ -1,6 +1,9 @@
 package actions
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/JianLoong/robogo/internal/common"
 	"github.com/JianLoong/robogo/internal/types"
 )
@@ -91,6 +94,8 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 
 	// String actions
 	registry.Register("string_random", stringRandomAction)
+	registry.Register("string_replace", stringReplaceAction)
+	registry.Register("string_format", stringFormatAction)
 	registry.Register("string", stringAction)
 
 	// Data processing actions
@@ -114,4 +119,23 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("json_build", jsonBuildAction)
 	registry.Register("xml_parse", xmlParseAction)
 	registry.Register("xml_build", xmlBuildAction)
+}
+
+// validateArgsResolved checks if any arguments contain unresolved variables
+// Returns an ActionResult error if unresolved variables are found, nil otherwise
+func validateArgsResolved(actionName string, args []any) *types.ActionResult {
+	for i, arg := range args {
+		if str, ok := arg.(string); ok {
+			if strings.Contains(str, "__UNRESOLVED") {
+				errorResult := types.NewErrorBuilder(types.ErrorCategoryVariable, "UNRESOLVED_VARIABLE").
+					WithTemplate("Action failed due to unresolved variable in argument").
+					WithContext("action", actionName).
+					WithContext("unresolved_value", str).
+					WithContext("argument_index", i).
+					Build(fmt.Sprintf("unresolved variable in %s argument: %s", actionName, str))
+				return &errorResult
+			}
+		}
+	}
+	return nil
 }

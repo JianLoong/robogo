@@ -19,6 +19,11 @@ func postgresAction(args []any, options map[string]any, vars *common.Variables) 
 		return types.MissingArgsError("postgres", 3, len(args))
 	}
 
+	// Check for unresolved variables in critical arguments
+	if errorResult := validateArgsResolved("postgres", args[:3]); errorResult != nil {
+		return *errorResult
+	}
+
 	operation := strings.ToLower(fmt.Sprintf("%v", args[0]))
 	connectionString := fmt.Sprintf("%v", args[1])
 	query := fmt.Sprintf("%v", args[2])

@@ -10,15 +10,10 @@ graph TD
     D --> E[Create Variables Store]
     E --> F[Load Pre-defined Variables]
     
-    F --> G[Create ExecutionPipeline]
-    G --> G1[NewDependencies]
-    G1 --> G2[ActionRegistry.NewActionRegistry]
-    G2 --> G3[BasicConditionEvaluator]
-    G3 --> G4[DependencyInjector]
-    G4 --> G5[CreateUnifiedExecutor]
-    G5 --> G6[ExecutionStrategyRouter]
-    
-    G6 --> H[Register Strategies]
+    F --> G[Create ExecutionStrategyRouter]
+    G --> G1[ActionRegistry.NewActionRegistry]
+    G1 --> G2[BasicConditionEvaluator]
+    G2 --> H[Register Strategies Directly]
     H --> H1[ConditionalExecutionStrategy - Priority 4]
     H --> H2[RetryExecutionStrategy - Priority 3] 
     H --> H3[NestedStepsExecutionStrategy - Priority 2]
@@ -80,10 +75,10 @@ graph TD
 ### Core Components
 
 1. **CLI**: Direct command-line interface handling `run`, `list`, `version` commands
-2. **TestRunner**: Orchestrates test execution lifecycle 
-3. **ExecutionPipeline**: Clean dependency injection and step execution coordination
+2. **TestRunner**: Orchestrates test execution lifecycle with direct strategy router
+3. **ExecutionStrategyRouter**: Priority-based routing to appropriate execution strategy
 4. **Variables**: Simple map-based variable storage with substitution (no complex abstractions)
-5. **Strategy Pattern**: Priority-based execution routing for different step types
+5. **Strategy Pattern**: Clean execution routing for different step types
 
 ### Execution Strategies (Priority Order)
 
@@ -108,25 +103,27 @@ graph TD
 
 ### Simple HTTP Test
 ```
-CLI → TestRunner → ExecutionPipeline → BasicExecutionStrategy → HTTP Action → Result
+CLI → TestRunner → ExecutionStrategyRouter → BasicExecutionStrategy → HTTP Action → Result
 ```
 
 ### Conditional Test with Retry
 ```
-CLI → TestRunner → ExecutionPipeline → ConditionalExecutionStrategy → 
+CLI → TestRunner → ExecutionStrategyRouter → ConditionalExecutionStrategy → 
 RetryExecutionStrategy → BasicExecutionStrategy → Action → Result
 ```
 
 ### Nested Steps Test
 ```
-CLI → TestRunner → ExecutionPipeline → NestedStepsExecutionStrategy → 
+CLI → TestRunner → ExecutionStrategyRouter → NestedStepsExecutionStrategy → 
 (Multiple BasicExecutionStrategy calls) → Aggregated Result
 ```
 
 ## Key Simplifications Made
 
 - **Removed**: VariableManager, TemplateSubstitution, ActionExecutor interface layers
-- **Removed**: ControlFlowExecutor, StepExecutor, LoopExecutionStrategy dead code  
+- **Removed**: ControlFlowExecutor, StepExecutor, LoopExecutionStrategy dead code
+- **Eliminated**: ExecutionPipeline, Dependencies, DependencyInjector, UnifiedExecutor abstraction layers
 - **Simplified**: Direct Variables map instead of 4-layer abstraction
+- **Direct Construction**: TestRunner directly creates and uses ExecutionStrategyRouter
 - **Consolidated**: Strategy pattern handles all control flow (conditions, retry, nesting)
-- **Maintained**: All functionality while removing ~1200+ lines of over-engineered code
+- **Maintained**: All functionality while removing ~1500+ lines of over-engineered code

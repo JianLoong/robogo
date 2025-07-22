@@ -19,19 +19,28 @@ func NewConditionalExecutionStrategy(conditionEvaluator *BasicConditionEvaluator
 }
 
 // Execute performs conditional execution
-func (s *ConditionalExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (s *ConditionalExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	// Evaluate condition
 	condition, err := s.conditionEvaluator.Evaluate(step.If)
 	if err != nil {
-		return nil, err
+		return &types.StepResult{
+			Name:   step.Name,
+			Action: step.Action,
+			Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "CONDITION_EVALUATION_FAILED").
+				WithTemplate("Failed to evaluate condition: %s").
+				WithContext("condition", step.If).
+				WithContext("error", err.Error()).
+				Build(err),
+		}
 	}
 	
 	// If condition is false, skip execution
 	if !condition {
 		return &types.StepResult{
 			Name:   step.Name,
+			Action: step.Action,
 			Result: types.ActionResult{Status: "SKIPPED"},
-		}, nil
+		}
 	}
 	
 	// Create a copy of the step without the if condition to avoid infinite recursion

@@ -19,8 +19,8 @@ type StepResult struct {
 	Result   ActionResult  `json:"result"`
 }
 
-// GetErrorMessage returns the error message from ErrorInfo
-func (tr *TestResult) GetErrorMessage() string {
+// GetMessage returns the error message from ErrorInfo
+func (tr *TestResult) GetMessage() string {
 	if tr.ErrorInfo != nil {
 		return tr.ErrorInfo.Message
 	}

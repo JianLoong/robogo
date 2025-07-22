@@ -26,7 +26,7 @@ func NewRetryExecutionStrategy(variables *common.Variables, actionRegistry *acti
 }
 
 // Execute performs action execution with retry logic
-func (s *RetryExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (s *RetryExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	return s.executeStepWithRetry(step, stepNum, loopCtx)
 }
 
@@ -41,10 +41,9 @@ func (s *RetryExecutionStrategy) Priority() int {
 }
 
 // executeStepWithRetry executes a step with retry logic (embedded from RetryExecutor)
-func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	config := step.Retry
 	var lastResult *types.StepResult
-	var lastError error
 
 	// Create a condition evaluator for retry_if conditions
 	conditionEvaluator := NewBasicConditionEvaluator(s.variables)
@@ -54,23 +53,22 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 			fmt.Printf("  [Retry] Attempt %d/%d\n", attempt, config.Attempts)
 		}
 
-		result, err := s.basicStrategy.Execute(step, stepNum, loopCtx)
+		result := s.basicStrategy.Execute(step, stepNum, loopCtx)
 		lastResult = result
-		lastError = err
 
 		// Check if we should stop retrying based on success
-		if err == nil && result != nil && result.Result.Status == constants.ActionStatusPassed {
+		if result != nil && result.Result.Status == constants.ActionStatusPassed {
 			// If stop_on_success is true or not specified, stop retrying on success
 			if config.StopOnSuccess {
-				return result, nil
+				return result
 			}
 		}
 
 		// Set error variables for condition evaluation
-		errorOccurred := err != nil || (result != nil && result.Result.Status != constants.ActionStatusPassed)
+		errorOccurred := result != nil && result.Result.Status != constants.ActionStatusPassed
 		errorMessage := ""
-		if err != nil {
-			errorMessage = err.Error()
+		if errorOccurred && result != nil {
+			errorMessage = result.Result.GetMessage()
 		}
 
 		// Store error info in variables for potential use in retry_if conditions
@@ -109,7 +107,7 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 
 			if !shouldRetry {
 				fmt.Printf("  [Retry] Error type doesn't match retry_on criteria, stopping retry\n")
-				return lastResult, lastError
+				return lastResult
 			}
 		}
 
@@ -124,7 +122,7 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 			} else if !shouldRetry {
 				// If the condition evaluates to false, stop retrying
 				fmt.Printf("  [Retry] Condition evaluated to false, stopping retry\n")
-				return lastResult, lastError
+				return lastResult
 			} else {
 				fmt.Printf("  [Retry] Condition evaluated to true, continuing retry\n")
 			}
@@ -143,7 +141,7 @@ func (s *RetryExecutionStrategy) executeStepWithRetry(step types.Step, stepNum i
 		}
 	}
 
-	return lastResult, lastError
+	return lastResult
 }
 
 // calculateDelay calculates the delay for retry attempts

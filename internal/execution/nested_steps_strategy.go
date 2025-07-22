@@ -18,24 +18,29 @@ func NewNestedStepsExecutionStrategy(strategyRouter *ExecutionStrategyRouter) *N
 }
 
 // Execute performs nested steps execution
-func (s *NestedStepsExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) (*types.StepResult, error) {
+func (s *NestedStepsExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	// Execute all nested steps and aggregate results
 	var allResults []types.StepResult
-	var firstError error
+	var hasError bool
+	var firstErrorResult *types.StepResult
 	
 	for i, nestedStep := range step.Steps {
-		result, err := s.strategyRouter.Execute(nestedStep, i+1, loopCtx)
+		result := s.strategyRouter.Execute(nestedStep, i+1, loopCtx)
 		if result != nil {
 			allResults = append(allResults, *result)
-		}
-		
-		if err != nil && firstError == nil {
-			firstError = err
-		}
-		
-		// Stop on first error unless continue flag is set
-		if err != nil && !nestedStep.Continue {
-			break
+			
+			// Check if this step had an error
+			if result.Result.Status == constants.ActionStatusError || result.Result.Status == constants.ActionStatusFailed {
+				if !hasError {
+					hasError = true
+					firstErrorResult = result
+				}
+				
+				// Stop on first error unless continue flag is set
+				if !nestedStep.Continue {
+					break
+				}
+			}
 		}
 	}
 	
@@ -43,14 +48,16 @@ func (s *NestedStepsExecutionStrategy) Execute(step types.Step, stepNum int, loo
 	aggregateResult := &types.StepResult{
 		Name:     step.Name,
 		Action:   "nested_steps",
-		Duration: 0, // Would need to sum durations from allResults
+		Duration: 0, // Could sum durations from allResults if needed
 	}
 	
 	// Set overall status based on nested results
-	if firstError != nil {
+	if hasError && firstErrorResult != nil {
+		// Copy error information from first failed step
 		aggregateResult.Result = types.ActionResult{
-			Status: constants.ActionStatusError,
-			// Would set error info from firstError
+			Status:      firstErrorResult.Result.Status,
+			ErrorInfo:   firstErrorResult.Result.ErrorInfo,
+			FailureInfo: firstErrorResult.Result.FailureInfo,
 		}
 	} else {
 		aggregateResult.Result = types.ActionResult{
@@ -58,7 +65,7 @@ func (s *NestedStepsExecutionStrategy) Execute(step types.Step, stepNum int, loo
 		}
 	}
 	
-	return aggregateResult, firstError
+	return aggregateResult
 }
 
 // CanHandle returns true for steps that have nested steps
