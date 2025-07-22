@@ -93,6 +93,38 @@ Priority-based routing with 4 strategies:
 3. **NestedStepsExecutionStrategy** (Priority 2) - Nested step execution
 4. **BasicExecutionStrategy** (Priority 1) - Fallback for standard actions
 
+### Error Handling System
+
+Robogo distinguishes between **Errors** and **Failures** for clear problem classification:
+
+#### **Errors** (`ErrorInfo`) - Technical Problems
+Technical issues that prevent proper execution:
+- **Network connectivity problems** (timeouts, connection refused)
+- **Database connection failures** (invalid credentials, server down)
+- **Parse/serialization errors** (malformed JSON, invalid XML)
+- **System resource issues** (file not found, permission denied)
+- **Invalid configuration** (missing required parameters, bad URLs)
+
+#### **Failures** (`FailureInfo`) - Logical Test Problems  
+Expected execution that produces unexpected results:
+- **Assertion failures** (expected 200, got 404)
+- **Validation failures** (expected "success", got "error")
+- **Business logic violations** (user already exists)
+- **Data integrity issues** (missing required fields)
+
+#### **Unified Error Access**
+Both error types are accessible through:
+```yaml
+# Both ErrorInfo and FailureInfo accessible via GetMessage()
+result.GetMessage()  # Returns error or failure message
+result.HasIssue()    # True for either errors or failures
+```
+
+**Runner Integration**: The TestRunner automatically handles both types:
+- Converts `FailureInfo` to `ErrorInfo` when needed for result reporting
+- Extracts messages from either type for consistent error reporting
+- Treats both as test failures for execution flow control
+
 ### Variable System
 
 - Uses `${variable}` syntax for simple variable substitution

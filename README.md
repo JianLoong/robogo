@@ -810,6 +810,15 @@ robogo/
 - **KISS Principle**: Keep it simple and straightforward
 - **Test Clarity**: Every test step is self-documenting with clear names and expected outcomes
 
+### Error Handling Philosophy
+
+Robogo distinguishes between **Errors** and **Failures** for clear problem classification:
+
+- **Errors** - Technical problems (network issues, parse errors, configuration problems)
+- **Failures** - Logical test problems (assertion failures, unexpected response values)
+
+Both types are handled uniformly by the test runner, providing consistent error reporting while maintaining semantic distinction for debugging and analysis.
+
 ## Parallelism and Performance
 
 ### CLI Tool Design Philosophy
