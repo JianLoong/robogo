@@ -568,6 +568,95 @@ steps:
     args: ["${status_code}", "==", "201"]  # After extracting with jq
 ```
 
+## Test Scheduling
+
+Robogo is designed as a **single-execution CLI tool** that runs individual tests on-demand and exits cleanly. It **does not have built-in scheduling capabilities** and is intentionally architected this way following KISS principles.
+
+### Design Philosophy
+- **No Built-in Scheduling**: No cron, timers, or background job processing
+- **CLI-First Design**: Meant to be invoked manually or by external schedulers  
+- **Immediate Execution Model**: Runs test → exits (no persistent processes)
+- **External Integration**: Designed to work with existing scheduling infrastructure
+
+### Scheduling Options
+
+**Cron (Linux/Mac)**
+```bash
+# Run test every hour
+0 * * * * /path/to/robogo run /path/to/test.yaml
+
+# Run test every 5 minutes
+*/5 * * * * /path/to/robogo run /path/to/test.yaml >> /var/log/robogo.log 2>&1
+
+# Run test daily at 2 AM
+0 2 * * * /path/to/robogo run /path/to/nightly-test.yaml
+```
+
+**Windows Task Scheduler**
+```powershell
+# Create scheduled task that runs robogo
+schtasks /create /tn "RobogoTest" /tr "C:\path\to\robogo.exe run test.yaml" /sc hourly
+```
+
+**CI/CD Pipeline Scheduling**
+```yaml
+# GitHub Actions example
+name: Scheduled Tests
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Integration Tests
+        run: ./robogo run examples/integration-test.yaml
+```
+
+**Docker with Cron**
+```dockerfile
+FROM golang:1.21-alpine
+COPY robogo /usr/local/bin/robogo
+COPY tests/ /tests/
+# Add cron job
+RUN echo "0 */2 * * * /usr/local/bin/robogo run /tests/health-check.yaml" | crontab -
+CMD ["crond", "-f"]
+```
+
+**Kubernetes CronJob**
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: robogo-tests
+spec:
+  schedule: "0 */4 * * *"  # Every 4 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: robogo
+            image: robogo:latest
+            command: ["./robogo", "run", "tests/smoke-test.yaml"]
+          restartPolicy: OnFailure
+```
+
+### Why External Scheduling?
+
+This design aligns with robogo's **KISS architecture** principles:
+- **Simple & Direct**: Focus on reliable test execution, not infrastructure concerns
+- **CLI Tool Design**: Clean exit, no hanging processes, easy integration
+- **Immediate Connections**: Open/close per operation, no persistent state to manage
+- **Minimal Dependencies**: Let existing tools handle scheduling rather than reinventing
+
+**Benefits:**
+- **Reliability**: Use proven scheduling systems (cron, K8s, CI/CD)
+- **Flexibility**: Any scheduling system can invoke robogo
+- **Simplicity**: No complex scheduling logic to maintain or debug
+- **Integration**: Works seamlessly with existing infrastructure
+
 ## Troubleshooting
 
 ### Common Issues

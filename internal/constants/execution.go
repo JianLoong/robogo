@@ -45,8 +45,9 @@ const (
 
 // Messaging operation constants
 const (
-	OperationPublish = "publish"
-	OperationConsume = "consume"
+	OperationPublish    = "publish"
+	OperationConsume    = "consume"
+	OperationListTopics = "list_topics"
 )
 
 // Variable operation constants

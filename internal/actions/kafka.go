@@ -51,6 +51,61 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 	defer cancel()
 
 	switch operation {
+	case constants.OperationListTopics:
+		conn, err := kafka.Dial("tcp", broker)
+		if err != nil {
+			return types.NewErrorBuilder(types.ErrorCategoryNetwork, "KAFKA_CONNECTION_FAILED").
+				WithTemplate("Failed to connect to Kafka broker").
+				WithContext("broker", broker).
+				WithContext("error", err.Error()).
+				WithSuggestion("Check if Kafka is running and broker address is correct").
+				WithSuggestion("Verify network connectivity to the broker").
+				Build(fmt.Sprintf("kafka connection to %s failed: %s", broker, err.Error()))
+		}
+		defer conn.Close()
+
+		partitions, err := conn.ReadPartitions()
+		if err != nil {
+			return types.NewErrorBuilder(types.ErrorCategorySystem, "KAFKA_METADATA_FAILED").
+				WithTemplate("Failed to read topic metadata from Kafka broker").
+				WithContext("broker", broker).
+				WithContext("error", err.Error()).
+				WithSuggestion("Check if you have permission to access topic metadata").
+				WithSuggestion("Verify broker configuration allows metadata requests").
+				Build(fmt.Sprintf("kafka metadata read from %s failed: %s", broker, err.Error()))
+		}
+
+		// Extract unique topic names
+		topicSet := make(map[string]bool)
+		for _, partition := range partitions {
+			topicSet[partition.Topic] = true
+		}
+
+		var topics []string
+		for topic := range topicSet {
+			topics = append(topics, topic)
+		}
+
+		// Sort topics for consistent output
+		for i := 0; i < len(topics); i++ {
+			for j := i + 1; j < len(topics); j++ {
+				if topics[i] > topics[j] {
+					topics[i], topics[j] = topics[j], topics[i]
+				}
+			}
+		}
+
+		fmt.Printf("📋 Found %d topics on broker %s\n", len(topics), broker)
+
+		return types.ActionResult{
+			Status: constants.ActionStatusPassed,
+			Data: map[string]any{
+				"topics": topics,
+				"count":  len(topics),
+				"broker": broker,
+			},
+		}
+
 	case constants.OperationPublish:
 		if len(args) < 4 {
 			return types.MissingArgsError("kafka publish", 4, len(args))

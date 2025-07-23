@@ -1,0 +1,100 @@
+testcase: "Network Connectivity Test with Ping"
+description: "Test network connectivity using ICMP ping to various hosts"
+
+variables:
+  vars:
+    test_host: "go13dsafgsole.com"
+    local_host: "127.0.0.1"
+    timeout_duration: "5s"
+
+steps:
+  - name: "Ping Google DNS (reliable host)"
+    action: ping
+    args: ["8.8.8.8"]
+    options:
+      count: 3
+      timeout: "3s"
+    result: google_ping
+
+  - name: "Ping localhost"
+    action: ping
+    args: ["${local_host}"]
+    options:
+      count: 2
+      timeout: "1s"
+    result: localhost_ping
+
+  - name: "Ping with hostname resolution"
+    action: ping
+    args: ["${test_host}"]
+    options:
+      count: 4
+      timeout: "${timeout_duration}"
+    result: hostname_ping
+    continue: true
+
+  - name: "Extract ping statistics using jq"
+    action: jq
+    args: ["${hostname_ping}", ".packets_received"]
+    result: packets_received
+    continue: true
+
+  - name: "Assert ping was successful"
+    action: assert
+    args: ["${packets_received}", ">", 0]
+    continue: true
+
+  - name: "Extract average RTT"
+    action: jq
+    args: ["${hostname_ping}", ".avg_rtt_ms"]
+    result: avg_rtt
+    continue: true
+
+  - name: "Log ping results"
+    action: log
+    args:
+      [
+        "Ping Results",
+        "Host: ${test_host}, Packets Received: ${packets_received}, Avg RTT: ${avg_rtt}ms",
+      ]
+
+  - name: "Test ping with custom count"
+    action: ping
+    args: ["1.1.1.1"]
+    options:
+      count: 1
+      timeout: "2s"
+    result: cloudflare_ping
+
+  - name: "Verify packet loss percentage"
+    action: jq
+    args: ["${cloudflare_ping}", ".packet_loss_percent"]
+    result: packet_loss
+
+  - name: "Assert low packet loss"
+    action: assert
+    args: ["${packet_loss}", "<=", 25]
+
+  - name: "Extract Google DNS packets received"
+    action: jq
+    args: ["${google_ping}", ".packets_received"]
+    result: google_dns_packets
+
+  - name: "Extract localhost RTT"
+    action: jq
+    args: ["${localhost_ping}", ".avg_rtt_ms"]
+    result: localhost_rtt
+
+  - name: "Extract hostname resolution IP"
+    action: jq
+    args: ["${hostname_ping}", ".resolved_ip"]
+    result: hostname_resolved_ip
+    continue: true
+
+  - name: "Display comprehensive ping results"
+    action: log
+    args:
+      [
+        "Network Test Summary",
+        "Google DNS packets: ${google_dns_packets}, Localhost RTT: ${localhost_rtt}ms, Hostname IP: ${hostname_resolved_ip}, Cloudflare loss: ${packet_loss}%",
+      ]

@@ -9,6 +9,18 @@ steps:
     action: log
     args: ["Testing Kafka messaging..."]
 
+  - name: "List available topics"
+    action: kafka
+    args: ["list_topics", "localhost:9092"]
+    options:
+      timeout: 5s
+    result: topics_result
+    continue: true
+
+  - name: "Log available topics"
+    action: log
+    args: ["Available topics: ${topics_result}"]
+
   - name: "Publish message to Kafka"
     action: kafka
     args: ["publish", "localhost:9092", "test-topic", "Hello from Robogo!"]

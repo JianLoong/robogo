@@ -81,6 +81,7 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("uuid", uuidAction)
 	registry.Register("time", timeAction)
 	registry.Register("sleep", sleepAction)
+	registry.Register("ping", pingAction)
 
 	// Encoding actions
 	registry.Register("base64_encode", base64EncodeAction)
