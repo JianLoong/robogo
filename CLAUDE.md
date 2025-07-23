@@ -75,13 +75,15 @@ CLI → TestRunner → ExecutionStrategyRouter → Strategies → Actions
 
 Actions follow a consistent function signature: `func(args []any, options map[string]any, vars *Variables) ActionResult`
 
-Registered in `internal/actions/registry.go` with 19 actions across categories:
+Registered in `internal/actions/action_registry.go` with 24 actions across categories:
 - **Core**: `assert`, `log`, `variable` (3)
 - **HTTP**: `http` (supports GET, POST, PUT, DELETE, PATCH, HEAD) (1)
 - **Database**: `postgres`, `spanner` (2)
+- **File Operations**: `file_read`, `scp` (2)
 - **Messaging**: `kafka`, `rabbitmq`, `swift_message` (3)
 - **Data Processing**: `jq`, `xpath` (2)
 - **JSON/XML**: `json_parse`, `json_build`, `xml_parse`, `xml_build` (4)
+- **String Operations**: `string_random`, `string_replace`, `string_format`, `string` (4)
 - **Encoding**: `base64_encode`, `base64_decode`, `url_encode`, `url_decode`, `hash` (5)
 - **Utilities**: `uuid`, `time`, `sleep` (3)
 
@@ -112,6 +114,13 @@ Expected execution that produces unexpected results:
 - **Business logic violations** (user already exists)
 - **Data integrity issues** (missing required fields)
 
+#### **Status Distinction**
+Robogo provides four distinct step statuses:
+- **PASS** ✅: Action completed successfully
+- **SKIPPED** ⏭️: Step bypassed due to conditional logic (`if: false`)
+- **ERROR** ❌: Technical problems (ErrorInfo) - infrastructure/system issues
+- **FAIL** ❌: Logical problems (FailureInfo) - test expectations not met
+
 #### **Unified Error Access**
 Both error types are accessible through:
 ```yaml
@@ -120,10 +129,10 @@ result.GetMessage()  # Returns error or failure message
 result.HasIssue()    # True for either errors or failures
 ```
 
-**Runner Integration**: The TestRunner automatically handles both types:
-- Converts `FailureInfo` to `ErrorInfo` when needed for result reporting
-- Extracts messages from either type for consistent error reporting
-- Treats both as test failures for execution flow control
+**Runner Integration**: The TestRunner preserves the status distinction:
+- Technical errors (ErrorInfo) result in ERROR status with system-focused messages
+- Logical failures (FailureInfo) result in FAIL status with test-focused messages
+- Both provide structured context for debugging and suggestions for resolution
 
 ### Variable System
 
@@ -239,6 +248,22 @@ The framework follows a "immediate connection" pattern:
 - **Strategy Pattern**: Priority-based execution routing for extensibility without complexity
 - **Consistent Patterns**: All actions follow identical signature, error handling, and result patterns
 
+### Design Philosophy: Explicit Tests Over Loops
+
+Robogo intentionally **does not support `for` and `while` loops** in test definitions. This design decision prioritizes **test clarity and maintainability** over code brevity.
+
+**Rationale:**
+- **Test purpose matters**: Behavioral tests should be explicit about what they're testing
+- **Debugging clarity**: Named test steps are clearer than "step N failed in loop iteration M"
+- **Living documentation**: Tests serve as executable specifications - loops obscure intent
+- **Industry alignment**: Most YAML-based testing frameworks avoid complex control flow
+
+**Supported control flow:**
+- ✅ **Conditional execution**: `if` statements for branching logic
+- ✅ **Retry logic**: Built-in retry mechanisms with configurable backoff
+- ✅ **Nested steps**: Grouping related operations for organization
+- ❌ **Loops**: Removed in favor of explicit, named test scenarios
+
 ### Architecture Quality Assessment
 
 **Overall Score: 9.1/10**
@@ -264,10 +289,10 @@ The framework follows a "immediate connection" pattern:
 
 **Phase 2: Error Handling Standardization**
 - ✅ **Unified execution strategy returns** - Single `*StepResult` return pattern, eliminated dual `(result, error)` 
-- ✅ **Consistent error message access** - Removed `GetErrorMessage()` alias, standardized on `GetMessage()`
-- ✅ **Complete error extraction** - Runner checks both `ErrorInfo` and `FailureInfo` with automatic conversion
+- ✅ **Four-status system** - PASS, SKIPPED, ERROR (technical), FAIL (logical) with proper distinction
+- ✅ **Structured error types** - ErrorInfo vs FailureInfo with rich context and suggestions
 - ✅ **Variable resolution validation** - Added `validateArgsResolved()` helper for critical actions (assert, http, postgres)
-- ✅ **Predictable error boundaries** - Actions use `ActionResult`, orchestration uses Go `error`
+- ✅ **Visual documentation** - Added [docs/error-failure-states-diagram.md](docs/error-failure-states-diagram.md) with mermaid diagrams
 
 ## Development Services
 
@@ -280,10 +305,42 @@ When working with tests that require external services:
 
 ## Testing
 
-The project uses YAML-based integration tests in the `examples/` directory. There are no traditional Go unit tests - the framework is designed for end-to-end testing of external services.
+The project uses YAML-based integration tests in the `examples/` directory with **49 comprehensive test examples**. There are no traditional Go unit tests - the framework is designed for end-to-end testing of external services.
 
-Run example tests:
+### Quick Test Examples
+
+**No setup required (HTTP-based):**
 ```bash
-./robogo run examples/01-http-get.yaml
-./robogo run examples/03-postgres-basic.yaml
+./robogo run examples/01-http-get.yaml         # Basic HTTP GET with jq extraction
+./robogo run examples/02-http-post.yaml        # HTTP POST with JSON data
+./robogo run examples/00-util.yaml             # Utility actions (UUID, time, variables)
+./robogo run examples/08-control-flow.yaml     # Conditional execution (if statements)
 ```
+
+**Requires docker-compose up -d:**
+```bash
+./robogo run examples/03-postgres-basic.yaml   # PostgreSQL database operations
+./robogo run examples/05-kafka-basic.yaml      # Kafka producer/consumer
+./robogo run examples/06-spanner-basic.yaml    # Google Cloud Spanner
+./robogo run examples/23-scp-simple-test.yaml  # SSH/SCP file transfer
+```
+
+### Test Categories
+
+- **HTTP Testing**: GET/POST requests, authentication, response validation (examples 01-02)
+- **Database Operations**: PostgreSQL and Spanner queries, secure connections (examples 03-07)
+- **Messaging Systems**: Kafka, RabbitMQ, SWIFT financial messaging (examples 05, 09-10)
+- **File Operations**: Local file reading, secure SCP transfers (examples 23-25)
+- **Security Features**: Environment variables, no-log mode, data masking (examples 17-20)
+- **Control Flow**: Conditional logic, retry mechanisms, nested steps (examples 08, 13, 21)
+- **Data Processing**: JSON/XML parsing, jq queries, string operations (examples 11-12, 14-16)
+
+### Development Testing
+
+The examples serve as both **documentation** and **integration tests** for the framework itself:
+- Each feature is demonstrated with working examples
+- Examples progress from beginner to expert complexity
+- Real-world scenarios with actual external services
+- Security-conscious patterns with credential management
+
+For the complete catalog with complexity levels and detailed descriptions, see **[examples/README.md](examples/README.md)**.

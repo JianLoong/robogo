@@ -175,6 +175,7 @@ Test Summary:
 ### 📚 **Getting Started**
 - **[examples/README.md](examples/README.md)** - Comprehensive test examples from beginner to expert
 - **[docs/execution-flow-diagram.md](docs/execution-flow-diagram.md)** - Visual architecture flow diagram
+- **[docs/error-failure-states-diagram.md](docs/error-failure-states-diagram.md)** - Error handling and state management flow
 
 ### 🏗️ **Architecture**
 - **[internal/README.md](internal/README.md)** - Core architecture principles and KISS design
@@ -240,7 +241,7 @@ Robogo includes 50+ comprehensive test examples. Here are the key categories:
 | **Environment Variables** | [17-env-var-test.yaml](examples/17-env-var-test.yaml) | ${ENV:VAR} syntax, credential management | `./robogo run examples/17-env-var-test.yaml` |
 | **Security** | [19-no-log-security.yaml](examples/19-no-log-security.yaml) | no_log, sensitive_fields, data masking | `./robogo run examples/19-no-log-security.yaml` |
 | **Database** | [03-postgres-basic.yaml](examples/03-postgres-basic.yaml) | PostgreSQL operations, queries | `./robogo run examples/03-postgres-basic.yaml` |
-| **Control Flow** | [08-control-flow.yaml](examples/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/08-control-flow.yaml` |
+| **Conditional Logic** | [08-control-flow.yaml](examples/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/08-control-flow.yaml` |
 | **Retry Logic** | [13-retry-demo.yaml](examples/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/13-retry-demo.yaml` |
 | **Nested Steps** | [21-simple-nested-test.yaml](examples/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/21-simple-nested-test.yaml` |
 | **File Transfer** | [23-scp-simple-test.yaml](examples/23-scp-simple-test.yaml) | SSH/SFTP file operations | `./robogo run examples/23-scp-simple-test.yaml` |
@@ -393,6 +394,46 @@ Robogo follows **Keep It Simple and Straightforward** architecture:
 - **Minimal Interfaces**: Only where absolutely necessary
 - **Strategy Pattern**: Clean execution routing for different step types
 
+### Design Philosophy: Explicit Tests Over Loops
+
+Robogo intentionally **does not support `for` and `while` loops** in test definitions. This design decision prioritizes **test clarity and maintainability** over code brevity.
+
+**Why no loops?**
+- **Test purpose matters**: Behavioral tests should be explicit about what they're testing
+- **Debugging clarity**: `test_user_creation_with_missing_email()` is clearer than "step 7 failed in user creation loop"
+- **Living documentation**: Tests serve as executable specifications - loops obscure intent
+- **Industry alignment**: Most YAML-based testing frameworks avoid complex control flow
+
+**When to use explicit tests vs loops:**
+- ✅ **Explicit tests for**: Business logic validation, user workflows, API contract testing
+- ❌ **Avoid loops for**: Individual test scenarios, specific edge cases, acceptance criteria
+- ⚠️ **Loops might be appropriate for**: Framework testing, property-based testing, infrastructure validation
+
+**Example of preferred explicit approach:**
+```yaml
+# ✅ Clear and maintainable
+steps:
+  - name: "User registration accepts valid email"
+    action: http
+    args: ["POST", "/users", '{"email": "user@example.com"}']
+    
+  - name: "User registration rejects email without @"
+    action: http  
+    args: ["POST", "/users", '{"email": "invalid-email"}']
+```
+
+Instead of:
+```yaml  
+# ❌ Obscures test intent
+steps:
+  - name: "Test email validation"
+    for: "[user@example.com, invalid-email]"
+    action: http
+    args: ["POST", "/users", '{"email": "${item}"}']
+```
+
+This philosophy aligns with industry best practices where test automation frameworks either avoid loops entirely (GitHub Actions) or use specialized syntax (Robot Framework) rather than general-purpose loops.
+
 ### Execution Flow
 1. **CLI** receives command and parses YAML test file
 2. **TestRunner** creates execution environment with variables and strategy router
@@ -411,6 +452,10 @@ For detailed architecture documentation, see **[internal/README.md](internal/REA
 ### Dual Error System
 - **ErrorInfo**: Technical problems (network failures, syntax errors, etc.)
 - **FailureInfo**: Logical test failures (assertion failures, unexpected responses)
+
+### Visual Error Flow Diagram
+For a comprehensive visual explanation of Robogo's error handling, execution flow, and state management, see:
+**[docs/error-failure-states-diagram.md](docs/error-failure-states-diagram.md)** - Complete mermaid diagram showing execution strategies, error classification, and result processing.
 
 ### Structured Error Messages
 ```yaml

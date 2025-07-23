@@ -1,81 +1,89 @@
-testcase: "TC-CONTROL-FLOW-PROPERTIES"
-description: "Test control flow as step properties: if, for, while"
+testcase: "TC-CONDITIONAL-EXECUTION"
+description: "Test conditional execution with explicit test scenarios"
 
 variables:
   vars:
     test_value: "5"
     threshold: "3"
-    should_run: "true"
+    user_role: "admin"
+    feature_enabled: "true"
+    environment: "production"
 
 steps:
-  # Test if property with true condition
-  - name: "Conditional step that runs"
+  # Basic conditional tests
+  - name: "Always execute this step"
     if: "true"
     action: log
-    args: ["This step runs because condition is true"]
+    args: ["This step always runs"]
 
-  # Test if property with false condition
-  - name: "Conditional step that skips"
+  - name: "Never execute this step"
     if: "false"
     action: log
     args: ["This step should be skipped"]
 
-  # Test if property with variable comparison
-  - name: "Variable comparison step"
+  # Variable-based conditions
+  - name: "Execute when value exceeds threshold"
     if: "${test_value} > ${threshold}"
     action: log
-    args: ["Value ${test_value} is greater than ${threshold}"]
+    args: ["Value ${test_value} is greater than threshold ${threshold}"]
 
-  # Test if property with variable comparison that fails
-  - name: "Skip this step"
+  - name: "Skip when value is below threshold"
     if: "${test_value} < ${threshold}"
     action: log
-    args: ["This should not run"]
+    args: ["This should not run - value too low"]
 
-  # Test for property with range
-  - name: "Log iteration number"
-    for: "1..3"
+  # Role-based access control testing
+  - name: "Admin-only functionality"
+    if: "${user_role} == admin"
     action: log
-    args: ["For range iteration: ${iteration}, item: ${item}"]
+    args: ["Admin user ${user_role} can access this feature"]
 
-  # Test for property with array
-  - name: "Log fruit name"
-    for: "[apple,banana,cherry]"
+  - name: "Non-admin users blocked"
+    if: "${user_role} == guest"
     action: log
-    args: ["Processing fruit: ${item} at index ${index}"]
+    args: ["Guest users should not see this"]
 
-  # Test for property with count
-  - name: "Count-based iteration"
-    for: "2"
+  # Feature flag testing  
+  - name: "Feature enabled path"
+    if: "${feature_enabled} == true"
     action: log
-    args: ["Count iteration ${iteration}: ${item}"]
+    args: ["Feature is enabled, showing new functionality"]
 
-  # Test while property
-  - name: "While loop iteration"
-    while: "${iteration} <= 3"
+  - name: "Feature disabled fallback"
+    if: "${feature_enabled} == false"
     action: log
-    args: ["While iteration: ${iteration}"]
+    args: ["Feature disabled, using legacy behavior"]
 
-  # Test nested: for with if
-  - name: "Conditional in loop"
-    for: "1..4"
-    if: "${iteration} == 2"
+  # Environment-specific logic
+  - name: "Production-only security check"
+    if: "${environment} == production"
     action: log
-    args: ["Even iteration: ${iteration}"]
+    args: ["Running enhanced security validation in production"]
 
-  # Test variable setting in loop
-  - name: "Set loop variable"
-    for: "[x,y,z]"
+  - name: "Development debugging enabled"  
+    if: "${environment} == development"
+    action: log
+    args: ["Debug logging enabled in development"]
+
+  # Complex condition testing
+  - name: "Multiple condition validation"
+    if: "${user_role} == admin && ${environment} == production"
+    action: log
+    args: ["Admin user in production environment"]
+
+  # Test variable assignment in conditional context
+  - name: "Set admin privileges variable"
+    if: "${user_role} == admin"
     action: variable
-    args: ["loop_item", "${item}"]
+    args: ["has_admin_privileges", "true"]
 
-  # Test assert in loop
-  - name: "Assert iteration is positive"
-    for: "1..2"
+  # Test assertions with conditions
+  - name: "Assert threshold comparison"
+    if: "${test_value} > ${threshold}"
     action: assert
-    args: ["${iteration}", ">", "0"]
+    args: ["${test_value}", ">", "${threshold}"]
 
-  # Final test
-  - name: "Final success message"
+  # Final confirmation
+  - name: "Conditional execution tests completed"
     action: log
-    args: ["All control flow property tests completed!"]
+    args: ["All conditional execution scenarios validated"]

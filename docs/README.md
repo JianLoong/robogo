@@ -6,6 +6,7 @@ This directory contains technical documentation for the Robogo test automation f
 
 ### Architecture Documentation
 - **[execution-flow-diagram.md](execution-flow-diagram.md)** - Complete Mermaid diagram showing test execution flow through the strategy pattern system
+- **[error-failure-states-diagram.md](error-failure-states-diagram.md)** - Visual explanation of error handling, execution states, and result classification
 
 ### Component Documentation
 - **[../internal/README.md](../internal/README.md)** - Core architecture overview and principles
@@ -20,19 +21,20 @@ This directory contains technical documentation for the Robogo test automation f
 
 ```
 docs/
-├── README.md                    # This file - documentation overview
-└── execution-flow-diagram.md    # Technical architecture diagram
+├── README.md                      # This file - documentation overview
+├── execution-flow-diagram.md      # Technical architecture diagram
+└── error-failure-states-diagram.md # Error handling and state management
 
 internal/
-├── README.md                    # Core architecture principles
-├── actions/README.md            # Action system documentation
-└── execution/README.md          # Execution strategy documentation
+├── README.md                      # Core architecture principles
+├── actions/README.md              # Action system documentation
+└── execution/README.md            # Execution strategy documentation
 
 examples/
-└── README.md                    # User guide with test examples
+└── README.md                      # User guide with test examples
 
-README.md                        # Main project documentation
-CLAUDE.md                        # Development instructions for Claude Code
+README.md                          # Main project documentation
+CLAUDE.md                          # Development instructions for Claude Code
 ```
 
 ## Documentation Philosophy
@@ -64,7 +66,8 @@ CLAUDE.md                        # Development instructions for Claude Code
 ### New Developers (Want to Understand Code)
 1. Read **[../internal/README.md](../internal/README.md)** for architecture overview
 2. Study **[execution-flow-diagram.md](execution-flow-diagram.md)** for execution flow
-3. Dive into **[../internal/execution/README.md](../internal/execution/README.md)** for strategy pattern details
+3. Review **[error-failure-states-diagram.md](error-failure-states-diagram.md)** for error handling system
+4. Dive into **[../internal/execution/README.md](../internal/execution/README.md)** for strategy pattern details
 
 ### Contributors (Want to Add Features)
 1. Understand **[../internal/README.md](../internal/README.md)** principles (KISS, no dependency injection)
