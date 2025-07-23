@@ -34,15 +34,15 @@ graph TD
     L1 -->|False| L3[Return SKIPPED Result]
     
     K -->|"step.Retry != nil"| M[RetryExecutionStrategy]
-    M --> M1[Attempt Execution via Action Registry]
+    M --> M1[Attempt Execution via BasicExecutionStrategy]
     M1 -->|Failed & Retries Left| M2[Wait Delay Period]
     M2 --> M3[Next Attempt]
-    M3 -->|Success or Max Attempts| M4[Return Final Result<br/>Note: step.Result storage handled by underlying strategy]
+    M3 -->|Success or Max Attempts| M4[Return Final Result<br/>✅ Uses BasicExecutionStrategy internally for proper result storage]
     
     K -->|"len(step.Steps) > 0"| N[NestedStepsExecutionStrategy]
     N --> N1[Execute Each Sub-Step via Router]
     N1 --> N2[Collect All Results]
-    N2 --> N3[Return Aggregated Result<br/>Note: Individual steps handle their own result storage]
+    N2 --> N3[Return Aggregated Result<br/>📝 Individual nested steps handle their own result storage]
     
     K -->|"step.Action != '' & no other conditions"| O[BasicExecutionStrategy]
     O --> O1[Get Action from Registry]
@@ -111,6 +111,11 @@ graph TD
 - Simple `${variable}` and `${ENV:VARIABLE}` substitution  
 - No complex templating engines or dependency injection
 - Variables resolved before action execution
+
+**Result Storage Notes:**
+- **BasicExecutionStrategy & RetryExecutionStrategy**: Properly handle `step.Result` variable storage
+- **ConditionalExecutionStrategy**: Inherits result storage behavior from delegated strategies  
+- **NestedStepsExecutionStrategy**: Individual nested steps handle their own result storage (parent step aggregation by design)
 
 **Key Simplifications:**
 - Removed VariableManager, TemplateSubstitution layers

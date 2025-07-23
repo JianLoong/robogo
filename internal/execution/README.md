@@ -53,7 +53,7 @@ Strategies are evaluated in **descending priority order** (highest first):
 - **Selective Retry**: `retry_on` filters for specific error types
 - **Status Variables**: Sets `error_occurred`, `error_message`, `step_status`
 
-**⚠️ Limitation**: Does not handle `step.Result` variable storage
+**✅ Result Storage**: Uses BasicExecutionStrategy internally, so properly handles `step.Result` variable storage
 
 **Example**:
 ```yaml
@@ -170,18 +170,13 @@ Strategies are evaluated in **descending priority order** (highest first):
 - **Implementation**: Each strategy is independent and self-contained
 - **Benefit**: Easy to understand, modify, and extend
 
-## Known Limitations
+## Architecture Notes
 
-### Result Storage Inconsistency
-- ✅ **BasicExecutionStrategy**: Properly handles `step.Result`
-- ⚠️ **RetryExecutionStrategy**: Calls actions directly, doesn't store results
-- ⚠️ **NestedStepsExecutionStrategy**: Doesn't handle aggregate result storage
-- ⚠️ **ConditionalExecutionStrategy**: Inherits behavior from delegated strategy
-
-### Solution Approaches
-1. **Move result storage to router level** (after strategy execution)
-2. **Standardize result handling** across all strategies
-3. **Create base strategy interface** with common result handling
+### Result Storage Behavior
+- ✅ **BasicExecutionStrategy**: Properly handles `step.Result` variable storage
+- ✅ **RetryExecutionStrategy**: Uses BasicExecutionStrategy internally, handles `step.Result` correctly  
+- ✅ **ConditionalExecutionStrategy**: Routes to other strategies, inherits their result storage behavior
+- 📝 **NestedStepsExecutionStrategy**: Individual nested steps handle their own `result` storage; parent step doesn't store aggregate results (by design, as individual step results are typically more useful)
 
 ## Error Handling
 
