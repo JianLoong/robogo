@@ -34,15 +34,15 @@ graph TD
     L1 -->|False| L3[Return SKIPPED Result]
     
     K -->|"step.Retry != nil"| M[RetryExecutionStrategy]
-    M --> M1[Attempt Execution]
+    M --> M1[Attempt Execution via Action Registry]
     M1 -->|Failed & Retries Left| M2[Wait Delay Period]
     M2 --> M3[Next Attempt]
-    M3 -->|Success or Max Attempts| M4[Return Final Result]
+    M3 -->|Success or Max Attempts| M4[Return Final Result<br/>Note: step.Result storage handled by underlying strategy]
     
     K -->|"len(step.Steps) > 0"| N[NestedStepsExecutionStrategy]
     N --> N1[Execute Each Sub-Step via Router]
     N1 --> N2[Collect All Results]
-    N2 --> N3[Return Aggregated Result]
+    N2 --> N3[Return Aggregated Result<br/>Note: Individual steps handle their own result storage]
     
     K -->|"step.Action != '' & no other conditions"| O[BasicExecutionStrategy]
     O --> O1[Get Action from Registry]
@@ -52,8 +52,8 @@ graph TD
     O3 -->|sensitive_fields| O5[Mask Specified Fields]
     O3 --> O6[Execute Action Function]
     O6 --> O7[Process Action Result]
-    O7 --> O8[Apply Data Extraction]
-    O8 --> O9[Store Result Variable]
+    O7 --> O8[Apply Data Extraction if step.Extract]
+    O8 --> O9[Store Result Variable if step.Result specified<br/>⚠️ Only BasicExecutionStrategy handles this properly]
     
     L2 --> K
     L3 --> P[Step Completed]
