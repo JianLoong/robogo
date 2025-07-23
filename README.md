@@ -64,31 +64,111 @@ go build -o robogo ./cmd/robogo
 
 ### Your First Test
 
-Create `hello-world.yaml`:
+The quickest way to get started is with our showcase HTTP example:
 
+```bash
+# Run the main showcase test (no setup needed)
+./robogo run examples/01-http-get.yaml
+```
+
+**Main Showcase Example:**
 ```yaml
-testcase: "Hello World Test"
-description: "Basic HTTP test demonstrating Robogo"
+testcase: "TC-HTTP-001"
+description: "Test to understand HTTP response format"
+
+variables:
+  vars:
+    base_url: "http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    expected_value: "HTTPBIN is awesome"
 
 steps:
-  - name: "Test HTTPBin service"
+  - name: "Make HTTP request"
     action: http
-    args: ["GET", "https://httpbin.org/json"]
-    result: response
-    
-  - name: "Verify response"
+    args: ["GET", "${base_url}"]
+    result: "http_response"
+
+  - name: "Extract status code"
+    action: jq
+    args: ["${http_response}", ".status_code"]
+    result: "status_code"
+
+  - name: "Verify status code"
     action: assert
-    args: ["${response.status}", "==", "200"]
-    
-  - name: "Log success"
-    action: log
-    args: ["Test completed successfully!"]
+    args: ["${status_code}", "==", "200"]
+
+  - name: "Extract response body"
+    action: jq
+    args: ["${http_response}", ".body"]
+    result: "response_body"
+
+  - name: "Verify expected content"
+    action: assert
+    args: ["${response_body}", "==", "${expected_value}"]
 ```
 
-Run it:
-```bash
-./robogo run hello-world.yaml
+**Expected output:**
 ```
+Running test case: TC-HTTP-001
+Description: Test to understand HTTP response format
+Setup: 0, Steps: 7, Teardown: 0
+
+Step 1: Make HTTP request
+  Action: http
+  Args: [GET http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l]
+  Options: map[timeout:5s]
+  Result Variable: http_response
+  Executing... 
+✓ PASSED (10.959687ms)
+
+Step 2: Extract status code
+  Action: jq
+  Args: [.status_code]
+  Result Variable: status_code
+  Executing... 
+✓ PASSED (973.434µs)
+    Data: 200
+
+Step 3: Verify status code
+  Action: assert
+  Args: [200 == 200]
+  Executing... 
+✓ PASSED (306.971µs)
+
+Step 4: Extract response body
+  Action: jq
+  Args: [.body]
+  Result Variable: response_body
+  Executing... 
+✓ PASSED (151.688µs)
+    Data: HTTPBIN is awesome
+
+Step 5: Verify expected content
+  Action: assert
+  Args: [HTTPBIN is awesome == HTTPBIN is awesome]
+  Executing... 
+✓ PASSED (475.234µs)
+
+Test Summary:
+  Name: TC-HTTP-001
+  Status: PASS
+  Duration: 13.589684ms
+
+|   # | Step Name                                | Status   | Duration     |
+|-----|------------------------------------------|----------|--------------|
+|   1 | Make HTTP request                        | PASS     | 10.959687ms  |
+|   2 | Extract status code                      | PASS     | 973.434µs    |
+|   3 | Verify status code                       | PASS     | 306.971µs    |
+|   4 | Extract response body                    | PASS     | 151.688µs    |
+|   5 | Verify expected content                  | PASS     | 475.234µs    |
+```
+
+**What this demonstrates:**
+- HTTP requests with response capture (`result: "http_response"`)
+- JSON data extraction using `jq` action (`.status_code`, `.body`)
+- Variable substitution and storage (`${http_response}`, `${status_code}`)
+- Assertions for validation (`assert` action)
+- Clean test structure with clear step-by-step execution
+- Performance timing for each step
 
 ## Documentation
 
@@ -148,162 +228,69 @@ Run it:
 
 ## Test Structure
 
-### Basic Test
+### Example Tests
+
+Robogo includes 50+ comprehensive test examples. Here are the key categories:
+
+| Category | Example | Features Demonstrated | Command |
+|----------|---------|----------------------|---------|
+| **HTTP Basics** | [01-http-get.yaml](examples/01-http-get.yaml) | GET requests, jq extraction, assertions | `./robogo run examples/01-http-get.yaml` |
+| **HTTP POST** | [02-http-post.yaml](examples/02-http-post.yaml) | POST with JSON, nested data extraction | `./robogo run examples/02-http-post.yaml` |
+| **Utilities** | [00-util.yaml](examples/00-util.yaml) | UUID generation, basic logging | `./robogo run examples/00-util.yaml` |
+| **Environment Variables** | [17-env-var-test.yaml](examples/17-env-var-test.yaml) | ${ENV:VAR} syntax, credential management | `./robogo run examples/17-env-var-test.yaml` |
+| **Security** | [19-no-log-security.yaml](examples/19-no-log-security.yaml) | no_log, sensitive_fields, data masking | `./robogo run examples/19-no-log-security.yaml` |
+| **Database** | [03-postgres-basic.yaml](examples/03-postgres-basic.yaml) | PostgreSQL operations, queries | `./robogo run examples/03-postgres-basic.yaml` |
+| **Control Flow** | [08-control-flow.yaml](examples/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/08-control-flow.yaml` |
+| **Retry Logic** | [13-retry-demo.yaml](examples/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/13-retry-demo.yaml` |
+| **Nested Steps** | [21-simple-nested-test.yaml](examples/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/21-simple-nested-test.yaml` |
+| **File Transfer** | [23-scp-simple-test.yaml](examples/23-scp-simple-test.yaml) | SSH/SFTP file operations | `./robogo run examples/23-scp-simple-test.yaml` |
+
+**📁 Browse all examples:** See **[examples/README.md](examples/README.md)** for the complete catalog with beginner to expert examples.
+
+### Key Test Structure Elements
+All Robogo tests follow this pattern:
 ```yaml
-testcase: "User Registration Test"
-description: "Test user registration API endpoint"
+testcase: "Test Name"
+description: "What this test does"
 
 variables:
   vars:
-    api_url: "https://api.example.com"
-    test_user: "testuser@example.com"
+    variable_name: "value"
+    api_url: "${ENV:API_URL}"  # Environment variables
 
 steps:
-  - name: "Register new user"
-    action: http
-    args: ["POST", "${api_url}/users"]
-    options:
-      json:
-        email: "${test_user}"
-        password: "SecurePass123!"
-    result: registration_response
+  - name: "Step description"
+    action: action_name
+    args: [arg1, arg2, arg3]
+    result: result_variable
     
-  - name: "Verify registration success"
+  - name: "Verify result"
     action: assert
-    args: ["${registration_response.status}", "==", "201"]
+    args: ["${result_variable.some_field}", "==", "expected_value"]
 ```
 
-### Advanced Test with All Features
-```yaml
-testcase: "Advanced Integration Test"
-description: "Demonstrates advanced Robogo features"
+**Important:** Use `jq` action to extract data from HTTP responses - simple `${response.field}` syntax doesn't work for complex objects.
 
-variables:
-  vars:
-    api_base: "${ENV:API_BASE_URL}"
-    auth_token: "${ENV:API_TOKEN}"
-
-setup:
-  - name: "Initialize test data"
-    action: variable
-    args: ["test_id", "${uuid}"]
-
-steps:
-  # Conditional execution
-  - name: "Admin-only setup"
-    if: "${user_role} == 'admin'"
-    action: log
-    args: ["Running admin setup"]
-    
-  # HTTP with retry logic
-  - name: "Create user with retry"
-    action: http
-    args: ["POST", "${api_base}/users"]
-    options:
-      headers:
-        Authorization: "Bearer ${auth_token}"
-      json:
-        id: "${test_id}"
-        email: "test-${test_id}@example.com"
-    retry:
-      attempts: 3
-      delay: "2s"
-      backoff: "exponential"
-      retry_on: ["http_error", "timeout"]
-    result: user_response
-    
-  # Data extraction
-  - name: "Extract user ID"
-    action: jq
-    args: ["${user_response.data}", ".user.id"]
-    result: user_id
-    
-  # Database verification
-  - name: "Verify user in database"
-    action: postgres
-    args: ["query", "${ENV:DB_URL}", "SELECT * FROM users WHERE id = $1", "${user_id}"]
-    result: db_user
-    
-  # File operations
-  - name: "Upload user avatar"
-    action: scp
-    args: ["upload", "user@server:22", "./avatar.png", "/uploads/${user_id}/avatar.png"]
-    options:
-      password: "${ENV:SSH_PASSWORD}"
-    sensitive_fields: ["password"]
-    result: upload_result
-    
-  # Nested operations
-  - name: "Notification workflow"
-    steps:
-      - name: "Send welcome email"
-        action: http
-        args: ["POST", "${api_base}/emails/welcome"]
-        options:
-          json:
-            user_id: "${user_id}"
-        continue: true
-        
-      - name: "Log to analytics"
-        action: kafka
-        args: ["produce", "localhost:9092", "user-events"]
-        options:
-          message:
-            event: "user_registered"
-            user_id: "${user_id}"
-            timestamp: "${time}"
-
-teardown:
-  - name: "Cleanup test user"
-    action: http
-    args: ["DELETE", "${api_base}/users/${user_id}"]
-    options:
-      headers:
-        Authorization: "Bearer ${auth_token}"
-```
+**Advanced Features:** The examples table above includes advanced patterns like retry logic, control flow, nested steps, and security features. For the complete catalog with complexity levels, see **[examples/README.md](examples/README.md)**.
 
 ## Security Features
 
-### Environment Variables
-```yaml
-variables:
-  vars:
-    # Secure credential management
-    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}"
-    api_token: "${ENV:API_TOKEN}"
-```
+### Security Examples
 
-### Sensitive Data Masking
-```yaml
-steps:
-  # Automatic masking of password fields
-  - name: "Login request"
-    action: http
-    args: ["POST", "/auth/login"]
-    options:
-      json:
-        username: "testuser"
-        password: "${ENV:USER_PASSWORD}"  # Automatically masked in logs
-    result: auth_response
-    
-  # Custom field masking
-  - name: "API call with secrets"
-    action: http
-    args: ["GET", "/secure-data"]
-    options:
-      headers:
-        X-API-Key: "${ENV:SECRET_API_KEY}"
-        X-Session-Token: "${session_token}"
-    sensitive_fields: ["X-Session-Token"]  # Custom masking
-    result: secure_data
-    
-  # Complete logging suppression
-  - name: "Highly sensitive operation"
-    action: http
-    args: ["POST", "/admin/reset-passwords"]
-    no_log: true  # No step details logged at all
-    result: reset_result
-```
+Robogo provides comprehensive security features for sensitive data handling:
+
+| Security Feature | Example | What It Demonstrates | Command |
+|-----------------|---------|---------------------|---------|
+| **Environment Variables** | [17-env-var-test.yaml](examples/17-env-var-test.yaml) | `${ENV:VAR}` syntax, credential management | `export TEST_ENV_VAR="test_value" && ./robogo run examples/17-env-var-test.yaml` |
+| **Database Security** | [03-postgres-secure.yaml](examples/03-postgres-secure.yaml) | .env file usage, secure DB connections | `./robogo run examples/03-postgres-secure.yaml` |
+| **No-Log Mode** | [19-no-log-security.yaml](examples/19-no-log-security.yaml) | Complete logging suppression, sensitive fields | `./robogo run examples/19-no-log-security.yaml` |
+| **Step-Level Masking** | [20-step-level-masking.yaml](examples/20-step-level-masking.yaml) | Custom field masking, fine-grained controls | `./robogo run examples/20-step-level-masking.yaml` |
+
+**Key Security Features:**
+- **Automatic masking**: Password, token, key fields automatically hidden
+- **Custom masking**: Use `sensitive_fields: ["field_name"]` for custom fields
+- **No-log mode**: Use `no_log: true` to suppress all step logging
+- **Environment variables**: Use `${ENV:VARIABLE}` for secure credential access
 
 ## Development Environment
 
@@ -437,7 +424,7 @@ steps:
 # Logical failure example  
   - name: "Assertion failure"
     action: assert
-    args: ["${response.status}", "==", "200"]
+    args: ["${status_code}", "==", "200"]  # After extracting with jq
     # Results in FailureInfo showing expected vs actual values
 ```
 
@@ -472,17 +459,57 @@ Robogo enables **true shift-left testing** by allowing developers to:
 
 ## Parallel Execution
 
-Robogo is designed for **test-level parallelism** (multiple test files) rather than **step-level parallelism** (steps within a test):
+Robogo is designed for **test-level parallelism** (multiple test files) rather than **step-level parallelism** (steps within a test).
+
+### ⚠️ Output Mixing Issue
+
+When running tests in parallel **without output redirection**, the stdout will be mixed and confusing:
 
 ```bash
-# Run multiple tests in parallel
+# ❌ This will create mixed, unreadable output
 ./robogo run test1.yaml & \
 ./robogo run test2.yaml & \
 ./robogo run test3.yaml & \
 wait
 ```
 
-**Why Sequential Steps?** Steps within a test are intentionally sequential because they represent a logical flow where later steps depend on earlier results:
+### ✅ Recommended Parallel Approaches
+
+**Option 1: Redirect to separate files**
+```bash
+# Each test outputs to its own file
+./robogo run test1.yaml > test1.log 2>&1 & \
+./robogo run test2.yaml > test2.log 2>&1 & \
+./robogo run test3.yaml > test3.log 2>&1 & \
+wait
+
+# View results separately
+cat test1.log test2.log test3.log
+```
+
+**Option 2: Run sequentially with timing**
+```bash
+# Fast sequential execution, readable output
+time ./robogo run test1.yaml
+time ./robogo run test2.yaml  
+time ./robogo run test3.yaml
+```
+
+**Option 3: Use CI/CD parallelism**
+```yaml
+# GitHub Actions example
+jobs:
+  test:
+    strategy:
+      matrix:
+        test: [test1.yaml, test2.yaml, test3.yaml]
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./robogo run ${{ matrix.test }}
+```
+
+### Why Sequential Steps?
+Steps within a test are intentionally sequential because they represent a logical flow where later steps depend on earlier results:
 
 ```yaml
 steps:
@@ -493,7 +520,7 @@ steps:
     
   - name: "Verify user created"  # This DEPENDS on the above step
     action: assert
-    args: ["${response.status}", "==", "201"]
+    args: ["${status_code}", "==", "201"]  # After extracting with jq
 ```
 
 ## Troubleshooting
