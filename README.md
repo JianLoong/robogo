@@ -1,24 +1,41 @@
 # Robogo
 
-A simple, modern test automation framework written in Go. Robogo provides a clean YAML-based DSL for writing test cases with support for HTTP APIs, databases, messaging systems, and more.
+A simple, modern test automation framework written in Go. Robogo provides a clean YAML-based DSL for writing test cases with support for HTTP APIs, databases, messaging systems, file operations, and more.
 
 **Shift-Left Testing**: Robogo enables developers to run comprehensive end-to-end tests early in the development cycle with clear, readable test definitions that improve collaboration between development and testing teams.
 
 ## Features
 
+### Core Capabilities
 - **Developer-Friendly**: Clear, readable YAML tests that developers can easily understand and maintain
 - **Shift-Left Ready**: Run full end-to-end tests in development environments
-- **Simple YAML Tests**: Write tests in clean, readable YAML format
-- **HTTP Testing**: Full HTTP client with response validation and variable substitution
-- **Database Support**: PostgreSQL and Google Cloud Spanner with immediate connections
-- **Messaging**: Kafka and RabbitMQ operations with auto-commit support
+- **Simple YAML Tests**: Write tests in clean, readable YAML format with powerful features
+- **KISS Architecture**: Keep It Simple and Straightforward - no over-engineering or complex abstractions
+
+### Actions & Integrations
+- **HTTP Testing**: Full HTTP client with all methods, authentication, and response validation
+- **Database Support**: PostgreSQL and Google Cloud Spanner with secure credential management
+- **Messaging Systems**: Kafka and RabbitMQ operations with producer/consumer support
+- **File Operations**: Local file reading and secure SCP file transfers via SSH/SFTP
 - **Financial Messaging**: SWIFT message generation for banking and financial testing
-- **JSON Construction**: Build complex JSON structures directly from YAML
-- **Variable Substitution**: Dynamic variables with expression evaluation using `${variable}` syntax
-- **Enhanced Assertions**: Support for multiple comparison operators and string matching
-- **Retry Logic**: Built-in retry capabilities for handling eventual consistency and processing delays
+- **Data Processing**: JSON/XML parsing, construction, and extraction with jq/xpath support
+- **String Operations**: Random generation, formatting, encoding/decoding, and manipulation
+- **Utility Actions**: UUID generation, time operations, sleep/timing, assertions, and logging
+
+### Advanced Features
+- **Variable Substitution**: Dynamic variables with `${variable}` and `${ENV:VARIABLE}` syntax
+- **Security-First**: Automatic sensitive data masking, no-log mode, and environment variable support
+- **Control Flow**: Conditional execution (`if`), retry logic with backoff, and nested step collections
+- **Data Extraction**: Extract data from responses using jq, xpath, or regex patterns
+- **Error Handling**: Comprehensive error categorization with user-friendly messages
 - **Clean CLI Tool**: Immediate connection handling - no hanging processes
-- **Formatted Output**: Clean table summaries with execution details
+
+### Recent Improvements (2024)
+- **Architecture Simplification**: Removed 6+ abstraction layers, eliminated dependency injection
+- **SCP File Transfer**: Secure SSH/SFTP support with password and key authentication
+- **Enhanced Security**: Step-level security controls, comprehensive data masking
+- **File Organization**: Split large files into focused, maintainable modules
+- **Comprehensive Documentation**: README files throughout codebase for better navigation
 
 ## Quick Start
 
@@ -51,26 +68,21 @@ Create `hello-world.yaml`:
 
 ```yaml
 testcase: "Hello World Test"
-description: "A simple API test"
+description: "Basic HTTP test demonstrating Robogo"
 
 steps:
-  - name: "Make HTTP request"
+  - name: "Test HTTPBin service"
     action: http
     args: ["GET", "https://httpbin.org/json"]
     result: response
     
-  - name: "Extract status code"
-    action: jq
-    args: ["${response}", ".status_code"]
-    result: status_code
-    
   - name: "Verify response"
     action: assert
-    args: ["${status_code}", "==", "200"]
+    args: ["${response.status}", "==", "200"]
     
   - name: "Log success"
     action: log
-    args: ["Test passed!"]
+    args: ["Test completed successfully!"]
 ```
 
 Run it:
@@ -78,727 +90,219 @@ Run it:
 ./robogo run hello-world.yaml
 ```
 
-## Environment Variables & Secret Management
+## Documentation
 
-### Using Environment Variables
+### 📚 **Getting Started**
+- **[examples/README.md](examples/README.md)** - Comprehensive test examples from beginner to expert
+- **[docs/execution-flow-diagram.md](docs/execution-flow-diagram.md)** - Visual architecture flow diagram
 
-Robogo supports environment variables for secure credential management using `${ENV:VARIABLE_NAME}` syntax:
+### 🏗️ **Architecture**
+- **[internal/README.md](internal/README.md)** - Core architecture principles and KISS design
+- **[internal/execution/README.md](internal/execution/README.md)** - Execution strategy pattern system
+- **[internal/actions/README.md](internal/actions/README.md)** - Complete action system documentation
 
-```yaml
-variables:
-  vars:
-    # Secure database connection using environment variables
-    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}?sslmode=disable"
-    
-    # API authentication
-    api_token: "${ENV:API_TOKEN}"
-    api_base_url: "${ENV:API_BASE_URL}"
-```
+### 📖 **Reference**
+- **[docs/README.md](docs/README.md)** - Documentation overview and navigation guide
+- **[CLAUDE.md](CLAUDE.md)** - Development instructions and project context
 
-### .env File Support
-
-**Option 1: Default .env file (recommended)**
-```bash
-# Copy example and edit with your values
-cp .env.example .env
-
-# Run test (automatically loads .env)
-./robogo run examples/03-postgres-secure.yaml
-```
-
-**Option 2: Custom .env file**
-```bash
-# Specify custom .env file
-./robogo --env production.env run my-test.yaml
-```
-
-**Option 3: Export environment variables**
-```bash
-export DB_USER=myuser
-export DB_PASSWORD=mypassword
-./robogo run my-test.yaml
-```
-
-**Note:** Explicitly set environment variables take precedence over .env file values.
-
-### Secret Management Philosophy
-
-**Robogo consumes secrets but does not manage them.** This design principle keeps the framework focused on test automation while allowing seamless integration with any secret management approach:
-
-**✅ Robogo's Responsibility:**
-- Execute tests efficiently
-- Provide clean variable substitution
-- Support standard patterns (env vars, .env files)
-
-**✅ Your Responsibility (choose your approach):**
-- **Development**: Use `.env` files for local testing
-- **CI/CD**: Inject secrets as environment variables
-- **Production**: Integrate with your secret management system
-
-**Integration Examples:**
-```bash
-# HashiCorp Vault
-eval $(vault kv get -format=json secret/robogo | jq -r '.data.data | to_entries[] | "export \(.key)=\(.value)"')
-./robogo run test.yaml
-
-# Kubernetes secrets
-export DB_PASSWORD=$(kubectl get secret db-creds -o jsonpath='{.data.password}' | base64 -d)
-./robogo run test.yaml
-
-# AWS Secrets Manager
-export API_KEY=$(aws secretsmanager get-secret-value --secret-id prod/api-key --query SecretString --output text)
-./robogo run test.yaml
-
-# Development with .env
-./robogo --env .env.local run test.yaml
-```
-
-## Available Actions
+## Action Categories
 
 ### Core Actions
-- **`log`** - Print messages with immediate output (supports `no_log` for sensitive data)
-- **`assert`** - Verify conditions with multiple operators (supports `no_log` for sensitive comparisons)  
-- **`variable`** - Set and manage variables
-- **`uuid`** - Generate UUID values
-- **`time`** - Generate timestamps (RFC3339, Unix, custom formats)
-- **`sleep`** - Pause execution for specified duration (supports ns, μs, ms, s, m, h)
+- **`assert`** - Test assertions and validations
+- **`log`** - Logging and output messages  
+- **`variable`** - Variable manipulation and setting
 
-### Encoding Actions
-- **`base64_encode`** - Encode data to base64 format
-- **`base64_decode`** - Decode base64 data to original format
-- **`url_encode`** - URL encode data for query parameters
-- **`url_decode`** - URL decode data back to original format
-- **`hash`** - Generate hash using MD5, SHA1, SHA256, or SHA512
+### HTTP & API Testing
+- **`http`** - HTTP requests (GET, POST, PUT, DELETE, etc.) with full header and authentication support
 
-### File Actions
-- **`file_read`** - Read files with automatic format detection (JSON, YAML, CSV, text)
+### Database Operations
+- **`postgres`** - PostgreSQL database queries and operations
+- **`spanner`** - Google Cloud Spanner distributed database support
 
-### String Actions
-- **`string_random`** - Generate random strings with various charsets (numeric, alphabetic, alphanumeric, hex, custom)
-- **`string_replace`** - Replace substrings with support for occurrence limits
-- **`string_format`** - Format strings with placeholder substitution
+### File Operations
+- **`file_read`** - Local file reading with format detection
+- **`scp`** - Secure file transfer via SSH/SFTP (upload/download)
 
-### HTTP Actions  
-- **`http`** - HTTP requests (GET, POST, PUT, DELETE, etc.)
-  - Extract data with jq: `.status_code`, `.body`, `.headers`
-  - Automatically serializes maps/objects to JSON when Content-Type is application/json
-  - Example:
-  ```yaml
-  - name: "Make HTTP POST request"
-    action: http
-    args: ["POST", "https://api.example.com/data", "${json_data}"]
-    options:
-      headers:
-        Content-Type: "application/json"
-      debug: true  # Optional: logs the request body for debugging
-    result: http_response
-  ```
+### Messaging Systems
+- **`kafka`** - Apache Kafka producer/consumer operations
+- **`rabbitmq`** - RabbitMQ message operations
+- **`swift_message`** - SWIFT financial messaging (MT103)
 
-### Database Actions
-- **`postgres`** - PostgreSQL operations (query, execute)
-- **`spanner`** - Google Cloud Spanner operations (query, execute)
+### Data Processing
+- **`jq`** - JSON data processing and extraction
+- **`xpath`** - XML data processing and queries
+- **`json_parse`/`json_build`** - JSON parsing and construction
+- **`xml_parse`/`xml_build`** - XML parsing and construction
 
-### Messaging Actions
-- **`kafka`** - Kafka publish/consume with auto-commit support
-- **`rabbitmq`** - RabbitMQ publish/consume operations
+### String & Encoding
+- **`string_random`** - Random string generation
+- **`string_replace`/`string_format`** - String manipulation
+- **`base64_encode`/`base64_decode`** - Base64 operations
+- **`url_encode`/`url_decode`** - URL encoding
+- **`hash`** - Cryptographic hashing (MD5, SHA1, SHA256)
 
-### Financial Actions
-- **`swift_message`** - Generate SWIFT financial messages from templates
-
-### Data Processing Actions
-- **`jq`** - Query and transform JSON/structured data using jq syntax
-- **`xpath`** - Query XML documents using XPath expressions
-
-### JSON/XML Actions
-- **`json_build`** - Create JSON objects and arrays from nested YAML structures
-- **`json_parse`** - Parse JSON strings into structured data
-- **`xml_build`** - Create XML documents from structured data
-- **`xml_parse`** - Parse XML strings into structured data
+### Utilities
+- **`uuid`** - UUID v4 generation
+- **`time`** - Time operations and formatting
+- **`sleep`** - Delays and timing control
 
 ## Test Structure
 
-### Basic Test Case
-
+### Basic Test
 ```yaml
-testcase: "User API Test"
-description: "Test user registration"
+testcase: "User Registration Test"
+description: "Test user registration API endpoint"
 
 variables:
   vars:
     api_url: "https://api.example.com"
-    user_email: "test@example.com"
+    test_user: "testuser@example.com"
 
 steps:
-  - name: "Create user"
+  - name: "Register new user"
     action: http
-    args: ["POST", "${api_url}/users", '{"email": "${user_email}"}']
-    result: response
+    args: ["POST", "${api_url}/users"]
+    options:
+      json:
+        email: "${test_user}"
+        password: "SecurePass123!"
+    result: registration_response
     
-  - name: "Extract status code"
-    action: jq
-    args: ["${response}", ".status_code"]
-    result: status_code
-    
-  - name: "Extract response body"
-    action: jq
-    args: ["${response}", ".body"]
-    result: response_body
-    
-  - name: "Verify creation"
+  - name: "Verify registration success"
     action: assert
-    args: ["${status_code}", "==", "201"]
-    
-  - name: "Check response contains email"
-    action: assert
-    args: ["${response_body}", "contains", "${user_email}"]
+    args: ["${registration_response.status}", "==", "201"]
 ```
 
-### Security & Sensitive Data Protection
-
-Robogo provides enterprise-grade security features to protect sensitive data in logs and outputs through **step-level security controls**:
-
-#### **`no_log` for Complete Step Suppression**
-
+### Advanced Test with All Features
 ```yaml
-steps:
-  # Sensitive authentication - suppress all logging
-  - name: "Login with credentials"
-    action: http
-    args: ["POST", "${auth_url}", '{"username": "admin", "password": "${secret}"}']
-    no_log: true  # 🔒 Completely suppress step output
-    result: auth_token
-    
-  # Normal step - sensitive data automatically masked
-  - name: "Create user account"
-    action: http
-    args: ["POST", "${api_url}/users", "${user_data}"]
-    result: user_response
-```
+testcase: "Advanced Integration Test"
+description: "Demonstrates advanced Robogo features"
 
-#### **Step-Level Custom Field Masking**
-
-```yaml
-steps:
-  - name: "Process payment data"
-    action: http
-    args: ["POST", "/payments", "${payment_data}"]
-    sensitive_fields: ["credit_card", "ssn", "bank_account"]  # Step-level custom fields to mask
-    result: payment_response
-    
-  - name: "Log user activity"
-    action: log
-    args: ["User ${username} processed payment for account ${account_id}"]
-    sensitive_fields: ["account_id", "transaction_id"]  # Different fields per step
-    
-  - name: "Query user database"
-    action: postgres
-    args: ["query", "${db_url}", "SELECT * FROM users WHERE ssn = '${user_ssn}'"]
-    sensitive_fields: ["ssn", "phone", "email"]  # Works with any action
-```
-
-**Step-Level Security Properties:**
-- **`no_log: true`** - Complete suppression of all step output and logging
-- **`sensitive_fields: [...]`** - Custom field masking while preserving other data
-- **Flexible per step** - Different security settings for different steps
-- **Universal support** - Works with all actions automatically
-
-#### **Automatic Security Masking**
-
-Robogo automatically masks sensitive data patterns:
-
-- **Database connections**: `password=***`, `pwd=***` in connection strings
-- **HTTP requests**: JSON fields like `password`, `token`, `secret`, `authorization`  
-- **API keys**: Headers containing `Authorization`, `X-API-Key`, etc.
-- **Credentials**: Any field containing `credential`, `auth`, `bearer`, `jwt`
-
-#### **Security Best Practices**
-
-```yaml
 variables:
   vars:
-    # ✅ Use environment variables for secrets
-    db_password: "${ENV:DB_PASSWORD}"
-    api_token: "${ENV:API_TOKEN}"
-    
-steps:
-  # ✅ Use no_log for complete suppression of sensitive steps
-  - name: "Authenticate"
-    action: http
-    args: ["POST", "/auth", '{"token": "${api_token}"}']
-    no_log: true  # Completely suppress all output
-    
-  # ✅ Use sensitive_fields for selective masking
-  - name: "Process user data" 
-    action: http
-    args: ["POST", "/users", "${user_data}"]
-    sensitive_fields: ["phone", "address", "dob"]  # Mask specific fields only
-    
-  # ✅ Combine both approaches as needed
-  - name: "Critical operation with partial logging"
-    action: postgres
-    args: ["execute", "${db_url}", "UPDATE users SET status = 'active' WHERE id = ${user_id}"]
-    sensitive_fields: ["user_id", "email"]  # Mask user data but allow query logging
-    # no_log: false (implicit) - allows operation status logging
-    
-  # ✅ Different security per step
-  - name: "Public API call"
-    action: http
-    args: ["GET", "/public/status"]
-    # No security properties - full logging enabled
-    
-  - name: "Private data processing"
-    action: log
-    args: ["Processing sensitive data: ${sensitive_payload}"]
-    sensitive_fields: ["ssn", "credit_card", "account"]  # Custom masking
-```
+    api_base: "${ENV:API_BASE_URL}"
+    auth_token: "${ENV:API_TOKEN}"
 
-**Benefits:**
-- **Compliance Ready**: Meets SOC2, GDPR, PCI-DSS requirements
-- **Developer Safe**: Prevents accidental credential exposure in CI/CD
-- **Zero Configuration**: Works automatically with sensible defaults
-- **Granular Control**: From complete suppression to field-level masking
-
-### JSON Construction
-
-Create complex JSON structures directly from YAML:
-
-```yaml
-steps:
-  - name: "Create user object"
-    action: json_build
-    args:
-      - id: "${user_id}"
-        name: "${user_name}"
-        email: "${user_email}"
-        active: true
-        profile:
-          age: 30
-          preferences: ["email", "sms"]
-    result: user_json
-    
-  - name: "Send JSON to API"
-    action: http
-    args: ["POST", "${api_url}/users", "${user_json}"]
-    options:
-      headers:
-        Content-Type: "application/json"
-    result: response
-```
-
-The `json_build` action automatically handles:
-- Variable substitution in nested structures
-- Creates a structured data object that can be used with other actions
-
-By default, `json_build` returns a structured data object (map or array), which is ideal for:
-- Passing to HTTP requests with Content-Type: application/json (automatic serialization)
-- Further manipulation with other actions
-- Accessing specific fields using variable references
-
-You can also request a JSON string instead of a structured object when needed:
-
-```yaml
-- name: "Create user object as JSON string"
-  action: json_build
-  args:
-    - id: "${user_id}"
-      name: "${user_name}"
-  options:
-    format: "string"  # Returns a JSON string instead of structured data
-  result: user_json_string
-```
-
-**Best Practice**: For HTTP requests with JSON data, use the default structured output from `json_build` and set the Content-Type header to "application/json". The HTTP action will automatically serialize the data.
-```yaml
-# Recommended approach for HTTP with JSON
-- name: "Create user data"
-  action: json_build
-  args:
-    - name: "John Doe"
-      email: "john@example.com"
-  result: user_data
-
-- name: "Send user data"
-  action: http
-  args: ["POST", "https://api.example.com/users", "${user_data}"]
-  options:
-    headers:
-      Content-Type: "application/json"
-  result: response
-```
-- Property access via dot notation (e.g., `${user_json.name}`)
-
-### SWIFT Message Generation
-
-Generate SWIFT financial messages using templates:
-
-```yaml
-steps:
-  - name: "Generate MT103 message"
-    action: swift_message
-    args: ["mt103"]
-    options:
-      data:
-        SenderBIC: "BANKGB2L"
-        ReceiverBIC: "BANKUS33"
-        TransactionRef: "TXN-${transaction_id}"
-        BankOperationCode: "CRED"
-        ValueDate: "240719"
-        Currency: "USD"
-        InterbankAmount: "1000.00"
-        OrderingCustomer: "John Doe\\nMain Street 123"
-        BeneficiaryCustomer: "Jane Smith\\nOak Avenue 456"
-        DetailsOfCharges: "OUR"
-    result: swift_msg
-    
-  - name: "Send to processing system"
-    action: http
-    args: ["POST", "${swift_endpoint}", "${swift_msg}"]
-    options:
-      headers:
-        Content-Type: "text/plain"
-```
-
-### Advanced Assertions
-
-Robogo supports multiple assertion operators:
-
-```yaml
-steps:
-  # Equality
-  - name: "Test equality"
-    action: assert
-    args: ["${value}", "==", "expected"]
-    
-  # Numeric comparisons
-  - name: "Test greater than"
-    action: assert
-    args: ["${count}", ">", "0"]
-    
-  # String matching
-  - name: "Test contains"
-    action: assert
-    args: ["${response.body}", "contains", "success"]
-    
-  # Boolean assertions
-  - name: "Test boolean"
-    action: assert
-    args: ["${is_valid}"]  # Single boolean argument
-```
-
-**Supported operators**: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`
-
-### Retry Logic
-
-Handle eventual consistency and processing delays with built-in retry capabilities:
-
-```yaml
-steps:
-  # Basic retry with fixed delay
-  - name: "Poll for completion"
-    action: http
-    args: ["GET", "${api_url}/status/${job_id}"]
-    retry:
-      attempts: 5
-      delay: "2s"
-      backoff: "fixed"
-    result: job_status
-    
-  # Exponential backoff for quick failures
-  - name: "Wait for database consistency"
-    action: postgres
-    args: ["query", "${db_url}", "SELECT status FROM orders WHERE id = ${order_id}"]
-    retry:
-      attempts: 6
-      delay: "500ms"
-      backoff: "exponential"  # 500ms, 1s, 2s, 4s, 8s, 16s
-      retry_on: ["connection_error", "timeout"]
-    result: order_status
-    
-  # Assertion retry for eventual consistency
-  - name: "Verify processing completed"
-    action: assert
-    args: ["${job_status.json.state}", "==", "completed"]
-    retry:
-      attempts: 10
-      delay: "3s"
-      backoff: "linear"  # 3s, 6s, 9s, 12s...
-      retry_on: ["assertion_failed"]
-      stop_on_success: true
-    result: completion_check
-```
-
-**Retry Configuration:**
-- `attempts`: Number of total attempts (including first try)
-- `delay`: Base delay between attempts (e.g., "1s", "500ms")
-- `backoff`: Strategy - "fixed", "linear", or "exponential"
-- `retry_on`: Specific error types to retry on - ["assertion_failed", "http_error", "timeout", "connection_error", "all"]
-- `stop_on_success`: Stop retrying immediately on success (default: true)
-- `retry_if`: Custom condition to determine if retry should continue
-
-**Advanced Retry with Conditions:**
-
-```yaml
-steps:
-  # Retry based on extracted value
-  - name: "Poll until author changes"
-    action: http
-    args: ["GET", "${api_url}/content"]
-    extract:
-      type: "jq"
-      path: ".body | fromjson | .author"
-    result: author
-    retry:
-      attempts: 5
-      delay: "3s"
-      retry_if: "${author} == 'Pending'"  # Retry as long as author is 'Pending'
-      
-  # Retry based on error condition
-  - name: "Retry on specific errors"
-    action: http
-    args: ["GET", "${api_url}/status"]
-    retry:
-      attempts: 3
-      delay: "1s"
-      retry_if: "${error_occurred} == true && '${error_message}' contains 'timeout'"
-```
-
-### Sleep & Timing Control
-
-Control test execution timing for async operations, polling, and delays:
-
-```yaml
-steps:
-  # Basic sleep with different duration formats
-  - name: "Short delay"
-    action: sleep
-    args: ["500ms"]  # Milliseconds
-    
-  - name: "Medium delay"
-    action: sleep
-    args: ["2s"]     # Seconds
-    
-  - name: "Long delay"
-    action: sleep
-    args: ["1m30s"]  # Minutes and seconds
-    
-  # Variable-based delays
-  - name: "Configurable delay"
-    action: sleep
-    args: ["${retry_delay}"]  # From variable
-    result: sleep_info
-    
-  # Polling simulation
-  - name: "Check status"
-    action: http
-    args: ["GET", "${status_url}"]
-    result: status_response
-    
-  - name: "Wait before next poll"
-    action: sleep
-    args: ["${polling_interval}"]
-```
-
-**Supported duration formats**: `ns`, `us`/`μs`, `ms`, `s`, `m`, `h` (e.g., "100ms", "2.5s", "1m30s")
-
-### Encoding & Security
-
-Handle authentication, data integrity, and URL formatting:
-
-```yaml
-steps:
-  # Basic Authentication
-  - name: "Create Basic Auth header"
-    action: base64_encode
-    args: ["${username}:${password}"]
-    result: auth_token
-    
-  - name: "Make authenticated request"
-    action: http
-    args: ["GET", "${api_url}"]
-    options:
-      headers:
-        Authorization: "Basic ${auth_token}"
-    
-  # URL encoding for query parameters
-  - name: "Encode search query"
-    action: url_encode
-    args: ["user name with spaces & symbols"]
-    result: encoded_query
-    
-  - name: "Build search URL"
+setup:
+  - name: "Initialize test data"
     action: variable
-    args: ["search_url", "${base_url}/search?q=${encoded_query}"]
-    
-  # Data integrity with hashing
-  - name: "Generate payload hash"
-    action: hash
-    args: ["${json_payload}", "sha256"]
-    result: payload_hash
-    
-  - name: "Extract hash value"
-    action: jq
-    args: ["${payload_hash}", ".hash"]
-    result: hash_value
-```
-
-**Supported hash algorithms**: `md5`, `sha1`, `sha256`, `sha512`
-
-### File Operations & Data-Driven Testing
-
-Load external data files for comprehensive test scenarios:
-
-```yaml
-steps:
-  # Load JSON test data
-  - name: "Load user data"
-    action: file_read
-    args: ["testdata/users.json"]
-    result: users
-    
-  - name: "Extract first user"
-    action: jq
-    args: ["${users}", ".content[0].name"]
-    result: first_user_name
-    
-  # Load YAML configuration
-  - name: "Load config"
-    action: file_read
-    args: ["config/api.yaml"]
-    result: config
-    
-  - name: "Get API URL from config"
-    action: jq
-    args: ["${config}", ".content.api.base_url"]
-    result: api_url
-    
-  # Load CSV test cases for data-driven testing
-  - name: "Load test cases"
-    action: file_read
-    args: ["testdata/test_cases.csv"]
-    result: test_cases
-    
-  - name: "Run first test case"
-    action: jq
-    args: ["${test_cases}", ".content[0]"]
-    result: first_test
-    
-  # Load plain text templates
-  - name: "Load request template"
-    action: file_read
-    args: ["templates/soap_request.xml"]
-    result: template
-```
-
-**Supported formats**: JSON (parsed), YAML (parsed), CSV (array of objects), Text (raw string)
-**Security**: Path traversal protection, working directory restrictions
-
-### String Operations & Unique Data Generation
-
-Generate unique test data and manipulate strings for comprehensive testing:
-
-```yaml
-steps:
-  # Generate unique identifiers
-  - name: "Generate unique user ID"
-    action: string_random
-    args: [8, "alphanumeric"]
-    result: user_id_data
-    
-  - name: "Extract user ID"
-    action: jq
-    args: ["${user_id_data}", ".value"]
-    result: user_id
-    
-  # Generate different types of random data
-  - name: "Generate numeric ID"
-    action: string_random
-    args: [6, "numeric"]
-    result: numeric_id
-    
-  - name: "Generate API key"
-    action: string_random
-    args: [32, "hex"]
-    result: api_key
-    
-  # Format strings with generated data
-  - name: "Create unique email"
-    action: string_format
-    args: ["test-{}@example.com", "${user_id}"]
-    result: email_data
-    
-  # String replacement for templates
-  - name: "Personalize message"
-    action: string_replace
-    args: ["Hello {{USER}}, welcome!", "{{USER}}", "${user_id}"]
-    result: personalized_msg
-```
-
-**Supported charsets**: `numeric`, `lowercase`, `uppercase`, `alphabetic`, `alphanumeric`, `hex`, `special`, `all`, `custom`
-**Use cases**: Unique user data, API keys, database names, email addresses, test isolation
-
-### Variable Substitution & Data Extraction
-
-Variables use simple `${variable}` substitution and `${ENV:VARIABLE_NAME}` for environment variables. For complex data extraction, use dedicated actions:
-
-```yaml
-variables:
-  vars:
-    api_url: "${ENV:API_BASE_URL}"  # From environment variable
-    auth_token: "${ENV:API_TOKEN}"  # From environment variable
+    args: ["test_id", "${uuid}"]
 
 steps:
-  # Variable substitution with environment variables
-  - name: "Make authenticated request"
+  # Conditional execution
+  - name: "Admin-only setup"
+    if: "${user_role} == 'admin'"
+    action: log
+    args: ["Running admin setup"]
+    
+  # HTTP with retry logic
+  - name: "Create user with retry"
     action: http
-    args: ["GET", "${api_url}/users"]
+    args: ["POST", "${api_base}/users"]
     options:
       headers:
         Authorization: "Bearer ${auth_token}"
-    result: response
+      json:
+        id: "${test_id}"
+        email: "test-${test_id}@example.com"
+    retry:
+      attempts: 3
+      delay: "2s"
+      backoff: "exponential"
+      retry_on: ["http_error", "timeout"]
+    result: user_response
     
-  # Extract data with jq for JSON/structured data
+  # Data extraction
   - name: "Extract user ID"
     action: jq
-    args: ["${response}", ".body | fromjson | .user.id"]
+    args: ["${user_response.data}", ".user.id"]
     result: user_id
     
-  # Extract data with xpath for XML
-  - name: "Extract XML value"
-    action: xpath
-    args: ["${xml_response}", "//user[@id='1']/name/text()"]
-    result: user_name
+  # Database verification
+  - name: "Verify user in database"
+    action: postgres
+    args: ["query", "${ENV:DB_URL}", "SELECT * FROM users WHERE id = $1", "${user_id}"]
+    result: db_user
     
-  - name: "Use extracted values"
-    action: log
-    args: ["User ID: ${user_id}, Name: ${user_name}"]
-```
+  # File operations
+  - name: "Upload user avatar"
+    action: scp
+    args: ["upload", "user@server:22", "./avatar.png", "/uploads/${user_id}/avatar.png"]
+    options:
+      password: "${ENV:SSH_PASSWORD}"
+    sensitive_fields: ["password"]
+    result: upload_result
+    
+  # Nested operations
+  - name: "Notification workflow"
+    steps:
+      - name: "Send welcome email"
+        action: http
+        args: ["POST", "${api_base}/emails/welcome"]
+        options:
+          json:
+            user_id: "${user_id}"
+        continue: true
+        
+      - name: "Log to analytics"
+        action: kafka
+        args: ["produce", "localhost:9092", "user-events"]
+        options:
+          message:
+            event: "user_registered"
+            user_id: "${user_id}"
+            timestamp: "${time}"
 
-### Action Options
-
-Many actions support options for additional configuration:
-
-```yaml
-steps:
-  # HTTP with custom headers and timeout
-  - name: "HTTP with options"
+teardown:
+  - name: "Cleanup test user"
     action: http
-    args: ["POST", "${api_url}/users", '{"name": "test"}']
+    args: ["DELETE", "${api_base}/users/${user_id}"]
     options:
       headers:
-        Content-Type: "application/json"
-        Authorization: "Bearer ${token}"
-      timeout: "10s"
-    result: response
-    
-  # Kafka with auto-commit
-  - name: "Consume with auto-commit"
-    action: kafka
-    args: ["consume", "localhost:9092", "test-topic"]
+        Authorization: "Bearer ${auth_token}"
+```
+
+## Security Features
+
+### Environment Variables
+```yaml
+variables:
+  vars:
+    # Secure credential management
+    db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}"
+    api_token: "${ENV:API_TOKEN}"
+```
+
+### Sensitive Data Masking
+```yaml
+steps:
+  # Automatic masking of password fields
+  - name: "Login request"
+    action: http
+    args: ["POST", "/auth/login"]
     options:
-      auto_commit: true
-      count: 5
-      timeout: "30s"
-    result: messages
+      json:
+        username: "testuser"
+        password: "${ENV:USER_PASSWORD}"  # Automatically masked in logs
+    result: auth_response
+    
+  # Custom field masking
+  - name: "API call with secrets"
+    action: http
+    args: ["GET", "/secure-data"]
+    options:
+      headers:
+        X-API-Key: "${ENV:SECRET_API_KEY}"
+        X-Session-Token: "${session_token}"
+    sensitive_fields: ["X-Session-Token"]  # Custom masking
+    result: secure_data
+    
+  # Complete logging suppression
+  - name: "Highly sensitive operation"
+    action: http
+    args: ["POST", "/admin/reset-passwords"]
+    no_log: true  # No step details logged at all
+    result: reset_result
 ```
 
 ## Development Environment
@@ -813,265 +317,128 @@ steps:
 # Start all services
 docker-compose up -d
 
-# Setup SSH servers for SCP testing
-# Linux/Mac:
-./setup-ssh.sh
-# Windows:
-.\setup-ssh.ps1
-
 # Services available:
-# - PostgreSQL: localhost:5432
+# - PostgreSQL: localhost:5432 (user: robogo_testuser, pass: robogo_testpass, db: robogo_testdb)
 # - Kafka: localhost:9092  
 # - Spanner Emulator: localhost:9010
 # - HTTPBin: localhost:8000
-# - SSH Server (password): localhost:2222 (user: testuser, pass: testpass)
-# - SSH Server (keys): localhost:2223 (user: keyuser, key: ./ssh-test-key)
+# - SSH Server: localhost:2222 (user: testuser, pass: testpass)
+```
+
+### Environment Configuration
+
+Create `.env` file for secure credential management:
+```bash
+# Database credentials
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=robogo_testuser
+DB_PASSWORD=robogo_testpass
+DB_NAME=robogo_testdb
+
+# API credentials
+API_BASE_URL=https://api.example.com
+API_TOKEN=your_secret_token_here
+
+# SSH credentials for SCP testing
+SSH_PASSWORD=testpass
 ```
 
 ### Database Setup
 
 **PostgreSQL** - Use environment variables for credentials:
 ```yaml
-# Secure approach using environment variables
 variables:
   vars:
     db_url: "postgres://${ENV:DB_USER}:${ENV:DB_PASSWORD}@${ENV:DB_HOST}:${ENV:DB_PORT}/${ENV:DB_NAME}?sslmode=disable"
 
 steps:
-  - action: postgres
-    args: ["query", "${db_url}", "SELECT 1"]
+  - name: "Test database connection"
+    action: postgres
+    args: ["query", "${db_url}", "SELECT version()"]
+    result: db_version
 ```
 
-**For development** - Set up .env file:
+**Google Cloud Spanner** - Set up emulator:
 ```bash
-# Create .env file
-echo "DB_USER=robogo_testuser" >> .env
-echo "DB_PASSWORD=robogo_testpass" >> .env  
-echo "DB_HOST=localhost" >> .env
-echo "DB_PORT=5432" >> .env
-echo "DB_NAME=robogo_testdb" >> .env
-```
-
-**Spanner** - Run setup first:
-```bash
-# Linux/Mac
+# After starting docker-compose
+# Linux/Mac:
 SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
-
-# Windows PowerShell  
+# Windows:
 .\setup-spanner.ps1
 ```
 
-### Kafka Setup
-
-```bash
-# Create topic
-docker exec kafka /opt/bitnami/kafka/bin/kafka-topics.sh --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-```
-
-## Project Structure
-
-```
-robogo/
-├── cmd/robogo/                  # CLI entry point
-├── internal/
-│   ├── actions/                 # Action implementations (19 actions)
-│   │   ├── action_registry.go  # Action registry and validation helpers
-│   │   ├── assert.go           # Enhanced assertion logic
-│   │   ├── encoding.go         # Base64, URL encoding, hashing
-│   │   ├── file.go             # File operations
-│   │   ├── http.go             # HTTP operations
-│   │   ├── jq.go               # JSON querying
-│   │   ├── json.go             # JSON construction utilities  
-│   │   ├── kafka.go            # Kafka messaging
-│   │   ├── log.go              # Logging action
-│   │   ├── postgres.go         # PostgreSQL operations
-│   │   ├── rabbitmq.go         # RabbitMQ operations
-│   │   ├── sleep.go            # Sleep/delay action
-│   │   ├── spanner.go          # Google Cloud Spanner operations
-│   │   ├── string_random.go    # Random string generation
-│   │   ├── string_utils.go     # String manipulation utilities
-│   │   ├── swift.go            # SWIFT message generation
-│   │   ├── time.go             # Time/timestamp generation
-│   │   ├── uuid.go             # UUID generation
-│   │   ├── variable.go         # Variable management
-│   │   ├── xml_build.go        # XML construction
-│   │   ├── xml_parse.go        # XML parsing
-│   │   └── xpath.go            # XPath querying
-│   ├── common/                  # Shared utilities
-│   │   ├── dotenv.go           # Environment file handling
-│   │   ├── security.go         # Security utilities
-│   │   └── variables.go        # Variable substitution system
-│   ├── constants/               # Configuration constants
-│   │   ├── config.go           # Error templates, timeouts, limits
-│   │   └── execution.go        # Status, operators, operations
-│   ├── execution/               # Execution strategy system
-│   │   ├── basic_strategy.go   # Basic action execution
-│   │   ├── condition_evaluator.go # Condition evaluation
-│   │   ├── control_flow_strategies.go # Conditional execution
-│   │   ├── execution_strategy.go # Strategy interface
-│   │   ├── nested_steps_strategy.go # Nested step execution
-│   │   ├── retry_strategy.go   # Retry logic with backoff
-│   │   └── strategy_router.go  # Priority-based strategy routing
-│   ├── templates/               # Template management
-│   │   └── init.go             # Template initialization
-│   ├── types/                   # Data structures
-│   │   ├── action_result.go    # Action result types
-│   │   ├── error_handling.go   # ErrorInfo and structured errors
-│   │   ├── failure_handling.go # FailureInfo and structured failures
-│   │   ├── loop_context.go     # Loop execution context
-│   │   ├── simple_errors.go    # Convenience error functions
-│   │   ├── step.go             # Step definitions with retry/conditions
-│   │   ├── testcase.go         # Test case structures
-│   │   └── testresult.go       # Test result structures
-│   ├── cli.go                   # CLI interface
-│   ├── parser.go                # YAML parsing
-│   └── runner.go                # Test execution orchestration
-├── examples/                    # Example tests (18 examples)
-├── templates/                   # Message templates
-│   └── swift/                  # SWIFT message templates
-│       └── mt103.txt           # MT103 credit transfer template
-├── setup-spanner.sh            # Spanner setup script
-├── setup-spanner.ps1           # Spanner setup (Windows)
-└── docker-compose.yml         # Development services
-```
-
-## Architecture Principles
-
-- **Developer-Centric Design**: Tests are written as clear, readable YAML that developers can easily understand and modify
-- **Shift-Left Enablement**: Full end-to-end testing capabilities that run efficiently in development environments
-- **CLI Tool Design**: Single-threaded, single-test execution following Unix philosophy
-- **Sequential Test Logic**: Steps execute in defined order for predictable, debuggable behavior
-- **Process-Level Parallelism**: Parallelization achieved through multiple CLI invocations, not internal threading
-- **Simple & Direct**: No over-engineering, interfaces, or dependency injection
-- **Immediate Connections**: Database and messaging connections open/close per operation
-- **Clean Process Management**: Clean exit, no hanging processes or background threads
-- **Minimal Dependencies**: Only essential libraries
-- **KISS Principle**: Keep it simple and straightforward
-- **Test Clarity**: Every test step is self-documenting with clear names and expected outcomes
-
-### Error Handling Philosophy
-
-Robogo distinguishes between **Errors** and **Failures** for clear problem classification:
-
-- **Errors** - Technical problems (network issues, parse errors, configuration problems)
-- **Failures** - Logical test problems (assertion failures, unexpected response values)
-
-Both types are handled uniformly by the test runner, providing consistent error reporting while maintaining semantic distinction for debugging and analysis.
-
-## Parallelism and Performance
-
-### CLI Tool Design Philosophy
-
-Robogo follows the **Unix philosophy** for CLI tools: do one thing well and compose with other tools. Each `robogo run` command executes a single test file sequentially, which provides:
-
-- **Predictable Behavior**: Steps execute in the exact order defined
-- **Easy Debugging**: Clear execution flow without race conditions
-- **Reliable Results**: No concurrency bugs or timing issues
-- **Simple Architecture**: Single-threaded execution is easier to maintain
-
-### Achieving Parallelism
-
-For parallel test execution, use **process-level parallelism** rather than internal threading:
-
-#### Shell-Level Parallelism
-```bash
-# Run multiple tests in parallel using shell
-./robogo run test1.yaml &
-./robogo run test2.yaml &
-./robogo run test3.yaml &
-wait  # Wait for all to complete
-```
-
-#### CI/CD Parallelism
-```yaml
-# GitHub Actions example
-strategy:
-  matrix:
-    test: [test1.yaml, test2.yaml, test3.yaml]
-steps:
-  - run: ./robogo run ${{ matrix.test }}
-```
-
-#### Makefile Parallelism
-```makefile
-# Run tests in parallel with make
-test-parallel:
-	./robogo run test1.yaml & \
-	./robogo run test2.yaml & \
-	./robogo run test3.yaml & \
-	wait
-```
-
-### Why Not Internal Parallelism?
-
-Internal step parallelism would break the fundamental testing logic:
-
-```yaml
-steps:
-  - name: "Create user"
-    action: http
-    args: ["POST", "/users", "..."]
-    result: response
-    
-  - name: "Verify user created"  # This DEPENDS on the above step
-    action: assert
-    args: ["${response.status}", "==", "201"]
-```
-
-Steps within a test are **intentionally sequential** because they represent a logical flow where later steps depend on earlier results.
-
 ## Example Tests
 
-The `examples/` directory contains comprehensive test examples organized by complexity:
+The **[examples/](examples/)** directory contains 50+ comprehensive test examples organized by complexity and feature:
 
-### Basic Examples
-- **`01-http-get.yaml`** - HTTP GET requests with assertions
-- **`02-http-post.yaml`** - HTTP POST with string validation
-- **`03-postgres-basic.yaml`** - PostgreSQL operations
-- **`04-postgres-advanced.yaml`** - Advanced database verification
-- **`05-kafka-basic.yaml`** - Kafka messaging with auto-commit
-
-### Advanced Examples
-- **`06-spanner-basic.yaml`** - Spanner operations
-- **`07-spanner-advanced.yaml`** - Advanced Spanner verification
-- **`08-control-flow.yaml`** - Control flow examples (if, for, while)
-- **`09-e2e-integration.yaml`** - End-to-end integration test
-- **`10-swift-mt103.yaml`** - SWIFT MT103 message generation
-- **`11-json-build.yaml`** - Complex JSON construction and HTTP integration
-- **`12-retry-scenarios.yaml`** - Retry functionality demonstrations
-- **`13-retry-demo.yaml`** - Simple retry examples
-- **`14-retry-with-failures.yaml`** - Retry with failure scenarios
-- **`15-retry-success-demo.yaml`** - Retry timing and backoff strategies
-
-### Running Examples
-
+### Quick Examples
 ```bash
 # HTTP testing (no services required)
 ./robogo run examples/01-http-get.yaml
-./robogo run examples/02-http-post.yaml
 
 # Database testing (requires docker-compose up -d)
 ./robogo run examples/03-postgres-basic.yaml
-./robogo run examples/04-postgres-advanced.yaml
 
-# Kafka testing (requires docker-compose up -d)
+# SCP file transfer testing
+./robogo run examples/23-scp-simple-test.yaml
+
+# Messaging systems
 ./robogo run examples/05-kafka-basic.yaml
 
-# Spanner testing (requires docker-compose up -d + setup script)
-./robogo run examples/06-spanner-basic.yaml
-./robogo run examples/07-spanner-advanced.yaml
+# Security features
+./robogo run examples/19-no-log-security.yaml
+```
 
-# Advanced features
-./robogo run examples/08-control-flow.yaml
-./robogo run examples/09-e2e-integration.yaml
+### Example Categories
+- **Beginner**: Basic HTTP, database, and file operations
+- **Intermediate**: Multi-step workflows, environment variables, data extraction
+- **Advanced**: Complex control flow, retry logic, nested operations
+- **Expert**: Security-aware testing, production-ready patterns
 
-# SWIFT and JSON features (no services required)
-./robogo run examples/10-swift-mt103.yaml
-./robogo run examples/11-json-build.yaml
+## Architecture
 
-# Retry functionality examples (no services required)
-./robogo run examples/13-retry-demo.yaml
-./robogo run examples/15-retry-success-demo.yaml
+### KISS Principles
+Robogo follows **Keep It Simple and Straightforward** architecture:
+
+- **No Dependency Injection**: Direct object construction throughout
+- **No Over-abstraction**: Simple, direct implementations
+- **Minimal Interfaces**: Only where absolutely necessary
+- **Strategy Pattern**: Clean execution routing for different step types
+
+### Execution Flow
+1. **CLI** receives command and parses YAML test file
+2. **TestRunner** creates execution environment with variables and strategy router
+3. **ExecutionStrategyRouter** routes steps based on priority:
+   - **ConditionalExecutionStrategy** (Priority 4): Handles `if` conditions
+   - **RetryExecutionStrategy** (Priority 3): Handles `retry` configuration
+   - **NestedStepsExecutionStrategy** (Priority 2): Handles `steps` arrays
+   - **BasicExecutionStrategy** (Priority 1): Handles simple actions
+4. **Actions** perform actual operations and return structured results
+5. **Results** are processed, masked for security, and displayed
+
+For detailed architecture documentation, see **[internal/README.md](internal/README.md)** and **[docs/execution-flow-diagram.md](docs/execution-flow-diagram.md)**.
+
+## Error Handling
+
+### Dual Error System
+- **ErrorInfo**: Technical problems (network failures, syntax errors, etc.)
+- **FailureInfo**: Logical test failures (assertion failures, unexpected responses)
+
+### Structured Error Messages
+```yaml
+# Technical error example
+steps:
+  - name: "Invalid database query"
+    action: postgres
+    args: ["query", "invalid://connection", "SELECT 1"]
+    # Results in ErrorInfo with connection details and suggestions
+
+# Logical failure example  
+  - name: "Assertion failure"
+    action: assert
+    args: ["${response.status}", "==", "200"]
+    # Results in FailureInfo showing expected vs actual values
 ```
 
 ## Shift-Left Testing Benefits
@@ -1098,61 +465,67 @@ Robogo enables **true shift-left testing** by allowing developers to:
 
 # 2. Validate changes before commit
 ./robogo run tests/critical-paths.yaml
+
+# 3. Run in CI/CD pipeline
+./robogo run tests/smoke-tests.yaml
 ```
 
-## Advanced Features
+## Parallel Execution
 
-### Kafka Auto-commit
+Robogo is designed for **test-level parallelism** (multiple test files) rather than **step-level parallelism** (steps within a test):
 
-```yaml
-- name: "Consume with auto-commit"
-  action: kafka
-  args: ["consume", "localhost:9092", "test-topic"]
-  options:
-    auto_commit: true  # Prevents re-reading same messages
-    count: 1
-    timeout: "5s"
-  result: messages
+```bash
+# Run multiple tests in parallel
+./robogo run test1.yaml & \
+./robogo run test2.yaml & \
+./robogo run test3.yaml & \
+wait
 ```
 
-### Count Validation
+**Why Sequential Steps?** Steps within a test are intentionally sequential because they represent a logical flow where later steps depend on earlier results:
 
 ```yaml
-- name: "Test count validation"
-  action: kafka
-  args: ["consume", "localhost:9092", "test-topic"]
-  options:
-    count: 0  # Returns empty result immediately
-    # count: -1  # Would fail with clear error message
-  result: empty_result
-```
-
-### Timeout Configuration
-
-```yaml
-- name: "Quick timeout test"
-  action: kafka
-  args: ["consume", "localhost:9092", "non-existent-topic"]
-  options:
-    timeout: "3s"  # Fail fast instead of default 30s
-  result: result
+steps:
+  - name: "Create user"
+    action: http
+    args: ["POST", "/users", "..."]
+    result: response
+    
+  - name: "Verify user created"  # This DEPENDS on the above step
+    action: assert
+    args: ["${response.status}", "==", "201"]
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Kafka timeout errors**: Make sure topics exist and Kafka is running
-2. **Database connection errors**: Verify Docker services are running
-3. **Spanner errors**: Run the setup script after starting the emulator
+1. **Service connection errors**: Ensure Docker services are running (`docker-compose ps`)
+2. **Environment variable issues**: Check `.env` file exists and variables are properly formatted
+3. **SCP/SSH connection issues**: Verify SSH server is running and credentials are correct
 4. **Variable resolution errors**: Check `${variable}` syntax and variable names
+5. **Database connection errors**: Verify Docker services are healthy
 
 ### Debug Tips
 
 - Use `log` actions to inspect variable values
 - Check Docker service logs: `docker-compose logs <service>`
-- Verify service connectivity before running tests
 - Use shorter timeouts for faster feedback during development
+- Enable verbose logging for debugging complex variable substitution
+
+### Getting Help
+
+- **Documentation**: Start with **[examples/README.md](examples/README.md)** for practical examples
+- **Architecture**: See **[internal/README.md](internal/README.md)** for understanding the codebase
+- **Issues**: Report bugs or feature requests on the project repository
+
+## Contributing
+
+1. **Follow KISS principles**: Avoid over-engineering and complex abstractions
+2. **Add examples**: Every new feature should include working test examples
+3. **Update documentation**: Keep README files current with code changes
+4. **Security-first**: Ensure sensitive data is properly masked
+5. **Test thoroughly**: Verify examples work with standard Docker setup
 
 ## License
 
