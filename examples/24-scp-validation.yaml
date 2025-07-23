@@ -1,0 +1,34 @@
+testcase: "SCP Action Validation Test"
+description: "Test SCP action parameters and error handling without requiring SSH server"
+
+steps:
+  # Test SCP action with missing arguments
+  - name: "Test SCP with insufficient arguments"
+    action: scp
+    args: ["upload", "localhost"]  # Missing local and remote paths
+    options:
+      password: "test"
+    result: scp_error
+    continue: true  # Continue even if this step fails
+    
+  # Test SCP with invalid operation
+  - name: "Test SCP with invalid operation"
+    action: scp
+    args: ["invalid", "localhost", "/tmp/test", "/tmp/test"]
+    options:
+      password: "test"
+    result: scp_invalid
+    continue: true
+    
+  # Test SCP with missing authentication
+  - name: "Test SCP with no authentication"
+    action: scp
+    args: ["upload", "localhost", "/tmp/test", "/tmp/test"]
+    # No password or key provided
+    result: scp_no_auth
+    continue: true
+    
+  # Log test completion
+  - name: "Log validation complete"
+    action: log
+    args: ["SCP action validation tests completed"]

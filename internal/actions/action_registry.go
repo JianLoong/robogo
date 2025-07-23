@@ -91,6 +91,7 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 
 	// File actions
 	registry.Register("file_read", fileReadAction)
+	registry.Register("scp", scpAction)
 
 	// String actions
 	registry.Register("string_random", stringRandomAction)

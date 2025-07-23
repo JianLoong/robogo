@@ -1,0 +1,27 @@
+testcase: "SCP Download Test"
+description: "Test SCP download functionality"
+
+steps:
+  # First upload a file
+  - name: "Upload test file for download"
+    action: scp
+    args: ["upload", "testuser@localhost:2222", "./test-upload.txt", "/tmp/download-test.txt"]
+    options:
+      password: "testpass"
+      timeout: "10s"
+    result: upload_result
+    
+  # Then download it back
+  - name: "Download the file back"
+    action: scp
+    args: ["download", "testuser@localhost:2222", "./downloaded-file.txt", "/tmp/download-test.txt"]
+    options:
+      password: "testpass"
+      timeout: "10s"
+    result: download_result
+    
+  # Verify file was downloaded
+  - name: "Verify downloaded file exists"
+    action: file_read
+    args: ["./downloaded-file.txt"]
+    result: file_content

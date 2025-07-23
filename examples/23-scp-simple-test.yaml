@@ -1,0 +1,15 @@
+testcase: "SCP Simple Connection Test"
+description: "Test basic SCP connectivity"
+
+steps:
+  - name: "Test SCP action exists"
+    action: log
+    args: ["Testing SCP action"]
+    
+  - name: "Test SCP upload (simple)"
+    action: scp
+    args: ["upload", "testuser@localhost:2222", "./test-upload.txt", "/tmp/test.txt"]
+    options:
+      password: "testpass"
+      timeout: "10s"
+    result: scp_result

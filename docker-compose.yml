@@ -98,6 +98,31 @@ services:
       retries: 3
       start_period: 10s
 
+  # SSH Server for SCP testing with password authentication  
+  ssh-server:
+    image: rastasheep/ubuntu-sshd:18.04
+    container_name: ssh-server
+    ports:
+      - "2222:22"
+    environment:
+      - SSH_ENABLE_PASSWORD_AUTH=true
+    command: >
+      bash -c "
+        useradd -m -s /bin/bash testuser &&
+        echo 'testuser:testpass' | chpasswd &&
+        mkdir -p /uploads /downloads &&
+        chown testuser:testuser /uploads /downloads &&
+        chmod 755 /uploads /downloads &&
+        /usr/sbin/sshd -D
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "ss -tlnp | grep :22 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+
 
 volumes:
   data: 
