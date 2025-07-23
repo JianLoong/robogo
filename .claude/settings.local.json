@@ -39,7 +39,11 @@
       "Bash(export POSTGRES_DB=robogo_testdb)",
       "Bash(cp:*)",
       "Bash(export POSTGRES_USER=override_user)",
-      "Bash(unset POSTGRES_USER)"
+      "Bash(unset POSTGRES_USER)",
+      "Bash(./setup-ssh.sh)",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker logs:*)"
     ],
     "deny": []
   }

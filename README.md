@@ -813,11 +813,19 @@ steps:
 # Start all services
 docker-compose up -d
 
+# Setup SSH servers for SCP testing
+# Linux/Mac:
+./setup-ssh.sh
+# Windows:
+.\setup-ssh.ps1
+
 # Services available:
 # - PostgreSQL: localhost:5432
 # - Kafka: localhost:9092  
 # - Spanner Emulator: localhost:9010
 # - HTTPBin: localhost:8000
+# - SSH Server (password): localhost:2222 (user: testuser, pass: testpass)
+# - SSH Server (keys): localhost:2223 (user: keyuser, key: ./ssh-test-key)
 ```
 
 ### Database Setup
