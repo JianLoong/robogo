@@ -1,6 +1,24 @@
-# Robogo
+# 🤖 Robogo
 
-A simple, modern test automation framework written in Go. Robogo provides a clean YAML-based DSL for writing test cases with support for HTTP APIs, databases, messaging systems, file operations, and more.
+<div align="center">
+
+**A simple, modern test automation framework written in Go**
+
+*Clean YAML-based DSL for HTTP APIs, databases, messaging systems, file operations, and more*
+
+---
+
+### 🚀 Quick Links
+
+| **Getting Started** | **Examples** | **Documentation** | **Architecture** |
+|:---:|:---:|:---:|:---:|
+| [Installation](#installation) | [Your First Test](#your-first-test) | [Complete Examples](examples/README.md) | [KISS Principles](#kiss-principles) |
+| [Basic Usage](#basic-usage) | [Test Categories](#example-tests) | [Action Reference](#action-categories) | [Execution Flow](docs/execution-flow-diagram.md) |
+| [Quick Start](#quick-start) | [Security Examples](#security-examples) | [Error Handling](docs/error-failure-states-diagram.md) | [Development Guide](internal/README.md) |
+
+---
+
+</div>
 
 **Shift-Left Testing**: Robogo enables developers to run comprehensive end-to-end tests early in the development cycle with clear, readable test definitions that improve collaboration between development and testing teams.
 
@@ -260,17 +278,22 @@ variables:
     api_url: "${ENV:API_URL}"  # Environment variables
 
 steps:
-  - name: "Step description"
-    action: action_name
-    args: [arg1, arg2, arg3]
-    result: result_variable
+  - name: "Make HTTP request with built-in extraction"
+    action: http
+    args: ["GET", "${api_url}"]
+    extract:
+      type: "jq"
+      path: ".status_code"
+    result: status_code
     
   - name: "Verify result"
     action: assert
-    args: ["${result_variable.some_field}", "==", "expected_value"]
+    args: ["${status_code}", "==", "200"]
 ```
 
-**Important:** Use `jq` action to extract data from HTTP responses - simple `${response.field}` syntax doesn't work for complex objects.
+**Important:** Use `jq` action to extract data from HTTP responses - simple `${response.field}` syntax doesn't work for complex objects. You can either:
+1. **Use built-in `extract`** (modern approach): Add `extract` block to any step for automatic data extraction
+2. **Use separate `jq` step** (traditional approach): Extract in a separate step, then use the extracted value
 
 **Advanced Features:** The examples table above includes advanced patterns like retry logic, control flow, nested steps, and security features. For the complete catalog with complexity levels, see **[examples/README.md](examples/README.md)**.
 
@@ -567,6 +590,75 @@ steps:
     action: assert
     args: ["${status_code}", "==", "201"]  # After extracting with jq
 ```
+
+## Test Data Management
+
+Robogo **does not include built-in test data management** (fixtures, factories, seeding utilities) and is intentionally designed this way following KISS principles.
+
+### Design Philosophy
+
+- **No Over-abstraction**: Use actual database/API operations instead of data management frameworks
+- **Direct Operations**: Tests perform real operations that mirror production workflows
+- **External Integration**: Leverage existing data tools rather than reinventing them
+- **Transparency**: Clear visibility into what data operations are happening
+
+### Recommended Approaches
+
+**Setup/Teardown with Database Actions:**
+```yaml
+setup:
+  - name: "Create test data"
+    action: postgres
+    args: ["execute", "${db_url}", "INSERT INTO users (name, email) VALUES ('Test User', 'test@example.com')"]
+
+teardown:
+  - name: "Clean up test data"  
+    action: postgres
+    args: ["execute", "${db_url}", "DELETE FROM users WHERE email = 'test@example.com'"]
+```
+
+**API-Based Data Management:**
+```yaml
+setup:
+  - name: "Create test user via API"
+    action: http
+    args: ["POST", "${api_url}/users", "${user_data}"]
+    extract:
+      type: "jq"
+      path: ".body.id"
+    result: user_id
+
+teardown:
+  - name: "Delete test user"
+    action: http
+    args: ["DELETE", "${api_url}/users/${user_id}"]
+```
+
+**External Scripts Integration:**
+```yaml
+setup:
+  - name: "Seed test database"
+    action: bash
+    args: ["./scripts/seed-test-data.sh", "${ENV:TEST_ENVIRONMENT}"]
+```
+
+**Dynamic Data Generation:**
+```yaml
+- name: "Generate unique test data"
+  action: time
+  args: ["20060102150405"]
+  result: timestamp
+
+- name: "Create unique user email"
+  action: string_format
+  args: ["test-user-{}@example.com", "${timestamp}"]
+  extract:
+    type: "jq"
+    path: ".result"
+  result: unique_email
+```
+
+This approach maintains test clarity while allowing flexible integration with existing data management tools and practices.
 
 ## Test Scheduling
 

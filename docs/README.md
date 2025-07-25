@@ -39,6 +39,7 @@ internal/
 ├── execution/README.md             # Execution strategy documentation
 ├── common/README.md                # Variable system and utilities
 ├── constants/README.md             # Framework constants and configuration
+├── templates/README.md             # Error message template management
 └── types/README.md                 # Core data structures
 
 examples/

@@ -1,0 +1,138 @@
+testcase: "Dynamic SWIFT MT103 with Current Date"
+description: "Generate SWIFT MT103 message using current date and other dynamic values"
+
+variables:
+  vars:
+    sender_bic: "BANKBEBBAXXX"
+    receiver_bic: "BANKDEFFXXXX"
+    payment_amount: "2500,00"
+    payment_currency: "EUR"
+    customer_name: "Alice Johnson"
+    beneficiary_name: "Bob Smith"
+
+steps:
+  # Get current date in SWIFT format (YYMMDD)
+  - name: "Get current date in SWIFT format"
+    action: time
+    args: ["060102"] # Go time format for YYMMDD
+    result: current_date
+
+  # Get current time for unique transaction reference
+  - name: "Get current timestamp for transaction ID"
+    action: time
+    args: ["20060102150405"] # YYYYMMDDHHMMSS format
+    result: timestamp
+
+  # Generate unique transaction reference with built-in extraction
+  - name: "Create unique transaction reference"
+    action: string_format
+    args: ["TXN{}", "${timestamp}"]
+    extract:
+      type: "jq"
+      path: ".result"
+    result: transaction_ref
+
+  # Generate random reference number with built-in extraction
+  - name: "Generate random reference suffix"
+    action: string_random
+    args: [6, "numeric"]
+    extract:
+      type: "jq"
+      path: ".value"
+    result: random_suffix
+
+  # Combine for final transaction reference with built-in extraction
+  - name: "Create final transaction reference"
+    action: string_format
+    args: ["{}{}", "${transaction_ref}", "${random_suffix}"]
+    extract:
+      type: "jq"
+      path: ".result"
+    result: final_txn_ref
+
+  # Build SWIFT data map using json_build with options (creates object)
+  - name: "Build SWIFT message data"
+    action: json_build
+    args: []
+    options:
+      SenderBIC: "${sender_bic}"
+      ReceiverBIC: "${receiver_bic}"
+      TransactionRef: "${final_txn_ref}"
+      BankOperationCode: "CRED"
+      ValueDate: "${current_date}"
+      Currency: "${payment_currency}"
+      InterbankAmount: "${payment_amount}"
+      OrderingCustomer: "${customer_name}\n123 Dynamic Street\nBrussels"
+      BeneficiaryCustomer: "${beneficiary_name}\n456 Auto Avenue\nBerlin"
+      DetailsOfCharges: "SHA"
+    result: swift_data
+
+  # Generate the SWIFT MT103 message with dynamic values
+  - name: "Generate MT103 with dynamic date and reference"
+    action: swift_message
+    args: ["mt103.txt", "${swift_data}"]
+    result: dynamic_swift_message
+
+  # Log the generated message
+  - name: "Display generated SWIFT message"
+    action: log
+    args: ["Generated SWIFT MT103:", "${dynamic_swift_message}"]
+
+  # Extract and verify the date was inserted correctly
+  - name: "Verify date format in message"
+    action: assert
+    args: ["${dynamic_swift_message}", "contains", ":32A:${current_date}${payment_currency}${payment_amount}"]
+
+  # Extract and log the transaction reference for verification using regex
+  - name: "Extract transaction reference from message"
+    action: string
+    args: ["${dynamic_swift_message}"]
+    extract:
+      type: "regex"
+      path: ":20:([^\n\r]+)"
+      group: 1
+    result: extracted_ref
+
+  - name: "Verify transaction reference"
+    action: log
+    args: ["Transaction Reference:", "${extracted_ref}"]
+
+  # Simulate sending to a payment system
+  - name: "Send SWIFT message to test endpoint"
+    action: http
+    args: ["POST", "http://localhost:8000/post", "${dynamic_swift_message}"]
+    options:
+      headers:
+        Content-Type: "text/plain"
+        X-Message-Type: "MT103"
+        X-Transaction-Ref: "${final_txn_ref}"
+    result: payment_response
+
+  # Verify the payment was received
+  - name: "Extract response status"
+    action: jq
+    args: ["${payment_response}", ".status_code"]
+    result: response_status
+
+  - name: "Verify payment accepted"
+    action: assert
+    args: ["${response_status}", "==", 200]
+
+  # Extract and verify the SWIFT message was received in the POST body
+  - name: "Extract posted data from response"
+    action: jq
+    args: ["${payment_response}", ".body | fromjson | .data"]
+    result: posted_data
+
+  - name: "Verify SWIFT message was posted correctly"
+    action: assert
+    args: ["${posted_data}", "contains", ":20:${final_txn_ref}"]
+
+  - name: "Verify current date in posted message"
+    action: assert
+    args: ["${posted_data}", "contains", ":32A:${current_date}"]
+
+  - name: "Log payment confirmation"
+    action: log
+    args: ["Payment submitted successfully with reference: ${final_txn_ref}"]
+
