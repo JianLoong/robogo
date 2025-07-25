@@ -47,13 +47,13 @@ steps:
 
   - name: "Check if user-events topic exists using jq"
     action: jq
-    args: ["${topics_result}", '.topics | contains(["user-events"])']
+    args: ["${topics_result}", '.topics | map(select(. == "user-events")) | length > 0']
     result: user_events_exists
     continue: true
 
   - name: "Check if order-events topic exists using jq"
     action: jq
-    args: ["${topics_result}", '.topics | contains(["order-events"])']
+    args: ["${topics_result}", '.topics | map(select(. == "order-events")) | length > 0']
     result: order_events_exists
     continue: true
 

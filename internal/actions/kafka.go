@@ -97,13 +97,35 @@ func kafkaAction(args []any, options map[string]any, vars *common.Variables) typ
 
 		fmt.Printf("📋 Found %d topics on broker %s\n", len(topics), broker)
 
+		// Create the result structure and ensure JSON compatibility for jq
+		resultData := map[string]any{
+			"topics": topics,
+			"count":  len(topics),
+			"broker": broker,
+		}
+		
+		// Marshal and unmarshal to ensure JSON compatibility for jq
+		jsonBytes, err := json.Marshal(resultData)
+		if err != nil {
+			return types.NewErrorBuilder(types.ErrorCategorySystem, "JSON_MARSHAL_FAILED").
+				WithTemplate("Failed to marshal topics result to JSON").
+				WithContext("broker", broker).
+				WithContext("error", err.Error()).
+				Build(fmt.Sprintf("JSON marshal error for topics from %s: %v", broker, err))
+		}
+		
+		var jsonCompatibleResult map[string]any
+		if err := json.Unmarshal(jsonBytes, &jsonCompatibleResult); err != nil {
+			return types.NewErrorBuilder(types.ErrorCategorySystem, "JSON_UNMARSHAL_FAILED").
+				WithTemplate("Failed to unmarshal topics result from JSON").
+				WithContext("broker", broker).
+				WithContext("error", err.Error()).
+				Build(fmt.Sprintf("JSON unmarshal error for topics from %s: %v", broker, err))
+		}
+
 		return types.ActionResult{
 			Status: constants.ActionStatusPassed,
-			Data: map[string]any{
-				"topics": topics,
-				"count":  len(topics),
-				"broker": broker,
-			},
+			Data:   jsonCompatibleResult,
 		}
 
 	case constants.OperationPublish:
