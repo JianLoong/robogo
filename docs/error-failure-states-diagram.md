@@ -5,6 +5,21 @@ This diagram explains Robogo's execution flow and the distinction between errors
 ## Execution Strategy Flow
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#2563eb',
+    'primaryTextColor': '#1f2937',
+    'primaryBorderColor': '#3b82f6',
+    'lineColor': '#6b7280',
+    'secondaryColor': '#f3f4f6',
+    'tertiaryColor': '#e5e7eb',
+    'background': '#ffffff',
+    'mainBkg': '#f9fafb',
+    'secondBkg': '#f3f4f6',
+    'tertiaryBkg': '#e5e7eb'
+  }
+}}%%
 flowchart TD
     Start([Step Execution]) --> Router{Strategy Router}
     
@@ -23,9 +38,9 @@ flowchart TD
     
     Execute --> Result{Action Result}
     
-    classDef successStyle fill:#d4edda,stroke:#155724,stroke-width:2px
-    classDef skipStyle fill:#fff3cd,stroke:#856404,stroke-width:2px
-    classDef processStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef successStyle fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d
+    classDef skipStyle fill:#fef3c7,stroke:#ca8a04,stroke-width:2px,color:#a16207
+    classDef processStyle fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1d4ed8
     
     class Execute,Result successStyle
     class Skipped skipStyle
@@ -35,6 +50,21 @@ flowchart TD
 ## Error vs Failure Classification
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#2563eb',
+    'primaryTextColor': '#1f2937',
+    'primaryBorderColor': '#3b82f6',
+    'lineColor': '#6b7280',
+    'secondaryColor': '#f3f4f6',
+    'tertiaryColor': '#e5e7eb',
+    'background': '#ffffff',
+    'mainBkg': '#f9fafb',
+    'secondBkg': '#f3f4f6',
+    'tertiaryBkg': '#e5e7eb'
+  }
+}}%%
 flowchart TD
     ActionResult{Action Execution Result}
     
@@ -66,10 +96,10 @@ flowchart TD
     ErrorStatus --> Report
     FailStatus --> Report
     
-    classDef successStyle fill:#d4edda,stroke:#155724,stroke-width:2px
-    classDef errorStyle fill:#f8d7da,stroke:#721c24,stroke-width:2px
-    classDef failureStyle fill:#ffeaa7,stroke:#d63031,stroke-width:2px
-    classDef processStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef successStyle fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d
+    classDef errorStyle fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#b91c1c
+    classDef failureStyle fill:#fed7aa,stroke:#ea580c,stroke-width:2px,color:#c2410c
+    classDef processStyle fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1d4ed8
     
     class Pass,Report successStyle
     class ErrorInfo,NetworkErr,DatabaseErr,ParseErr,SystemErr,ConfigErr,ErrorStatus errorStyle
@@ -80,6 +110,27 @@ flowchart TD
 ## Step Status Outcomes
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#2563eb',
+    'primaryTextColor': '#1f2937',
+    'primaryBorderColor': '#3b82f6',
+    'lineColor': '#6b7280',
+    'secondaryColor': '#f3f4f6',
+    'tertiaryColor': '#e5e7eb',
+    'background': '#ffffff',
+    'mainBkg': '#f9fafb',
+    'secondBkg': '#f3f4f6',
+    'tertiaryBkg': '#e5e7eb',
+    'stateBkg': '#f1f5f9',
+    'stateLabelColor': '#374151',
+    'cScale0': '#dcfce7',
+    'cScale1': '#fef3c7',
+    'cScale2': '#fecaca',
+    'cScale3': '#fed7aa'
+  }
+}}%%
 stateDiagram-v2
     [*] --> Executing
     

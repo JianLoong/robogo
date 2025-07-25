@@ -5,8 +5,12 @@ This directory contains technical documentation for the Robogo test automation f
 ## Available Documentation
 
 ### Architecture Documentation
-- **[execution-flow-diagram.md](execution-flow-diagram.md)** - Complete Mermaid diagram showing test execution flow through the strategy pattern system
-- **[error-failure-states-diagram.md](error-failure-states-diagram.md)** - Visual explanation of error handling, execution states, and result classification
+- **[execution-flow-diagram.md](execution-flow-diagram.md)** - Complete Mermaid diagram showing test execution flow through the strategy pattern system ✨ *Dark mode optimized*
+- **[error-failure-states-diagram.md](error-failure-states-diagram.md)** - Visual explanation of error handling, execution states, and result classification ✨ *Dark mode optimized*
+- **[action-system-architecture.md](action-system-architecture.md)** - Action registration, discovery, and execution flow with all 24+ built-in actions ✨ *Dark mode optimized*
+- **[variable-resolution-flow.md](variable-resolution-flow.md)** - Variable substitution process for `${variable}` and `${ENV:VAR}` patterns ✨ *Dark mode optimized*
+- **[strategy-selection-logic.md](strategy-selection-logic.md)** - Priority-based strategy routing for conditional, retry, nested, and basic execution ✨ *Dark mode optimized*
+- **[retry-logic-flow.md](retry-logic-flow.md)** - Retry mechanism with backoff strategies and data extraction for intelligent retry decisions ✨ *Dark mode optimized*
 
 ### Component Documentation
 - **[../internal/README.md](../internal/README.md)** - Core architecture overview and principles
@@ -21,20 +25,27 @@ This directory contains technical documentation for the Robogo test automation f
 
 ```
 docs/
-├── README.md                      # This file - documentation overview
-├── execution-flow-diagram.md      # Technical architecture diagram
-└── error-failure-states-diagram.md # Error handling and state management
+├── README.md                       # This file - documentation overview
+├── execution-flow-diagram.md       # Technical architecture diagram
+├── error-failure-states-diagram.md # Error handling and state management
+├── action-system-architecture.md   # Action registration and execution flow
+├── variable-resolution-flow.md     # Variable substitution process
+├── strategy-selection-logic.md     # Priority-based strategy routing
+└── retry-logic-flow.md             # Retry mechanism with data extraction
 
 internal/
-├── README.md                      # Core architecture principles
-├── actions/README.md              # Action system documentation
-└── execution/README.md            # Execution strategy documentation
+├── README.md                       # Core architecture principles
+├── actions/README.md               # Action system documentation
+├── execution/README.md             # Execution strategy documentation
+├── common/README.md                # Variable system and utilities
+├── constants/README.md             # Framework constants and configuration
+└── types/README.md                 # Core data structures
 
 examples/
-└── README.md                      # User guide with test examples
+└── README.md                       # User guide with test examples
 
-README.md                          # Main project documentation
-CLAUDE.md                          # Development instructions for Claude Code
+README.md                           # Main project documentation
+CLAUDE.md                           # Development instructions for Claude Code
 ```
 
 ## Documentation Philosophy
