@@ -59,7 +59,7 @@ func (v *Variables) GetSnapshot() map[string]interface{} {
 // Substitute performs variable substitution using ${variable} syntax
 func (v *Variables) Substitute(template string) string {
 	result := template
-	
+
 	// Handle ${ENV:VARIABLE_NAME} syntax for environment variables
 	for {
 		start := strings.Index(result, "${ENV:")
@@ -71,15 +71,15 @@ func (v *Variables) Substitute(template string) string {
 			break
 		}
 		end += start
-		
+
 		// Extract environment variable name
-		envVar := result[start+6:end] // Skip "${ENV:"
+		envVar := result[start+6 : end] // Skip "${ENV:"
 		envValue := os.Getenv(envVar)
-		
+
 		// Replace with environment value
 		result = result[:start] + envValue + result[end+1:]
 	}
-	
+
 	// Handle ${variable} syntax for stored variables
 	for {
 		start := strings.Index(result, "${")
@@ -91,10 +91,10 @@ func (v *Variables) Substitute(template string) string {
 			break
 		}
 		end += start
-		
+
 		// Extract variable name
-		varName := result[start+2:end] // Skip "${"
-		
+		varName := result[start+2 : end] // Skip "${"
+
 		// Skip if this is an ENV: variable (already handled above)
 		if strings.HasPrefix(varName, "ENV:") {
 			// Find next occurrence
@@ -104,7 +104,7 @@ func (v *Variables) Substitute(template string) string {
 			}
 			continue
 		}
-		
+
 		// Replace with stored variable value
 		if value, exists := v.data[varName]; exists {
 			strValue := ""
@@ -114,10 +114,10 @@ func (v *Variables) Substitute(template string) string {
 			result = result[:start] + strValue + result[end+1:]
 		} else {
 			// Mark as unresolved but continue processing
-			result = result[:start] + "__UNRESOLVED_"+varName+"__" + result[end+1:]
+			result = result[:start] + "__UNRESOLVED_" + varName + "__" + result[end+1:]
 		}
 	}
-	
+
 	return result
 }
 
@@ -125,23 +125,54 @@ func (v *Variables) Substitute(template string) string {
 func (v *Variables) SubstituteArgs(args []any) []any {
 	result := make([]any, len(args))
 	for i, arg := range args {
-		if str, ok := arg.(string); ok {
-			// Check if this is a simple variable reference like "${var_name}"
-			if v.isSimpleVariableReference(str) {
-				// For simple variable references, return the actual value, not string conversion
-				varName := str[2 : len(str)-1] // Remove ${ and }
-				if v.Has(varName) {
-					result[i] = v.Get(varName)
-					continue
-				}
-			}
-			// For complex templates or non-variable strings, do normal substitution
-			result[i] = v.Substitute(str)
-		} else {
-			result[i] = arg
-		}
+		result[i] = v.substituteInData(arg)
 	}
 	return result
+}
+
+// substituteInData recursively substitutes variables in nested data structures
+func (v *Variables) substituteInData(data any) any {
+	switch val := data.(type) {
+	case string:
+		// Check if this is a simple variable reference like "${var_name}"
+		if v.isSimpleVariableReference(val) {
+			// For simple variable references, return the actual value, not string conversion
+			varName := val[2 : len(val)-1] // Remove ${ and }
+			if v.Has(varName) {
+				return v.Get(varName)
+			}
+		}
+		// For complex templates or non-variable strings, do normal substitution
+		return v.Substitute(val)
+	case map[string]any:
+		result := make(map[string]any)
+		for key, value := range val {
+			// Substitute variables in both keys and values
+			substitutedKey := v.Substitute(key)
+			result[substitutedKey] = v.substituteInData(value)
+		}
+		return result
+	case []any:
+		result := make([]any, len(val))
+		for i, value := range val {
+			result[i] = v.substituteInData(value)
+		}
+		return result
+	case map[any]any:
+		result := make(map[any]any)
+		for key, value := range val {
+			// Handle keys that might be strings needing substitution
+			var substitutedKey any = key
+			if keyStr, ok := key.(string); ok {
+				substitutedKey = v.Substitute(keyStr)
+			}
+			result[substitutedKey] = v.substituteInData(value)
+		}
+		return result
+	default:
+		// For other types (numbers, booleans, etc.), return as-is
+		return data
+	}
 }
 
 // isSimpleVariableReference checks if a string is exactly "${variable_name}" with no other content
@@ -149,15 +180,15 @@ func (v *Variables) isSimpleVariableReference(str string) bool {
 	if !strings.HasPrefix(str, "${") || !strings.HasSuffix(str, "}") {
 		return false
 	}
-	
+
 	// Check if there's only one variable and nothing else
 	content := str[2 : len(str)-1] // Remove ${ and }
-	
+
 	// Simple variable name should not contain spaces or special characters except ENV: prefix
 	if strings.Contains(content, " ") || strings.Contains(content, "${") {
 		return false
 	}
-	
+
 	return true
 }
 

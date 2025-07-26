@@ -4,6 +4,13 @@ testcase: "TC-10-Generate Swift Message"
 description: Generate Swift MT103 Message With No Optional Fields
 
 steps:
+
+  # Get current date in SWIFT format (YYMMDD)
+  - name: "Get current date in SWIFT format"
+    action: time
+    args: ["060102"] # Go time format for YYMMDD
+    result: current_date
+
   - name: Create MT103 Swift Message
     action: swift_message
     args:
@@ -13,7 +20,7 @@ steps:
           ReceiverBIC: "BANKDEFFXXXX",
           TransactionRef: "REF123456789",
           BankOperationCode: "CRED",
-          ValueDate: "250719",         # YYMMDD
+          ValueDate: "${current_date}",
           Currency: "EUR",
           InterbankAmount: "1000,00",
           OrderingCustomer: "John Doe\n123 Main St\nBrussels",

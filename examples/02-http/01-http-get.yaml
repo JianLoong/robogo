@@ -6,8 +6,8 @@ variables:
   vars:
 
     # https://httpbin.org/ image is used to demostrate actions
-    # base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
-    base_url: "http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    base_url: "https://httpbin.org/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
+    # base_url: "http://localhost:8000/base64/SFRUUEJJTiBpcyBhd2Vzb21l"
 
     json_url: http://localhost:8000/json
 
