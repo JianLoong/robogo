@@ -83,6 +83,9 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("sleep", sleepAction)
 	registry.Register("ping", pingAction)
 
+	// Security actions
+	registry.Register("ssl_cert_check", sslCertCheckAction)
+
 	// Encoding actions
 	registry.Register("base64_encode", base64EncodeAction)
 	registry.Register("base64_decode", base64DecodeAction)
@@ -116,11 +119,12 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("rabbitmq", rabbitmqAction)
 	registry.Register("swift_message", swiftMessageAction)
 
-	// JSON/XML actions
+	// JSON/XML/CSV actions
 	registry.Register("json_parse", jsonParseAction)
 	registry.Register("json_build", jsonBuildAction)
 	registry.Register("xml_parse", xmlParseAction)
 	registry.Register("xml_build", xmlBuildAction)
+	registry.Register("csv_parse", csvParseAction)
 }
 
 // validateArgsResolved checks if any arguments contain unresolved variables

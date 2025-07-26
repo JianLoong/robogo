@@ -19,9 +19,16 @@ type Step struct {
 
 // ExtractConfig defines data extraction from action results
 type ExtractConfig struct {
-	Type  string `yaml:"type"`            // "jq", "xpath", "regex"
-	Path  string `yaml:"path"`            // The extraction expression
-	Group int    `yaml:"group,omitempty"` // For regex: which capture group (default: 1)
+	Type      string `yaml:"type"`               // "jq", "xpath", "regex", "csv"
+	Path      string `yaml:"path"`               // The extraction expression
+	Group     int    `yaml:"group,omitempty"`    // For regex: which capture group (default: 1)
+	
+	// CSV-specific options
+	Row       *int   `yaml:"row,omitempty"`      // For csv: specific row index (0-based), nil means not specified
+	Column    string `yaml:"column,omitempty"`   // For csv: column name or index
+	Delimiter string `yaml:"delimiter,omitempty"` // For csv: field separator (default: ",")
+	HasHeader bool   `yaml:"has_header,omitempty"` // For csv: first row contains headers (default: true)
+	Filter    string `yaml:"filter,omitempty"`   // For csv: simple filtering expression
 }
 
 // RetryConfig defines retry behavior for a step

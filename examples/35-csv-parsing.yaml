@@ -1,0 +1,213 @@
+testcase: "CSV Parsing and Extraction Test"
+description: "Test CSV parsing action and extract type functionality with various scenarios"
+
+variables:
+  vars:
+    csv_file: "examples/test-data.csv"
+    csv_string: "product,price,category\niPhone,999,Electronics\nLaptop,1299,Electronics\nBook,25,Education"
+
+steps:
+  # Test 1: Basic CSV file parsing
+  - name: "Parse CSV file with default settings"
+    action: csv_parse
+    args: ["${csv_file}"]
+    result: parsed_data
+
+  - name: "Extract total row count"
+    action: jq
+    args: ["${parsed_data}", ".row_count"]
+    result: total_rows
+
+  - name: "Verify we have 6 data rows"
+    action: assert
+    args: ["${total_rows}", "==", 6]
+
+  - name: "Extract all headers"
+    action: jq
+    args: ["${parsed_data}", ".headers"]
+    result: csv_headers
+
+  - name: "Extract first person's name"
+    action: jq
+    args: ["${parsed_data}", ".rows[0].name"]
+    result: first_name
+
+  - name: "Verify first person is John"
+    action: assert
+    args: ["${first_name}", "==", "John"]
+
+  # Test 2: CSV parsing with custom options
+  - name: "Parse CSV with custom delimiter"
+    action: csv_parse
+    args: ["name;age;city\nAlice;28;Paris\nBob;35;London"]
+    options:
+      delimiter: ";"
+      skip_header: true
+      max_rows: 2
+    result: custom_csv
+
+  - name: "Extract custom CSV row count"
+    action: jq
+    args: ["${custom_csv}", ".row_count"]
+    result: custom_rows
+
+  - name: "Verify custom CSV has 2 rows"
+    action: assert
+    args: ["${custom_rows}", "==", 2]
+
+  # Test 3: CSV extract type - specific row
+  - name: "Read CSV file and extract first row"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      row: 0
+      has_header: true
+    result: first_row
+
+  - name: "Verify first row name is John"
+    action: jq
+    args: ["${first_row}", ".name"]
+    result: extracted_name
+
+  - name: "Assert extracted name is John"
+    action: assert
+    args: ["${extracted_name}", "==", "John"]
+
+  # Test 4: CSV extract type - specific column
+  - name: "Read CSV and extract all ages"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      column: "age"
+      has_header: true
+    result: all_ages
+
+  - name: "Verify we got 6 ages"
+    action: jq
+    args: ["${all_ages}", "length"]
+    result: age_count
+
+  - name: "Assert we have 6 ages"
+    action: assert
+    args: ["${age_count}", "==", 6]
+
+  # Test 5: CSV extract type - specific cell
+  - name: "Extract specific cell (row 2, column city)"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      row: 2
+      column: "city"
+      has_header: true
+    result: bob_city
+
+  - name: "Verify Bob lives in Chicago"
+    action: assert
+    args: ["${bob_city}", "==", "Chicago"]
+
+  # Test 6: CSV extract type - filtering
+  - name: "Filter active users"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      filter: "status == active"
+      has_header: true
+    result: active_users
+
+  - name: "Count active users"
+    action: jq
+    args: ["${active_users}", "length"]
+    result: active_count
+
+  - name: "Verify we have 4 active users"
+    action: assert
+    args: ["${active_count}", "==", 4]
+
+  # Test 7: CSV extract type - numeric filtering
+  - name: "Filter high earners (salary > 70000)"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      filter: "salary > 70000"
+      has_header: true
+    result: high_earners
+
+  - name: "Count high earners"
+    action: jq
+    args: ["${high_earners}", "length"]
+    result: high_earner_count
+
+  - name: "Verify high earner count"
+    action: assert
+    args: ["${high_earner_count}", ">=", 3]
+
+  # Test 8: CSV parsing from variable (string content)
+  - name: "Parse CSV from string variable"
+    action: csv_parse
+    args: ["${csv_string}"]
+    result: string_csv
+
+  - name: "Extract product names from string CSV"
+    action: jq
+    args: ["${string_csv}", ".rows[].product"]
+    result: product_names
+
+  - name: "Verify we have 3 products"
+    action: jq
+    args: ["${product_names}", "length"]
+    result: product_count
+
+  - name: "Assert product count is 3"
+    action: assert
+    args: ["${product_count}", "==", 3]
+
+  # Test 9: CSV extract with column by index
+  - name: "Extract third column (index 2) using numeric index"
+    action: file_read
+    args: ["${csv_file}"]
+    extract:
+      type: "csv"
+      column: "2"  # city column
+      has_header: true
+    result: all_cities
+
+  - name: "Verify first city is New York"
+    action: jq
+    args: ["${all_cities}", ".[0]"]
+    result: first_city
+
+  - name: "Assert first city is New York"
+    action: assert
+    args: ["${first_city}", "==", "New York"]
+
+  # Test 10: Parse CSV string and extract expensive items (using csv_parse with JQ)
+  - name: "Parse CSV string and filter expensive items with JQ"
+    action: csv_parse
+    args: ["${csv_string}"]
+    result: string_csv_parsed
+
+  - name: "Filter expensive items (price > 500) using JQ"
+    action: jq
+    args: ["${string_csv_parsed}", ".rows | map(select(.price | tonumber > 500))"]
+    result: expensive_items
+
+  - name: "Count expensive items"
+    action: jq
+    args: ["${expensive_items}", "length"]
+    result: expensive_count
+
+  - name: "Verify expensive items count"
+    action: assert
+    args: ["${expensive_count}", "==", 2]
+
+  # Final summary
+  - name: "Log CSV processing summary"
+    action: log
+    args:
+      - "CSV Processing Test Summary"
+      - "Total rows: ${total_rows}, Active users: ${active_count}, High earners: ${high_earner_count}, Products: ${product_count}, Expensive items: ${expensive_count}"

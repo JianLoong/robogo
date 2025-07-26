@@ -50,6 +50,10 @@ This directory contains all action implementations and the action registry syste
 - **`json_build`** - JSON construction from templates
 - **`xml_parse`** - XML parsing operations
 - **`xml_build`** - XML document construction
+- **`csv_parse`** - CSV file and string parsing
+  - Configurable delimiters, headers, row limits
+  - File path or string content support
+  - JSON-compatible structured output
 
 ### String Actions
 - **`string_random`** - Random string generation
@@ -62,6 +66,17 @@ This directory contains all action implementations and the action registry syste
 - **`uuid`** - UUID generation (v4)
 - **`time`** - Time operations and formatting
 - **`sleep`** - Delays and timing control
+- **`ping`** - Network connectivity testing with ICMP ping
+  - Cross-platform support (Windows, macOS, Linux)
+  - Configurable packet count and timeout
+  - DNS resolution and statistics parsing
+
+### Security & Validation Actions
+- **`ssl_cert_check`** - SSL certificate validation and analysis
+  - Certificate expiry checking and warnings
+  - Chain verification and hostname validation
+  - Self-signed certificate handling
+  - Cross-platform TLS connection testing
 
 ### Encoding Actions
 - **`base64_encode`/`base64_decode`** - Base64 encoding operations

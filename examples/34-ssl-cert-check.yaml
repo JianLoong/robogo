@@ -1,0 +1,165 @@
+testcase: "SSL Certificate Validation Test"
+description: "Test SSL certificate validation for various hosts with different scenarios"
+
+variables:
+  vars:
+    google_host: "google.com"
+    github_host: "github.com:443"
+    local_test_host: "badssl.com"
+    timeout_duration: "10s"
+
+steps:
+  - name: "Check Google SSL certificate (should be valid)"
+    action: ssl_cert_check
+    args: ["${google_host}"]
+    options:
+      timeout: "5s"
+      verify_chain: true
+      check_expiry_days: 30
+    result: google_ssl
+
+  - name: "Extract Google certificate expiry days"
+    action: jq
+    args: ["${google_ssl}", ".days_until_expiry"]
+    result: google_expiry_days
+
+  - name: "Assert Google certificate is valid and not expiring soon"
+    action: assert
+    args: ["${google_expiry_days}", ">", 30]
+
+  - name: "Check GitHub SSL certificate with explicit port"
+    action: ssl_cert_check
+    args: ["${github_host}"]
+    options:
+      timeout: "${timeout_duration}"
+      verify_chain: true
+      check_expiry_days: 14
+    result: github_ssl
+
+  - name: "Extract GitHub certificate details"
+    action: jq
+    args: ["${github_ssl}", ".subject"]
+    result: github_subject
+
+  - name: "Extract GitHub issuer"
+    action: jq
+    args: ["${github_ssl}", ".issuer"]
+    result: github_issuer
+
+  - name: "Verify GitHub certificate is valid"
+    action: jq
+    args: ["${github_ssl}", ".valid"]
+    result: github_valid
+
+  - name: "Assert GitHub certificate is valid"
+    action: assert
+    args: ["${github_valid}", "==", true]
+
+  - name: "Log certificate information"
+    action: log
+    args: 
+      - "Certificate Information"
+      - "GitHub Subject: ${github_subject}, Issuer: ${github_issuer}, Valid: ${github_valid}"
+
+  - name: "Test self-signed certificate (should fail by default)"
+    action: ssl_cert_check
+    args: ["self-signed.badssl.com"]
+    options:
+      timeout: "8s"
+      verify_chain: true
+      allow_self_signed: false
+    result: selfsigned_ssl
+    continue: true
+
+  - name: "Test same self-signed certificate with allow_self_signed"
+    action: ssl_cert_check
+    args: ["self-signed.badssl.com"]
+    options:
+      timeout: "8s"
+      verify_chain: false
+      allow_self_signed: true
+    result: selfsigned_allowed_ssl
+
+  - name: "Verify self-signed certificate is detected"
+    action: jq
+    args: ["${selfsigned_allowed_ssl}", ".self_signed"]
+    result: is_self_signed
+
+  - name: "Assert self-signed flag is true"
+    action: assert
+    args: ["${is_self_signed}", "==", true]
+
+  - name: "Test expired certificate (should fail)"
+    action: ssl_cert_check
+    args: ["expired.badssl.com"]
+    options:
+      timeout: "8s"
+      verify_chain: false
+      allow_self_signed: true
+    result: expired_ssl
+    continue: true
+
+  - name: "Test certificate with wrong hostname (should fail)"
+    action: ssl_cert_check
+    args: ["wrong.host.badssl.com"]
+    options:
+      timeout: "8s"
+      verify_chain: true
+      skip_hostname_verify: false
+    result: wrong_hostname_ssl
+    continue: true
+
+  - name: "Test same certificate with hostname verification disabled"
+    action: ssl_cert_check
+    args: ["wrong.host.badssl.com"]
+    options:
+      timeout: "8s"
+      verify_chain: false
+      skip_hostname_verify: true
+    result: hostname_skip_ssl
+
+  - name: "Verify hostname skip worked"
+    action: jq
+    args: ["${hostname_skip_ssl}", ".valid"]
+    result: hostname_skip_valid
+
+  - name: "Test certificate with short expiry warning"
+    action: ssl_cert_check
+    args: ["${google_host}"]
+    options:
+      timeout: "5s"
+      check_expiry_days: 365  # Set high to trigger warning for demonstration
+    result: expiry_warning_ssl
+
+  - name: "Extract expiry warning flag"
+    action: jq
+    args: ["${expiry_warning_ssl}", ".expiry_warning"]
+    result: has_expiry_warning
+
+  - name: "Test with custom timeout"
+    action: ssl_cert_check
+    args: ["httpbin.org"]
+    options:
+      timeout: "2s"
+      verify_chain: true
+    result: httpbin_ssl
+
+  - name: "Extract HTTPBin certificate chain length"
+    action: jq
+    args: ["${httpbin_ssl}", ".chain_length"]
+    result: chain_length
+
+  - name: "Assert certificate chain has reasonable length"
+    action: assert
+    args: ["${chain_length}", ">=", 1]
+
+  - name: "Extract all DNS names from certificate"
+    action: jq
+    args: ["${httpbin_ssl}", ".dns_names"]
+    result: dns_names
+
+  - name: "Log comprehensive SSL test results"
+    action: log
+    args:
+      - "SSL Certificate Test Summary"
+      - "Google expiry: ${google_expiry_days} days, GitHub valid: ${github_valid}, Self-signed detected: ${is_self_signed}, Chain length: ${chain_length}, DNS names: ${dns_names}"

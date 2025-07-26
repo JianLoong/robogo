@@ -66,7 +66,7 @@ CLI → TestRunner → ExecutionStrategyRouter → Strategies → Actions
 - **TestRunner (`internal/runner.go`)**: Core orchestrator, creates ExecutionStrategyRouter directly
 - **ExecutionStrategyRouter (`internal/execution/strategy_router.go`)**: Priority-based strategy routing system
 - **Execution Strategies (`internal/execution/`)**: Strategy pattern for different step types (conditional, retry, nested, basic)
-- **Actions (`internal/actions/`)**: 19 action implementations with consistent signature pattern
+- **Actions (`internal/actions/`)**: 26 action implementations with consistent signature pattern
 - **Variables (`internal/common/variables.go`)**: Variable substitution using `${variable}` and `${ENV:VAR}` syntax
 - **Types (`internal/types/`)**: Core data structures for tests, steps, and results
 - **Constants (`internal/constants/`)**: Consolidated execution and configuration constants
@@ -75,17 +75,18 @@ CLI → TestRunner → ExecutionStrategyRouter → Strategies → Actions
 
 Actions follow a consistent function signature: `func(args []any, options map[string]any, vars *Variables) ActionResult`
 
-Registered in `internal/actions/action_registry.go` with 24 actions across categories:
+Registered in `internal/actions/action_registry.go` with 26 actions across categories:
 - **Core**: `assert`, `log`, `variable` (3)
 - **HTTP**: `http` (supports GET, POST, PUT, DELETE, PATCH, HEAD) (1)
 - **Database**: `postgres`, `spanner` (2)
 - **File Operations**: `file_read`, `scp` (2)
 - **Messaging**: `kafka`, `rabbitmq`, `swift_message` (3)
 - **Data Processing**: `jq`, `xpath` (2)
-- **JSON/XML**: `json_parse`, `json_build`, `xml_parse`, `xml_build` (4)
+- **JSON/XML/CSV**: `json_parse`, `json_build`, `xml_parse`, `xml_build`, `csv_parse` (5)
 - **String Operations**: `string_random`, `string_replace`, `string_format`, `string` (4)
 - **Encoding**: `base64_encode`, `base64_decode`, `url_encode`, `url_decode`, `hash` (5)
-- **Utilities**: `uuid`, `time`, `sleep` (3)
+- **Utilities**: `uuid`, `time`, `sleep`, `ping` (4)
+- **Security/Validation**: `ssl_cert_check` (1)
 
 ### Execution Strategy System
 
@@ -138,9 +139,9 @@ result.HasIssue()    # True for either errors or failures
 
 - Uses `${variable}` syntax for simple variable substitution
 - Uses `${ENV:VARIABLE_NAME}` syntax for environment variable access
-- For complex data extraction, use `jq` action for JSON/structured data or `xpath` action for XML
+- For complex data extraction, use `jq` action for JSON/structured data, `xpath` action for XML, or `csv` extract type for CSV data
 - Simple substitution engine replaces `${variable_name}` patterns
-- Unresolved variables show warnings with hints to use `jq` for complex access
+- Unresolved variables show warnings with hints to use `jq` for complex access or `csv` extract for CSV data
 
 #### Environment Variables
 
@@ -305,7 +306,7 @@ When working with tests that require external services:
 
 ## Testing
 
-The project uses YAML-based integration tests in the `examples/` directory with **49 comprehensive test examples**. There are no traditional Go unit tests - the framework is designed for end-to-end testing of external services.
+The project uses YAML-based integration tests in the `examples/` directory with **51 comprehensive test examples**. There are no traditional Go unit tests - the framework is designed for end-to-end testing of external services.
 
 ### Quick Test Examples
 
@@ -315,6 +316,9 @@ The project uses YAML-based integration tests in the `examples/` directory with 
 ./robogo run examples/02-http-post.yaml        # HTTP POST with JSON data
 ./robogo run examples/00-util.yaml             # Utility actions (UUID, time, variables)
 ./robogo run examples/08-control-flow.yaml     # Conditional execution (if statements)
+./robogo run examples/26-ping-network-test.yaml # Network connectivity testing
+./robogo run examples/34-ssl-cert-check.yaml   # SSL certificate validation
+./robogo run examples/35-csv-parsing.yaml      # CSV data processing and extraction
 ```
 
 **Requires docker-compose up -d:**
@@ -333,7 +337,8 @@ The project uses YAML-based integration tests in the `examples/` directory with 
 - **File Operations**: Local file reading, secure SCP transfers (examples 23-25)
 - **Security Features**: Environment variables, no-log mode, data masking (examples 17-20)
 - **Control Flow**: Conditional logic, retry mechanisms, nested steps (examples 08, 13, 21)
-- **Data Processing**: JSON/XML parsing, jq queries, string operations (examples 11-12, 14-16)
+- **Data Processing**: JSON/XML/CSV parsing, jq queries, string operations (examples 11-12, 14-16, 35)
+- **Network Testing**: ICMP ping connectivity, SSL certificate validation (examples 26, 34)
 
 ### Development Testing
 

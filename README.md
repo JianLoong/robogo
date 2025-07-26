@@ -232,6 +232,7 @@ Test Summary:
 - **`xpath`** - XML data processing and queries
 - **`json_parse`/`json_build`** - JSON parsing and construction
 - **`xml_parse`/`xml_build`** - XML parsing and construction
+- **`csv_parse`** - CSV file and string parsing with configurable delimiters, headers, and row limits
 
 ### String & Encoding
 - **`string_random`** - Random string generation
@@ -244,12 +245,16 @@ Test Summary:
 - **`uuid`** - UUID v4 generation
 - **`time`** - Time operations and formatting
 - **`sleep`** - Delays and timing control
+- **`ping`** - Network connectivity testing with ICMP ping
+
+### Security & Validation
+- **`ssl_cert_check`** - SSL certificate validation, expiry checking, chain verification, and hostname validation
 
 ## Test Structure
 
 ### Example Tests
 
-Robogo includes 50+ comprehensive test examples. Here are the key categories:
+Robogo includes 51+ comprehensive test examples. Here are the key categories:
 
 | Category | Example | Features Demonstrated | Command |
 |----------|---------|----------------------|---------|
@@ -263,6 +268,9 @@ Robogo includes 50+ comprehensive test examples. Here are the key categories:
 | **Retry Logic** | [13-retry-demo.yaml](examples/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/13-retry-demo.yaml` |
 | **Nested Steps** | [21-simple-nested-test.yaml](examples/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/21-simple-nested-test.yaml` |
 | **File Transfer** | [23-scp-simple-test.yaml](examples/23-scp-simple-test.yaml) | SSH/SFTP file operations | `./robogo run examples/23-scp-simple-test.yaml` |
+| **Network Testing** | [26-ping-network-test.yaml](examples/26-ping-network-test.yaml) | ICMP ping connectivity testing | `./robogo run examples/26-ping-network-test.yaml` |
+| **SSL Certificate** | [34-ssl-cert-check.yaml](examples/34-ssl-cert-check.yaml) | Certificate validation, expiry checks | `./robogo run examples/34-ssl-cert-check.yaml` |
+| **CSV Processing** | [35-csv-parsing.yaml](examples/35-csv-parsing.yaml) | CSV parsing, extraction, filtering | `./robogo run examples/35-csv-parsing.yaml` |
 
 **📁 Browse all examples:** See **[examples/README.md](examples/README.md)** for the complete catalog with beginner to expert examples.
 
@@ -294,6 +302,12 @@ steps:
 **Important:** Use `jq` action to extract data from HTTP responses - simple `${response.field}` syntax doesn't work for complex objects. You can either:
 1. **Use built-in `extract`** (modern approach): Add `extract` block to any step for automatic data extraction
 2. **Use separate `jq` step** (traditional approach): Extract in a separate step, then use the extracted value
+
+**Extract Types:** Robogo supports multiple built-in extract types:
+- `jq` - JSON path queries (`.field`, `.array[0]`, etc.)
+- `xpath` - XML path queries for XML data
+- `regex` - Regular expression pattern matching with capture groups
+- `csv` - CSV data extraction with row/column/cell extraction and filtering support
 
 **Advanced Features:** The examples table above includes advanced patterns like retry logic, control flow, nested steps, and security features. For the complete catalog with complexity levels, see **[examples/README.md](examples/README.md)**.
 

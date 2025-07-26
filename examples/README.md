@@ -37,6 +37,7 @@ This directory contains comprehensive test case examples demonstrating all featu
 ### Data Processing
 - **`17-xml-operations.yaml`** - XML parsing and manipulation
 - **`json-build-comparison.yaml`** - JSON construction examples
+- **`35-csv-parsing.yaml`** - CSV parsing and extraction with comprehensive examples
 
 ### String Operations
 - **`15-string-simple.yaml`** - Basic string operations
@@ -79,6 +80,10 @@ This directory contains comprehensive test case examples demonstrating all featu
 - **`19-no-log-security.yaml`** - No-log security for sensitive operations
 - **`20-step-level-masking.yaml`** - Step-level sensitive data masking
 - **`20-log-formatting.yaml`** - Secure log formatting
+
+### Network Testing
+- **`26-ping-network-test.yaml`** - ICMP ping connectivity testing
+- **`34-ssl-cert-check.yaml`** - SSL certificate validation and security testing
 
 ### Environment and Configuration
 - **`17-env-var-test.yaml`** - Environment variable usage
@@ -232,16 +237,19 @@ export DB_PASSWORD=robogo_testpass
 - `02-http-post.yaml` - HTTP with JSON data
 - `03-postgres-basic.yaml` - Database queries
 - `16-setup-teardown-demo.yaml` - Lifecycle management
+- `26-ping-network-test.yaml` - Network connectivity testing
 
 ### Advanced (Complex Flows)
 - `09-e2e-integration.yaml` - Full integration test
 - `14-retry-with-failures.yaml` - Complex retry scenarios
 - `22-debug-while-nested.yaml` - Nested operations with debugging
+- `35-csv-parsing.yaml` - Comprehensive CSV processing with 35 test steps
 
 ### Expert (Security & Production)
 - `19-no-log-security.yaml` - Security-aware testing
 - `25-scp-download-test.yaml` - Secure file operations
 - `31-kafka-extraction.yaml` - Message processing with extraction
+- `34-ssl-cert-check.yaml` - SSL certificate validation and security analysis
 
 ## Best Practices Demonstrated
 
@@ -268,6 +276,7 @@ export DB_PASSWORD=robogo_testpass
 ### Data Extraction
 - Use `jq` for JSON data processing
 - Use `xpath` for XML data processing
+- Use `csv` extract type for CSV data processing
 - Store extracted data in descriptive variable names
 
 ## Contributing Examples
