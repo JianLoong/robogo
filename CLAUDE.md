@@ -165,10 +165,10 @@ Required environment variables can be set in multiple ways:
 cp .env.example .env
 
 # Run test (automatically loads .env)
-./robogo run examples/03-postgres-secure.yaml
+./robogo run examples/03-database/03-postgres-secure.yaml
 
 # Or specify custom .env file
-./robogo --env my-custom.env run examples/03-postgres-secure.yaml
+./robogo --env my-custom.env run examples/03-database/03-postgres-secure.yaml
 ```
 
 **Option 2: Export environment variables**
@@ -178,7 +178,7 @@ export DB_PASSWORD=robogo_testpass
 export DB_HOST=localhost
 export DB_PORT=5432
 export DB_NAME=robogo_testdb
-./robogo run examples/03-postgres-secure.yaml
+./robogo run examples/03-database/03-postgres-secure.yaml
 ```
 
 **Note:** Explicitly set environment variables take precedence over .env file values.
@@ -312,21 +312,21 @@ The project uses YAML-based integration tests in the `examples/` directory with 
 
 **No setup required (HTTP-based):**
 ```bash
-./robogo run examples/01-http-get.yaml         # Basic HTTP GET with jq extraction
-./robogo run examples/02-http-post.yaml        # HTTP POST with JSON data
-./robogo run examples/00-util.yaml             # Utility actions (UUID, time, variables)
-./robogo run examples/08-control-flow.yaml     # Conditional execution (if statements)
-./robogo run examples/26-ping-network-test.yaml # Network connectivity testing
-./robogo run examples/34-ssl-cert-check.yaml   # SSL certificate validation
-./robogo run examples/35-csv-parsing.yaml      # CSV data processing and extraction
+./robogo run examples/02-http/01-http-get.yaml         # Basic HTTP GET with jq extraction
+./robogo run examples/02-http/02-http-post.yaml        # HTTP POST with JSON data
+./robogo run examples/01-basics/00-util.yaml           # Utility actions (UUID, time, variables)
+./robogo run examples/09-advanced/08-control-flow.yaml # Conditional execution (if statements)
+./robogo run examples/11-network/26-ping-network-test.yaml # Network connectivity testing
+./robogo run examples/11-network/34-ssl-cert-check.yaml    # SSL certificate validation
+./robogo run examples/06-data-processing/35-csv-parsing.yaml # CSV data processing and extraction
 ```
 
 **Requires docker-compose up -d:**
 ```bash
-./robogo run examples/03-postgres-basic.yaml   # PostgreSQL database operations
-./robogo run examples/05-kafka-basic.yaml      # Kafka producer/consumer
-./robogo run examples/06-spanner-basic.yaml    # Google Cloud Spanner
-./robogo run examples/23-scp-simple-test.yaml  # SSH/SCP file transfer
+./robogo run examples/03-database/03-postgres-basic.yaml   # PostgreSQL database operations
+./robogo run examples/04-messaging/05-kafka-basic.yaml     # Kafka producer/consumer
+./robogo run examples/03-database/06-spanner-basic.yaml    # Google Cloud Spanner
+./robogo run examples/05-files/23-scp-simple-test.yaml     # SSH/SCP file transfer
 ```
 
 ### Test Categories

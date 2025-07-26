@@ -5,21 +5,6 @@ This diagram shows how the action system works in Robogo - from action registrat
 ## Action System Flow
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#2563eb',
-    'primaryTextColor': '#1f2937',
-    'primaryBorderColor': '#3b82f6',
-    'lineColor': '#6b7280',
-    'secondaryColor': '#f3f4f6',
-    'tertiaryColor': '#e5e7eb',
-    'background': '#ffffff',
-    'mainBkg': '#f9fafb',
-    'secondBkg': '#f3f4f6',
-    'tertiaryBkg': '#e5e7eb'
-  }
-}}%%
 flowchart TD
     subgraph "Framework Initialization"
         Start([Framework Startup]) --> Registry[ActionRegistry Creation]
@@ -92,22 +77,7 @@ flowchart TD
     ActionError --> FinalResult
     FinalResult --> NextStep[Next Step or Complete]
 
-    %% Styling with dark mode friendly colors
-    classDef startNode fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e40af
-    classDef registryNode fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#047857
-    classDef actionNode fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,color:#6d28d9
-    classDef processNode fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e
-    classDef securityNode fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#b91c1c
-    classDef resultNode fill:#f0f9ff,stroke:#0ea5e9,stroke-width:2px,color:#0c4a6e
-    classDef errorNode fill:#fed7aa,stroke:#ea580c,stroke-width:2px,color:#c2410c
 
-    class Start,Registry startNode
-    class RegBuiltin,RegMap,RegCore,RegHTTP,RegDB,RegMsg,RegFile,RegData,RegString,RegUtil,RegEnc registryNode
-    class StepExec,ActionLookup,FuncPtr,VarSub,ArgValidation actionNode
-    class SecurityCheck,NoLogCheck,SensFieldCheck,ApplyMask,SuppressLog securityNode
-    class ExecuteAction,ActionFunc,FuncSig,ActionLogic,ActionReturn processNode
-    class ResultStatus,PassFlow,ErrorFlow,FailFlow,SkipFlow,StoreResult,LogError,LogFailure,LogSkip resultNode
-    class ActionError,VarStore,OutputMask,FinalResult,NextStep errorNode
 ```
 
 ## Action Function Signature

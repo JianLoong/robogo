@@ -504,7 +504,7 @@ retry:
 # 5. retry_if condition evaluates using extracted api_status
 # 6. If condition true, wait delay and retry entire process
 
-# Real-world example from examples/27-retry-extraction-fixed.yaml
+# Real-world example from examples/06-data-processing/27-retry-extraction-fixed.yaml
 - name: "Wait for specific author in JSON response"
   action: http
   args: ["GET", "http://localhost:8000/json"]

@@ -3,21 +3,6 @@
 This diagram shows how a test case flows through the current Robogo framework architecture.
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#2563eb',
-    'primaryTextColor': '#1f2937',
-    'primaryBorderColor': '#3b82f6',
-    'lineColor': '#6b7280',
-    'secondaryColor': '#f3f4f6',
-    'tertiaryColor': '#e5e7eb',
-    'background': '#ffffff',
-    'mainBkg': '#f9fafb',
-    'secondBkg': '#f3f4f6',
-    'tertiaryBkg': '#e5e7eb'
-  }
-}}%%
 graph TD
     A[YAML Test File] --> B[CLI Parser]
     B --> C[TestRunner.LoadTest]
@@ -95,20 +80,7 @@ graph TD
     O6 --> A7[String Actions<br/>string_random, format]
     O6 --> A8[Core Actions<br/>log, assert, variable]
 
-    %% Dark-mode friendly styling
-    classDef startNode fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e40af
-    classDef processNode fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#047857
-    classDef decisionNode fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e
-    classDef completeNode fill:#f0f9ff,stroke:#0ea5e9,stroke-width:2px,color:#0c4a6e
-    classDef securityNode fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#b91c1c
-    classDef actionNode fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,color:#6d28d9
 
-    class A,E,F startNode
-    class B,C,D,E1,E2,E3,E4,G,I,J,L1,L2,M1,M2,M3,N1,N2,O1,O2,O7,O8,R,S,T,U processNode
-    class K,Q decisionNode
-    class P,V completeNode
-    class O3,O4,O5 securityNode
-    class A1,A2,A3,A4,A5,A6,A7,A8 actionNode
 ```
 
 ## Current Architecture Highlights

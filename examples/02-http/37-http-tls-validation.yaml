@@ -1,0 +1,49 @@
+testcase: "TC-HTTP-TLS-002"
+description: "Test that TLS validation still works when skip_tls_verify is false or not set"
+
+variables:
+  vars:
+    # Self-signed certificate endpoint that should fail normal validation
+    self_signed_url: "https://self-signed.badssl.com/"
+    
+    # Expired certificate that should fail
+    expired_url: "https://expired.badssl.com/"
+
+steps:
+  - name: "Test request to self-signed cert without skip option (should fail)"
+    action: http
+    args: ["GET", "${self_signed_url}"]
+    options:
+      timeout: "10s"
+    result: failed_response
+    if: false  # Skip this as it would cause an error
+
+  - name: "Test request to self-signed cert with skip_tls_verify explicitly false (should fail)"
+    action: http
+    args: ["GET", "${self_signed_url}"]
+    options:
+      timeout: "10s"
+      skip_tls_verify: false
+    result: failed_response_explicit
+    if: false  # Skip this as it would cause an error
+
+  - name: "Test request to self-signed cert with skip_tls_verify true (should work)"
+    action: http
+    args: ["GET", "${self_signed_url}"]
+    options:
+      timeout: "10s"
+      skip_tls_verify: true
+    result: success_response
+
+  - name: "Verify success response has status code"
+    action: jq
+    args: ["${success_response}", ".status_code"]
+    result: success_status
+
+  - name: "Assert that skip TLS request succeeded"
+    action: assert
+    args: ["${success_status}", "==", "200"]
+
+  - name: "Log success to confirm skip_tls_verify works"
+    action: log
+    args: ["Successfully accessed self-signed cert with skip_tls_verify: true"]

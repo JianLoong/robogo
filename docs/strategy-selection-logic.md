@@ -5,21 +5,6 @@ This diagram shows how the ExecutionStrategyRouter determines which execution st
 ## Strategy Selection Process
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#2563eb',
-    'primaryTextColor': '#1f2937',
-    'primaryBorderColor': '#3b82f6',
-    'lineColor': '#6b7280',
-    'secondaryColor': '#f3f4f6',
-    'tertiaryColor': '#e5e7eb',
-    'background': '#ffffff',
-    'mainBkg': '#f9fafb',
-    'secondBkg': '#f3f4f6',
-    'tertiaryBkg': '#e5e7eb'
-  }
-}}%%
 flowchart TD
     subgraph "Router Initialization"
         RouterStart[ExecutionStrategyRouter Creation] --> RegStrategies[Register All Strategies]
@@ -111,24 +96,7 @@ flowchart TD
     CheckSteps -->|No| CheckAction
     CheckAction -->|No| UnknownStep
 
-    %% Styling
-    classDef initNode fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e40af
-    classDef analysisNode fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#047857
-    classDef decisionNode fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e
-    classDef strategyNode fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,color:#6d28d9
-    classDef selectedNode fill:#dcfce7,stroke:#16a34a,stroke-width:3px,color:#15803d
-    classDef executionNode fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#b91c1c
-    classDef resultNode fill:#f0f9ff,stroke:#0ea5e9,stroke-width:2px,color:#0c4a6e
-    classDef errorNode fill:#fed7aa,stroke:#ea580c,stroke-width:2px,color:#c2410c
 
-    class RouterStart,RegStrategies initNode
-    class StepInput,StepAnalysis,ConditionalExec,RetryExec,NestedExec,BasicExec analysisNode
-    class CheckIf,CheckRetry,CheckSteps,CheckAction,ConditionalCheck,RetryCheck,NestedCheck,BasicCheck decisionNode
-    class Priority4,Priority3,Priority2,Priority1,ConditionalCanHandle,RetryCanHandle,NestedCanHandle,BasicCanHandle strategyNode
-    class ConditionalSelected,RetrySelected,NestedSelected,BasicSelected selectedNode
-    class EvaluateCondition,AttemptExecution,IterateSteps,ActionLookup,ActionExecution executionNode
-    class SkippedResult,RetrySuccess,RetryFailure,AggregateResults,BasicResult,FinalResult resultNode
-    class NextPriority3,NextPriority2,NextPriority1,UnknownStep,RemoveIf,RouteBack errorNode
 ```
 
 ## Strategy Priority System

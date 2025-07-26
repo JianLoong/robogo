@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -121,7 +122,18 @@ func httpAction(args []any, options map[string]any, vars *common.Variables) type
 		}
 	}
 
+	// Create HTTP client with optional TLS skip verification
 	client := &http.Client{Timeout: timeout}
+	
+	// Check if TLS verification should be skipped
+	if skipTLS, ok := options["skip_tls_verify"].(bool); ok && skipTLS {
+		transport := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+		client.Transport = transport
+	}
 
 	resp, err := client.Do(req)
 

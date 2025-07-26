@@ -86,7 +86,7 @@ The quickest way to get started is with our showcase HTTP example:
 
 ```bash
 # Run the main showcase test (no setup needed)
-./robogo run examples/01-http-get.yaml
+./robogo run examples/02-http/01-http-get.yaml
 ```
 
 **Main Showcase Example:**
@@ -254,23 +254,23 @@ Test Summary:
 
 ### Example Tests
 
-Robogo includes 51+ comprehensive test examples. Here are the key categories:
+Robogo includes 52 comprehensive test examples organized into 12 categories. Here are the key examples:
 
 | Category | Example | Features Demonstrated | Command |
 |----------|---------|----------------------|---------|
-| **HTTP Basics** | [01-http-get.yaml](examples/01-http-get.yaml) | GET requests, jq extraction, assertions | `./robogo run examples/01-http-get.yaml` |
-| **HTTP POST** | [02-http-post.yaml](examples/02-http-post.yaml) | POST with JSON, nested data extraction | `./robogo run examples/02-http-post.yaml` |
-| **Utilities** | [00-util.yaml](examples/00-util.yaml) | UUID generation, basic logging | `./robogo run examples/00-util.yaml` |
-| **Environment Variables** | [17-env-var-test.yaml](examples/17-env-var-test.yaml) | ${ENV:VAR} syntax, credential management | `./robogo run examples/17-env-var-test.yaml` |
-| **Security** | [19-no-log-security.yaml](examples/19-no-log-security.yaml) | no_log, sensitive_fields, data masking | `./robogo run examples/19-no-log-security.yaml` |
-| **Database** | [03-postgres-basic.yaml](examples/03-postgres-basic.yaml) | PostgreSQL operations, queries | `./robogo run examples/03-postgres-basic.yaml` |
-| **Conditional Logic** | [08-control-flow.yaml](examples/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/08-control-flow.yaml` |
-| **Retry Logic** | [13-retry-demo.yaml](examples/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/13-retry-demo.yaml` |
-| **Nested Steps** | [21-simple-nested-test.yaml](examples/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/21-simple-nested-test.yaml` |
-| **File Transfer** | [23-scp-simple-test.yaml](examples/23-scp-simple-test.yaml) | SSH/SFTP file operations | `./robogo run examples/23-scp-simple-test.yaml` |
-| **Network Testing** | [26-ping-network-test.yaml](examples/26-ping-network-test.yaml) | ICMP ping connectivity testing | `./robogo run examples/26-ping-network-test.yaml` |
-| **SSL Certificate** | [34-ssl-cert-check.yaml](examples/34-ssl-cert-check.yaml) | Certificate validation, expiry checks | `./robogo run examples/34-ssl-cert-check.yaml` |
-| **CSV Processing** | [35-csv-parsing.yaml](examples/35-csv-parsing.yaml) | CSV parsing, extraction, filtering | `./robogo run examples/35-csv-parsing.yaml` |
+| **HTTP Basics** | [01-http-get.yaml](examples/02-http/01-http-get.yaml) | GET requests, jq extraction, assertions | `./robogo run examples/02-http/01-http-get.yaml` |
+| **HTTP POST** | [02-http-post.yaml](examples/02-http/02-http-post.yaml) | POST with JSON, nested data extraction | `./robogo run examples/02-http/02-http-post.yaml` |
+| **Utilities** | [00-util.yaml](examples/01-basics/00-util.yaml) | UUID generation, basic logging | `./robogo run examples/01-basics/00-util.yaml` |
+| **Environment Variables** | [17-env-var-test.yaml](examples/10-security/17-env-var-test.yaml) | ${ENV:VAR} syntax, credential management | `./robogo run examples/10-security/17-env-var-test.yaml` |
+| **Security** | [19-no-log-security.yaml](examples/10-security/19-no-log-security.yaml) | no_log, sensitive_fields, data masking | `./robogo run examples/10-security/19-no-log-security.yaml` |
+| **Database** | [03-postgres-basic.yaml](examples/03-database/03-postgres-basic.yaml) | PostgreSQL operations, queries | `./robogo run examples/03-database/03-postgres-basic.yaml` |
+| **Conditional Logic** | [08-control-flow.yaml](examples/09-advanced/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/09-advanced/08-control-flow.yaml` |
+| **Retry Logic** | [13-retry-demo.yaml](examples/09-advanced/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/09-advanced/13-retry-demo.yaml` |
+| **Nested Steps** | [21-simple-nested-test.yaml](examples/09-advanced/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/09-advanced/21-simple-nested-test.yaml` |
+| **File Transfer** | [23-scp-simple-test.yaml](examples/05-files/23-scp-simple-test.yaml) | SSH/SFTP file operations | `./robogo run examples/05-files/23-scp-simple-test.yaml` |
+| **Network Testing** | [26-ping-network-test.yaml](examples/11-network/26-ping-network-test.yaml) | ICMP ping connectivity testing | `./robogo run examples/11-network/26-ping-network-test.yaml` |
+| **SSL Certificate** | [34-ssl-cert-check.yaml](examples/11-network/34-ssl-cert-check.yaml) | Certificate validation, expiry checks | `./robogo run examples/11-network/34-ssl-cert-check.yaml` |
+| **CSV Processing** | [35-csv-parsing.yaml](examples/06-data-processing/35-csv-parsing.yaml) | CSV parsing, extraction, filtering | `./robogo run examples/06-data-processing/35-csv-parsing.yaml` |
 
 **📁 Browse all examples:** See **[examples/README.md](examples/README.md)** for the complete catalog with beginner to expert examples.
 
@@ -319,10 +319,10 @@ Robogo provides comprehensive security features for sensitive data handling:
 
 | Security Feature | Example | What It Demonstrates | Command |
 |-----------------|---------|---------------------|---------|
-| **Environment Variables** | [17-env-var-test.yaml](examples/17-env-var-test.yaml) | `${ENV:VAR}` syntax, credential management | `export TEST_ENV_VAR="test_value" && ./robogo run examples/17-env-var-test.yaml` |
-| **Database Security** | [03-postgres-secure.yaml](examples/03-postgres-secure.yaml) | .env file usage, secure DB connections | `./robogo run examples/03-postgres-secure.yaml` |
-| **No-Log Mode** | [19-no-log-security.yaml](examples/19-no-log-security.yaml) | Complete logging suppression, sensitive fields | `./robogo run examples/19-no-log-security.yaml` |
-| **Step-Level Masking** | [20-step-level-masking.yaml](examples/20-step-level-masking.yaml) | Custom field masking, fine-grained controls | `./robogo run examples/20-step-level-masking.yaml` |
+| **Environment Variables** | [17-env-var-test.yaml](examples/10-security/17-env-var-test.yaml) | `${ENV:VAR}` syntax, credential management | `export TEST_ENV_VAR="test_value" && ./robogo run examples/10-security/17-env-var-test.yaml` |
+| **Database Security** | [03-postgres-secure.yaml](examples/03-database/03-postgres-secure.yaml) | .env file usage, secure DB connections | `./robogo run examples/03-database/03-postgres-secure.yaml` |
+| **No-Log Mode** | [19-no-log-security.yaml](examples/10-security/19-no-log-security.yaml) | Complete logging suppression, sensitive fields | `./robogo run examples/10-security/19-no-log-security.yaml` |
+| **Step-Level Masking** | [20-step-level-masking.yaml](examples/10-security/20-step-level-masking.yaml) | Custom field masking, fine-grained controls | `./robogo run examples/10-security/20-step-level-masking.yaml` |
 
 **Key Security Features:**
 - **Automatic masking**: Password, token, key fields automatically hidden
@@ -395,24 +395,24 @@ SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
 
 ## Example Tests
 
-The **[examples/](examples/)** directory contains 50+ comprehensive test examples organized by complexity and feature:
+The **[examples/](examples/)** directory contains 52 comprehensive test examples organized into 12 categories by feature and complexity:
 
 ### Quick Examples
 ```bash
 # HTTP testing (no services required)
-./robogo run examples/01-http-get.yaml
+./robogo run examples/02-http/01-http-get.yaml
 
 # Database testing (requires docker-compose up -d)
-./robogo run examples/03-postgres-basic.yaml
+./robogo run examples/03-database/03-postgres-basic.yaml
 
 # SCP file transfer testing
-./robogo run examples/23-scp-simple-test.yaml
+./robogo run examples/05-files/23-scp-simple-test.yaml
 
 # Messaging systems
-./robogo run examples/05-kafka-basic.yaml
+./robogo run examples/04-messaging/05-kafka-basic.yaml
 
 # Security features
-./robogo run examples/19-no-log-security.yaml
+./robogo run examples/10-security/19-no-log-security.yaml
 ```
 
 ### Example Categories
@@ -717,7 +717,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run Integration Tests
-        run: ./robogo run examples/integration-test.yaml
+        run: ./robogo run examples/12-integration/09-e2e-integration.yaml
 ```
 
 **Docker with Cron**

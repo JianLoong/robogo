@@ -1,98 +1,302 @@
 # Test Examples
 
-This directory contains comprehensive test case examples demonstrating all features and capabilities of the Robogo test automation framework.
+This directory contains comprehensive test case examples demonstrating all features and capabilities of the Robogo test automation framework. Examples are organized by category for easy navigation and learning.
 
-## Quick Start Examples
+## 📁 Directory Structure
 
-### Basic HTTP Testing
-- **`01-http-get.yaml`** - Simple HTTP GET request
-- **`02-http-post.yaml`** - HTTP POST with JSON data  
-- **`02-http-post-with-json-build.yaml`** - HTTP POST using json_build action
+| Category | Directory | Description | Examples Count |
+|----------|-----------|-------------|----------------|
+| **Basics** | [`01-basics/`](01-basics/) | Fundamental operations and utilities | 1 |
+| **HTTP** | [`02-http/`](02-http/) | HTTP requests, REST APIs, TLS handling | 5 |
+| **Database** | [`03-database/`](03-database/) | PostgreSQL, Spanner, data extraction | 5 |
+| **Messaging** | [`04-messaging/`](04-messaging/) | Kafka, SWIFT, message processing | 4 |
+| **Files** | [`05-files/`](05-files/) | File operations, SCP transfers | 3 |
+| **Data Processing** | [`06-data-processing/`](06-data-processing/) | JSON, XML, CSV parsing and extraction | 7 |
+| **Strings & Encoding** | [`07-strings-encoding/`](07-strings-encoding/) | String manipulation, encoding operations | 6 |
+| **Utilities** | [`08-utilities/`](08-utilities/) | Sleep, timing, logging utilities | 4 |
+| **Advanced** | [`09-advanced/`](09-advanced/) | Control flow, retry logic, nested operations | 10 |
+| **Security** | [`10-security/`](10-security/) | Environment variables, data masking | 4 |
+| **Network** | [`11-network/`](11-network/) | Network testing, SSL certificates | 2 |
+| **Integration** | [`12-integration/`](12-integration/) | End-to-end integration tests | 1 |
 
-### Database Testing
-- **`03-postgres-basic.yaml`** - Basic PostgreSQL queries
-- **`03-postgres-secure.yaml`** - PostgreSQL with environment variables
-- **`04-postgres-advanced.yaml`** - Advanced database operations
-- **`06-spanner-basic.yaml`** - Google Cloud Spanner queries
-- **`07-spanner-advanced.yaml`** - Advanced Spanner operations
+**Total Examples: 52**
 
-### Messaging Systems
-- **`05-kafka-basic.yaml`** - Kafka producer/consumer operations
-- **`10-swift-mt103.yaml`** - SWIFT financial messaging
+## 🚀 Quick Start Guide
 
-## Feature Categories
+### Prerequisites
+Start the development services:
+```bash
+# Start all services
+docker-compose up -d
 
-### Core Functionality
-- **`00-util.yaml`** - Utility actions (UUID, time, variables)
-- **`08-control-flow.yaml`** - Conditional logic and control flow
-- **`19-continue-on-error.yaml`** - Error handling with continue flags
+# Services available:
+# - PostgreSQL: localhost:5432
+# - Kafka: localhost:9092
+# - Spanner Emulator: localhost:9010  
+# - HTTPBin: localhost:8000
+# - SSH Server: localhost:2222 (user: testuser, pass: testpass)
+```
 
-### File Operations
-- **`13-file-read-basic.yaml`** - Basic file reading operations
-- **`14-file-read-practical.yaml`** - Practical file processing examples
-- **`23-scp-simple-test.yaml`** - Simple SCP file transfer test
-- **`24-scp-validation.yaml`** - SCP parameter validation and error handling
-- **`25-scp-download-test.yaml`** - SCP upload/download round-trip test
+### Recommended Learning Path
 
-### Data Processing
-- **`17-xml-operations.yaml`** - XML parsing and manipulation
-- **`json-build-comparison.yaml`** - JSON construction examples
-- **`35-csv-parsing.yaml`** - CSV parsing and extraction with comprehensive examples
+#### 1. Start with Basics (No services required)
+```bash
+# Basic utilities and operations
+./robogo run examples/01-basics/00-util.yaml
 
-### String Operations
-- **`15-string-simple.yaml`** - Basic string operations
-- **`15-string-random-basic.yaml`** - Random string generation
-- **`16-string-practical.yaml`** - Practical string manipulation
-- **`16-string-practical-simple.yaml`** - Simplified string examples
+# Simple HTTP requests
+./robogo run examples/02-http/01-http-get.yaml
+./robogo run examples/02-http/02-http-post.yaml
+```
 
-### Encoding and Utilities
-- **`11-encoding-basic.yaml`** - Base64, URL encoding operations
-- **`12-encoding-practical.yaml`** - Practical encoding examples
-- **`09-sleep-timing.yaml`** - Sleep and timing operations
-- **`10-sleep-practical.yaml`** - Practical timing examples
-- **`11-sleep-errors.yaml`** - Sleep with error scenarios
+#### 2. Learn Data Processing
+```bash
+# JSON and XML operations
+./robogo run examples/06-data-processing/json-build-comparison.yaml
+./robogo run examples/06-data-processing/17-xml-operations.yaml
 
-### Advanced Features
+# CSV parsing
+./robogo run examples/06-data-processing/35-csv-parsing.yaml
+```
 
-#### Retry Logic
-- **`12-retry-scenarios.yaml`** - Various retry configurations
-- **`13-retry-demo.yaml`** - Retry demonstration
-- **`14-retry-with-failures.yaml`** - Retry with different failure types
-- **`15-retry-success-demo.yaml`** - Successful retry examples
-- **`30-retry-on-errors.yaml`** - Retry on specific error types
+#### 3. Explore Advanced Features
+```bash
+# Control flow and conditionals
+./robogo run examples/09-advanced/08-control-flow.yaml
 
-#### Nested Steps and Control Flow
-- **`20-nested-while-loop.yaml`** - Nested step collections
-- **`21-simple-nested-test.yaml`** - Simple nested operations
-- **`22-debug-while-nested.yaml`** - Debugging nested operations
+# Retry logic
+./robogo run examples/09-advanced/13-retry-demo.yaml
 
-#### Setup and Teardown
-- **`16-setup-teardown-demo.yaml`** - Lifecycle management
+# Nested operations
+./robogo run examples/09-advanced/21-simple-nested-test.yaml
+```
 
-#### Data Extraction
-- **`26-fixed-extraction.yaml`** - Data extraction from responses
-- **`27-retry-extraction-fixed.yaml`** - Extraction with retry logic
-- **`28-plain-text-extraction.yaml`** - Plain text data extraction
-- **`29-database-extraction.yaml`** - Database result extraction
-- **`31-kafka-extraction.yaml`** - Kafka message extraction
+#### 4. Security and Production Features
+```bash
+# Environment variables
+./robogo run examples/10-security/17-env-var-test.yaml
 
-### Security Features
-- **`19-no-log-security.yaml`** - No-log security for sensitive operations
-- **`20-step-level-masking.yaml`** - Step-level sensitive data masking
-- **`20-log-formatting.yaml`** - Secure log formatting
+# Data masking
+./robogo run examples/10-security/19-no-log-security.yaml
+```
 
-### Network Testing
-- **`26-ping-network-test.yaml`** - ICMP ping connectivity testing
-- **`34-ssl-cert-check.yaml`** - SSL certificate validation and security testing
+#### 5. Service Integration (Requires docker-compose)
+```bash
+# Database operations
+./robogo run examples/03-database/03-postgres-basic.yaml
 
-### Environment and Configuration
-- **`17-env-var-test.yaml`** - Environment variable usage
-- **`18-test-env-missing.yaml`** - Missing environment variable handling
+# Messaging systems
+./robogo run examples/04-messaging/05-kafka-basic.yaml
 
-### Integration Testing
-- **`09-e2e-integration.yaml`** - End-to-end integration test
+# File transfers
+./robogo run examples/05-files/23-scp-simple-test.yaml
+```
 
-## Test File Structure
+## 📋 Category Details
+
+### 01-basics/ - Fundamental Operations
+Essential building blocks for all tests.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `00-util.yaml` | UUID generation, variables, basic logging | Beginner |
+
+### 02-http/ - HTTP Testing
+HTTP requests, REST APIs, and TLS handling.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `01-http-get.yaml` | Simple HTTP GET with response validation | Beginner |
+| `02-http-post.yaml` | HTTP POST with JSON data | Beginner |
+| `02-http-post-with-json-build.yaml` | HTTP POST using json_build action | Intermediate |
+| `36-http-skip-tls.yaml` | HTTP with TLS verification disabled | Intermediate |
+| `37-http-tls-validation.yaml` | HTTP with strict TLS validation | Intermediate |
+
+### 03-database/ - Database Operations
+PostgreSQL, Google Cloud Spanner, and data extraction.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `03-postgres-basic.yaml` | Basic PostgreSQL queries | Beginner |
+| `03-postgres-secure.yaml` | PostgreSQL with environment variables | Intermediate |
+| `04-postgres-advanced.yaml` | Advanced database operations | Advanced |
+| `06-spanner-basic.yaml` | Google Cloud Spanner queries | Intermediate |
+| `07-spanner-advanced.yaml` | Advanced Spanner operations | Advanced |
+| `29-database-extraction.yaml` | Database result extraction patterns | Advanced |
+
+### 04-messaging/ - Messaging Systems
+Kafka, SWIFT, and message processing.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `05-kafka-basic.yaml` | Kafka producer/consumer operations | Intermediate |
+| `10-swift-mt103.yaml` | SWIFT financial messaging (MT103) | Advanced |
+| `31-kafka-extraction.yaml` | Kafka message data extraction | Advanced |
+| `32-kafka-list-topics.yaml` | Kafka topic management | Intermediate |
+| `33-swift-dynamic-date.yaml` | SWIFT with dynamic date generation | Advanced |
+
+### 05-files/ - File Operations
+File reading, SCP transfers, and file validation.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `13-file-read-basic.yaml` | Basic file reading operations | Beginner |
+| `14-file-read-practical.yaml` | Practical file processing examples | Intermediate |
+| `23-scp-simple-test.yaml` | Simple SCP file transfer test | Intermediate |
+| `24-scp-validation.yaml` | SCP parameter validation and error handling | Advanced |
+| `25-scp-download-test.yaml` | SCP upload/download round-trip test | Advanced |
+
+### 06-data-processing/ - Data Processing
+JSON, XML, CSV parsing and data extraction.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `17-xml-operations.yaml` | XML parsing and manipulation | Intermediate |
+| `json-build-comparison.yaml` | JSON construction examples | Intermediate |
+| `35-csv-parsing.yaml` | Comprehensive CSV processing (35 steps) | Expert |
+| `26-fixed-extraction.yaml` | Data extraction from responses | Advanced |
+| `27-retry-extraction-fixed.yaml` | Extraction with retry logic | Advanced |
+| `28-plain-text-extraction.yaml` | Plain text data extraction | Intermediate |
+| `test-data.csv` | Sample CSV data for testing | - |
+
+### 07-strings-encoding/ - String Operations
+String manipulation, encoding, and random generation.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `11-encoding-basic.yaml` | Base64, URL encoding operations | Beginner |
+| `12-encoding-practical.yaml` | Practical encoding examples | Intermediate |
+| `15-string-simple.yaml` | Basic string operations | Beginner |
+| `15-string-random-basic.yaml` | Random string generation | Beginner |
+| `16-string-practical.yaml` | Practical string manipulation | Intermediate |
+| `16-string-practical-simple.yaml` | Simplified string examples | Beginner |
+
+### 08-utilities/ - Utility Operations
+Sleep, timing, and logging utilities.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `09-sleep-timing.yaml` | Sleep and timing operations | Beginner |
+| `10-sleep-practical.yaml` | Practical timing examples | Intermediate |
+| `11-sleep-errors.yaml` | Sleep with error scenarios | Intermediate |
+| `20-log-formatting.yaml` | Secure log formatting | Intermediate |
+
+### 09-advanced/ - Advanced Features
+Control flow, retry logic, nested operations, and complex scenarios.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `08-control-flow.yaml` | Conditional execution with if statements | Advanced |
+| `12-retry-scenarios.yaml` | Various retry configurations | Advanced |
+| `13-retry-demo.yaml` | Retry demonstration with backoff | Advanced |
+| `14-retry-with-failures.yaml` | Retry with different failure types | Expert |
+| `15-retry-success-demo.yaml` | Successful retry examples | Advanced |
+| `16-setup-teardown-demo.yaml` | Lifecycle management | Advanced |
+| `19-continue-on-error.yaml` | Error handling with continue flags | Advanced |
+| `20-nested-while-loop.yaml` | Nested step collections | Expert |
+| `21-simple-nested-test.yaml` | Simple nested operations | Advanced |
+| `22-debug-while-nested.yaml` | Debugging nested operations | Expert |
+| `30-retry-on-errors.yaml` | Retry on specific error types | Advanced |
+
+### 10-security/ - Security Features
+Environment variables, data masking, and secure operations.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `17-env-var-test.yaml` | Environment variable usage | Intermediate |
+| `18-test-env-missing.yaml` | Missing environment variable handling | Intermediate |
+| `19-no-log-security.yaml` | No-log security for sensitive operations | Advanced |
+| `20-step-level-masking.yaml` | Step-level sensitive data masking | Advanced |
+
+### 11-network/ - Network Testing
+Network connectivity, SSL certificates, and network validation.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `26-ping-network-test.yaml` | ICMP ping connectivity testing | Intermediate |
+| `34-ssl-cert-check.yaml` | SSL certificate validation and security | Advanced |
+
+### 12-integration/ - Integration Testing
+End-to-end integration tests combining multiple systems.
+
+| File | Description | Complexity |
+|------|-------------|------------|
+| `09-e2e-integration.yaml` | Full integration test workflow | Expert |
+
+## 🎯 Examples by Complexity Level
+
+### Beginner (Simple Actions)
+Perfect for getting started with Robogo:
+- `01-basics/00-util.yaml` - Basic utility actions
+- `02-http/01-http-get.yaml` - Single HTTP request
+- `05-files/13-file-read-basic.yaml` - File reading
+- `07-strings-encoding/11-encoding-basic.yaml` - Basic encoding
+- `08-utilities/09-sleep-timing.yaml` - Sleep operations
+
+### Intermediate (Multiple Steps)
+Building more complex workflows:
+- `02-http/02-http-post.yaml` - HTTP with JSON data
+- `03-database/03-postgres-basic.yaml` - Database queries
+- `04-messaging/05-kafka-basic.yaml` - Kafka operations
+- `06-data-processing/17-xml-operations.yaml` - XML processing
+- `10-security/17-env-var-test.yaml` - Environment variables
+
+### Advanced (Complex Flows)
+Sophisticated test scenarios:
+- `09-advanced/08-control-flow.yaml` - Conditional logic
+- `09-advanced/13-retry-demo.yaml` - Retry mechanisms
+- `09-advanced/16-setup-teardown-demo.yaml` - Lifecycle management
+- `10-security/19-no-log-security.yaml` - Security-aware testing
+- `11-network/34-ssl-cert-check.yaml` - SSL validation
+
+### Expert (Production-Ready)
+Complex, production-ready test patterns:
+- `06-data-processing/35-csv-parsing.yaml` - Comprehensive CSV processing (35 steps)
+- `09-advanced/14-retry-with-failures.yaml` - Complex retry scenarios
+- `09-advanced/20-nested-while-loop.yaml` - Nested operations
+- `09-advanced/22-debug-while-nested.yaml` - Advanced debugging
+- `12-integration/09-e2e-integration.yaml` - Full integration test
+
+## 🔧 Running Examples
+
+### Environment Setup
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your values
+# DB_HOST=localhost
+# DB_USER=robogo_testuser
+# DB_PASSWORD=robogo_testpass
+# etc.
+```
+
+### Run Individual Examples
+```bash
+# Basic HTTP test (no services required)
+./robogo run examples/02-http/01-http-get.yaml
+
+# Database test (requires docker-compose up -d)
+./robogo run examples/03-database/03-postgres-basic.yaml
+
+# Security test with environment variables
+export TEST_ENV_VAR="test_value"
+./robogo run examples/10-security/17-env-var-test.yaml
+```
+
+### Run by Category
+```bash
+# Run all HTTP examples
+./robogo run examples/02-http/*.yaml
+
+# Run all basic examples
+./robogo run examples/01-basics/*.yaml
+
+# Run all security examples
+./robogo run examples/10-security/*.yaml
+```
+
+## 📚 Test Structure Reference
 
 ### Basic Structure
 ```yaml
@@ -164,7 +368,7 @@ steps:
   # Data extraction
   - name: "Extract user data"
     action: jq
-    args: ["${api_response.data}", ".users[0].name"]
+    args: ["${api_response}", ".users[0].name"]
     result: user_name
     
   # Security features
@@ -184,74 +388,7 @@ teardown:
     args: ["Test completed: ${test_id}"]
 ```
 
-## Running Examples
-
-### Prerequisites
-Start the development services:
-```bash
-# Start all services
-docker-compose up -d
-
-# Services available:
-# - PostgreSQL: localhost:5432
-# - Kafka: localhost:9092
-# - Spanner Emulator: localhost:9010  
-# - HTTPBin: localhost:8000
-# - SSH Server: localhost:2222 (user: testuser, pass: testpass)
-```
-
-### Run Individual Tests
-```bash
-# Basic HTTP test
-./robogo run examples/01-http-get.yaml
-
-# Database test
-./robogo run examples/03-postgres-basic.yaml
-
-# SCP file transfer test
-./robogo run examples/23-scp-simple-test.yaml
-```
-
-### Run with Environment Variables
-```bash
-# Using .env file (recommended)
-cp .env.example .env
-# Edit .env with your values
-./robogo run examples/03-postgres-secure.yaml
-
-# Using explicit environment variables
-export DB_HOST=localhost
-export DB_USER=robogo_testuser  
-export DB_PASSWORD=robogo_testpass
-./robogo run examples/03-postgres-secure.yaml
-```
-
-## Example Categories by Complexity
-
-### Beginner (Simple Actions)
-- `01-http-get.yaml` - Single HTTP request
-- `00-util.yaml` - Basic utility actions
-- `13-file-read-basic.yaml` - File reading
-
-### Intermediate (Multiple Steps)
-- `02-http-post.yaml` - HTTP with JSON data
-- `03-postgres-basic.yaml` - Database queries
-- `16-setup-teardown-demo.yaml` - Lifecycle management
-- `26-ping-network-test.yaml` - Network connectivity testing
-
-### Advanced (Complex Flows)
-- `09-e2e-integration.yaml` - Full integration test
-- `14-retry-with-failures.yaml` - Complex retry scenarios
-- `22-debug-while-nested.yaml` - Nested operations with debugging
-- `35-csv-parsing.yaml` - Comprehensive CSV processing with 35 test steps
-
-### Expert (Security & Production)
-- `19-no-log-security.yaml` - Security-aware testing
-- `25-scp-download-test.yaml` - Secure file operations
-- `31-kafka-extraction.yaml` - Message processing with extraction
-- `34-ssl-cert-check.yaml` - SSL certificate validation and security analysis
-
-## Best Practices Demonstrated
+## 🛡️ Best Practices Demonstrated
 
 ### Variable Management
 - Use environment variables for secrets (`${ENV:SECRET}`)
@@ -279,18 +416,7 @@ export DB_PASSWORD=robogo_testpass
 - Use `csv` extract type for CSV data processing
 - Store extracted data in descriptive variable names
 
-## Contributing Examples
-
-When adding new examples:
-
-1. **Follow naming convention**: `##-descriptive-name.yaml`
-2. **Include description**: Add clear testcase description
-3. **Document prerequisites**: Note any required services or setup
-4. **Test thoroughly**: Ensure example works with standard setup
-5. **Update this README**: Add to appropriate category
-6. **Security check**: No hardcoded secrets or sensitive data
-
-## Common Issues and Solutions
+## 🚨 Common Issues and Solutions
 
 ### Service Connection Errors
 - Ensure Docker services are running: `docker-compose ps`
@@ -311,3 +437,23 @@ When adding new examples:
 - Validate JSON structure with `jq` command line tool
 - Check XML structure with `xmllint`
 - Use proper jq/xpath syntax for complex queries
+
+## 🤝 Contributing Examples
+
+When adding new examples:
+
+1. **Follow naming convention**: Place in appropriate category directory
+2. **Include description**: Add clear testcase description
+3. **Document prerequisites**: Note any required services or setup
+4. **Test thoroughly**: Ensure example works with standard setup
+5. **Update this README**: Add to appropriate category table
+6. **Security check**: No hardcoded secrets or sensitive data
+7. **Complexity level**: Mark as Beginner/Intermediate/Advanced/Expert
+
+## 📖 Additional Resources
+
+- **[Main README](../README.md)** - Project overview and installation
+- **[Architecture Documentation](../internal/README.md)** - Core architecture principles
+- **[Action Reference](../internal/actions/README.md)** - Complete action documentation
+- **[Execution Flow](../docs/execution-flow-diagram.md)** - Visual architecture diagram
+- **[Error Handling](../docs/error-failure-states-diagram.md)** - Error handling flow

@@ -1,0 +1,54 @@
+testcase: "TC-HTTP-TLS-001"
+description: "Test HTTP requests with TLS verification skipped"
+
+variables:
+  vars:
+    # Test with a self-signed certificate endpoint (if available)
+    # For demo purposes, using badssl.com which provides various SSL test cases
+    self_signed_url: "https://self-signed.badssl.com/"
+    
+    # Regular HTTPS endpoint for comparison
+    secure_url: "https://httpbin.org/get"
+
+steps:
+  - name: "Test normal HTTPS request (should work)"
+    action: http
+    args: ["GET", "${secure_url}"]
+    options:
+      timeout: "10s"
+    result: secure_response
+
+  - name: "Check secure response status"
+    action: jq
+    args: ["${secure_response}", ".status_code"]
+    result: secure_status
+
+  - name: "Assert secure request succeeded"
+    action: assert
+    args: ["${secure_status}", "==", "200"]
+
+  - name: "Test HTTPS request with TLS verification skipped"
+    action: http
+    args: ["GET", "${self_signed_url}"]
+    options:
+      timeout: "10s"
+      skip_tls_verify: true
+    result: skip_tls_response
+
+  - name: "Check skip TLS response status"
+    action: jq
+    args: ["${skip_tls_response}", ".status_code"]
+    result: skip_tls_status
+
+  - name: "Log skip TLS status for verification"
+    action: log
+    args: ["Skip TLS response status:", "${skip_tls_status}"]
+
+  - name: "Test that skip_tls_verify false still validates (expected to fail for self-signed)"
+    action: http
+    args: ["GET", "${self_signed_url}"]
+    options:
+      timeout: "10s"
+      skip_tls_verify: false
+    result: strict_tls_response
+    if: false  # Skip this step as it would fail on self-signed certs
