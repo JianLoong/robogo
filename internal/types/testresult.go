@@ -13,10 +13,11 @@ type TestResult struct {
 }
 
 type StepResult struct {
-	Name     string        `json:"name"`
-	Action   string        `json:"action"`
-	Duration time.Duration `json:"duration"`
-	Result   ActionResult  `json:"result"`
+	Name        string        `json:"name"`
+	Action      string        `json:"action"`
+	Duration    time.Duration `json:"duration"`
+	Result      ActionResult  `json:"result"`
+	IncludeSummary bool       `json:"include_summary"` // Whether to include this step in summary table
 }
 
 // GetMessage returns the error message from ErrorInfo

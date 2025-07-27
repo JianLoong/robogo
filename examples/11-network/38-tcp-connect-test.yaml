@@ -1,0 +1,116 @@
+testcase: "TC-TCP-001"
+description: "Test TCP connectivity to various services"
+
+variables:
+  vars:
+    # Common services to test
+    google_dns: "8.8.8.8"
+    local_host: "127.0.0.1"
+    
+    # Test ports
+    http_port: 80
+    https_port: 443
+    ssh_port: 22
+    postgres_port: 5432
+    
+    # Invalid targets for testing
+    invalid_host: "nonexistent.invalid.domain"
+    invalid_port: 99999
+
+steps:
+  # Test successful connections
+  - name: "Test Google DNS on port 53"
+    action: tcp_connect
+    args: ["${google_dns}", "53"]
+    options:
+      timeout: "5s"
+    result: dns_result
+    summary: false
+    continue: true
+
+  - name: "Check DNS connection succeeded"
+    action: assert
+    args: ["${dns_result.connected}", "==", true]
+    continue: true
+
+  - name: "Log DNS connection details"
+    action: log
+    args: ["DNS connection result:", "${dns_result}"]
+    summary: false
+
+  - name: "Test HTTPS to Google"
+    action: tcp_connect
+    args: ["google.com", "${https_port}"]
+    options:
+      timeout: "3s"
+    result: google_https
+    summary: false
+
+  - name: "Verify Google HTTPS is reachable"
+    action: assert
+    args: ["${google_https.connected}", "==", true]
+
+  - name: "Test local HTTPBin (if running)"
+    action: tcp_connect
+    args: ["${local_host}", "8000"]
+    options:
+      timeout: "1s"
+    result: httpbin_local
+    summary: false
+    continue: true
+
+  - name: "Log HTTPBin connectivity"
+    action: log
+    args: ["HTTPBin local:", "${httpbin_local.connected}"]
+    summary: false
+
+
+  # Test failed connections (these should return connected=false, not error)
+  - name: "Test connection to invalid host"
+    action: tcp_connect
+    args: ["${invalid_host}", "${http_port}"]
+    options:
+      timeout: "2s"
+    result: invalid_host_result
+    summary: false
+
+  - name: "Verify invalid host connection failed"
+    action: assert
+    args: ["${invalid_host_result.connected}", "==", false]
+
+  - name: "Test connection to closed port on localhost"
+    action: tcp_connect
+    args: ["${local_host}", "9999"]
+    options:
+      timeout: "1s"
+    result: closed_port_result
+    summary: false
+
+  - name: "Verify closed port connection failed"
+    action: assert
+    args: ["${closed_port_result.connected}", "==", false]
+
+  - name: "Log closed port error details"
+    action: log
+    args: ["Closed port error:", "${closed_port_result.error}"]
+    summary: false
+
+  # Test response time validation
+  - name: "Test fast local connection"
+    action: tcp_connect
+    args: ["${local_host}", "${http_port}"]
+    options:
+      timeout: "5s"
+    result: local_timing
+    summary: false
+
+  - name: "Extract response time for local connection"
+    action: jq
+    args: ["${local_timing}", ".response_time"]
+    result: local_response_time
+    summary: false
+
+  - name: "Log response time"
+    action: log
+    args: ["Local connection response time:", "${local_response_time}"]
+    summary: false

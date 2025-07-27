@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -105,16 +106,22 @@ func (v *Variables) Substitute(template string) string {
 			continue
 		}
 
-		// Replace with stored variable value
-		if value, exists := v.data[varName]; exists {
-			strValue := ""
-			if value != nil {
-				strValue = strings.TrimSpace(strings.Trim(strings.Trim(strings.Trim(fmt.Sprintf("%v", value), "\""), "'"), "`"))
-			}
-			result = result[:start] + strValue + result[end+1:]
+		// Check if this is dot notation (e.g., "response.status_code")
+		if strings.Contains(varName, ".") {
+			resolvedValue := v.resolveDotNotation(varName)
+			result = result[:start] + resolvedValue + result[end+1:]
 		} else {
-			// Mark as unresolved but continue processing
-			result = result[:start] + "__UNRESOLVED_" + varName + "__" + result[end+1:]
+			// Replace with stored variable value
+			if value, exists := v.data[varName]; exists {
+				strValue := ""
+				if value != nil {
+					strValue = strings.TrimSpace(strings.Trim(strings.Trim(strings.Trim(fmt.Sprintf("%v", value), "\""), "'"), "`"))
+				}
+				result = result[:start] + strValue + result[end+1:]
+			} else {
+				// Mark as unresolved but continue processing
+				result = result[:start] + "__UNRESOLVED_" + varName + "__" + result[end+1:]
+			}
 		}
 	}
 
@@ -190,6 +197,71 @@ func (v *Variables) isSimpleVariableReference(str string) bool {
 	}
 
 	return true
+}
+
+// resolveDotNotation resolves dot notation like "response.status_code" or "user.profile.name"
+func (v *Variables) resolveDotNotation(dotPath string) string {
+	parts := strings.Split(dotPath, ".")
+	if len(parts) < 2 {
+		return "__UNRESOLVED_" + dotPath + "__"
+	}
+
+	// Get the root variable
+	rootVar := parts[0]
+	value, exists := v.data[rootVar]
+	if !exists {
+		return "__UNRESOLVED_" + dotPath + "__"
+	}
+
+	// Navigate through the dot path
+	current := value
+	for i, field := range parts[1:] {
+		current = v.getFieldValue(current, field)
+		if current == nil {
+			// Build the path up to the failed field for better error reporting
+			failedPath := strings.Join(parts[:i+2], ".")
+			return "__UNRESOLVED_" + failedPath + "__"
+		}
+	}
+
+	// Convert final value to string
+	if current == nil {
+		return ""
+	}
+	return strings.TrimSpace(strings.Trim(strings.Trim(strings.Trim(fmt.Sprintf("%v", current), "\""), "'"), "`"))
+}
+
+// getFieldValue extracts a field value from various data types
+func (v *Variables) getFieldValue(data any, field string) any {
+	if data == nil {
+		return nil
+	}
+
+	switch val := data.(type) {
+	case map[string]any:
+		return val[field]
+	case map[any]any:
+		// Try the field as-is first
+		if value, exists := val[field]; exists {
+			return value
+		}
+		// Try to find by string conversion of keys
+		for key, value := range val {
+			if fmt.Sprintf("%v", key) == field {
+				return value
+			}
+		}
+		return nil
+	case []any:
+		// Handle array indexing (e.g., "items.0" for first element)
+		if index, err := strconv.Atoi(field); err == nil && index >= 0 && index < len(val) {
+			return val[index]
+		}
+		return nil
+	default:
+		// For other types, we can't navigate further
+		return nil
+	}
 }
 
 // Clone creates a copy of the Variables with the same data

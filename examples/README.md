@@ -14,12 +14,12 @@ This directory contains comprehensive test case examples demonstrating all featu
 | **Data Processing** | [`06-data-processing/`](06-data-processing/) | JSON, XML, CSV parsing and extraction | 7 |
 | **Strings & Encoding** | [`07-strings-encoding/`](07-strings-encoding/) | String manipulation, encoding operations | 6 |
 | **Utilities** | [`08-utilities/`](08-utilities/) | Sleep, timing, logging utilities | 4 |
-| **Advanced** | [`09-advanced/`](09-advanced/) | Control flow, retry logic, nested operations | 10 |
+| **Advanced** | [`09-advanced/`](09-advanced/) | Control flow, retry logic, nested operations, summary filtering | 11 |
 | **Security** | [`10-security/`](10-security/) | Environment variables, data masking | 4 |
-| **Network** | [`11-network/`](11-network/) | Network testing, SSL certificates | 2 |
+| **Network** | [`11-network/`](11-network/) | Network testing, SSL certificates, TCP connectivity | 3 |
 | **Integration** | [`12-integration/`](12-integration/) | End-to-end integration tests | 1 |
 
-**Total Examples: 52**
+**Total Examples: 54**
 
 ## 🚀 Quick Start Guide
 
@@ -197,6 +197,7 @@ Control flow, retry logic, nested operations, and complex scenarios.
 | `21-simple-nested-test.yaml` | Simple nested operations | Advanced |
 | `22-debug-while-nested.yaml` | Debugging nested operations | Expert |
 | `30-retry-on-errors.yaml` | Retry on specific error types | Advanced |
+| `39-summary-filtering-test.yaml` | Summary filtering with `summary: false` option | Advanced |
 
 ### 10-security/ - Security Features
 Environment variables, data masking, and secure operations.
@@ -215,6 +216,7 @@ Network connectivity, SSL certificates, and network validation.
 |------|-------------|------------|
 | `26-ping-network-test.yaml` | ICMP ping connectivity testing | Intermediate |
 | `34-ssl-cert-check.yaml` | SSL certificate validation and security | Advanced |
+| `38-tcp-connect-test.yaml` | TCP connectivity testing with timeout handling | Intermediate |
 
 ### 12-integration/ - Integration Testing
 End-to-end integration tests combining multiple systems.

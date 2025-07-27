@@ -1,0 +1,56 @@
+testcase: "TC-SUMMARY-001"
+description: "Test summary filtering with summary: false option"
+
+variables:
+  vars:
+    test_value: "Hello World"
+    expected_length: 11
+
+steps:
+  - name: "Main test step (should show in summary)"
+    action: variable
+    args: ["test_data", "${test_value}"]
+    result: main_result
+
+  - name: "Detailed logging step (should be hidden from summary)"
+    action: log
+    args: ["Debug info:", "${test_data}"]
+    summary: false
+
+  - name: "Another debug step (should be hidden from summary)"
+    action: log
+    args: ["Detailed test_data length:", "${test_data.length}"]
+    summary: false
+
+  - name: "Extract string length (important step, should show)"
+    action: string
+    args: ["${test_value}", "length"]
+    result: str_length
+
+  - name: "Verbose logging of length calculation (should be hidden)"
+    action: log
+    args: ["Calculated length:", "${str_length}"]
+    summary: false
+
+  - name: "Extract just the length value for assertion"
+    action: jq
+    args: ["${str_length}", ".length"]
+    result: just_length
+
+  - name: "Assert length is correct (important, should show)"
+    action: assert
+    args: ["${just_length}", "==", "${expected_length}"]
+
+  - name: "Debug assertion success (should be hidden)"
+    action: log
+    args: ["Assertion passed successfully"]
+    summary: false
+
+  - name: "Final validation step (should show in summary)"
+    action: assert
+    args: ["${test_data}", "==", "${test_value}"]
+
+  - name: "Cleanup logging (should be hidden from summary)"
+    action: log
+    args: ["Test completed successfully"]
+    summary: false

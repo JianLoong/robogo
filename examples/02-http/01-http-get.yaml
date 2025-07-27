@@ -48,3 +48,11 @@ steps:
   - name: "Assert that the expected value is correct"
     action: assert
     args: ["${response_body}", "==", "${expected_value}"]
+
+  - name: "Test dot notation - status code"
+    action: assert
+    args: ["${http_response.status_code}", "==", "200"]
+
+  - name: "Test dot notation - response body"
+    action: assert
+    args: ["${http_response.body}", "==", "${expected_value}"]

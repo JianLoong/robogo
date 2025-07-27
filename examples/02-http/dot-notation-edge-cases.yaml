@@ -1,0 +1,83 @@
+testcase: "Dot Notation Edge Cases"
+description: "Test edge cases and error conditions for dot notation"
+
+variables:
+  vars:
+    mixed_data:
+      string_field: "hello"
+      number_field: 42
+      boolean_field: true
+      null_field: null
+      empty_array: []
+      array_with_objects: 
+        - name: "item1"
+          value: 100
+        - name: "item2"
+          value: 200
+      nested_maps:
+        level1:
+          level2:
+            level3: "deep_value"
+
+steps:
+  # Test different data types
+  - name: "Test string field"
+    action: log
+    args: ["String: ${mixed_data.string_field}"]
+
+  - name: "Test number field"
+    action: log
+    args: ["Number: ${mixed_data.number_field}"]
+
+  - name: "Test boolean field"
+    action: log
+    args: ["Boolean: ${mixed_data.boolean_field}"]
+
+  - name: "Test null field"
+    action: log
+    args: ["Null: ${mixed_data.null_field}"]
+
+  # Test array edge cases
+  - name: "Test empty array"
+    action: log
+    args: ["Empty array: ${mixed_data.empty_array}"]
+
+  - name: "Test array out of bounds"
+    action: log
+    args: ["Out of bounds: ${mixed_data.empty_array.0}"]
+
+  - name: "Test array with objects"
+    action: log
+    args: ["Array object name: ${mixed_data.array_with_objects.0.name}"]
+
+  - name: "Test array object value"
+    action: log
+    args: ["Array object value: ${mixed_data.array_with_objects.1.value}"]
+
+  # Test deep nesting
+  - name: "Test very deep nesting"
+    action: log
+    args: ["Deep value: ${mixed_data.nested_maps.level1.level2.level3}"]
+
+  # Test invalid paths
+  - name: "Test invalid root variable"
+    action: log
+    args: ["Invalid root: ${nonexistent.field}"]
+
+  - name: "Test invalid intermediate path"
+    action: log
+    args: ["Invalid path: ${mixed_data.string_field.invalid}"]
+
+  # Test assertions with different types
+  - name: "Assert number with dot notation"
+    action: assert
+    args: ["${mixed_data.number_field}", "==", "42"]
+
+  - name: "Assert boolean with dot notation"
+    action: assert
+    args: ["${mixed_data.boolean_field}", "==", "true"]
+
+  # Test complex array access
+  - name: "Assert array object field"
+    action: assert
+    args: ["${mixed_data.array_with_objects.0.name}", "==", "item1"]

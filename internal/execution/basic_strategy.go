@@ -29,10 +29,17 @@ func NewBasicExecutionStrategy(variables *common.Variables, actionRegistry *acti
 func (s *BasicExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
 	start := time.Now()
 
+	// Determine if step should be included in summary (default: true)
+	includeSummary := true
+	if step.Summary != nil {
+		includeSummary = *step.Summary
+	}
+
 	result := &types.StepResult{
-		Name:   step.Name,
-		Action: step.Action,
-		Result: types.ActionResult{Status: constants.ActionStatusError},
+		Name:           step.Name,
+		Action:         step.Action,
+		Result:         types.ActionResult{Status: constants.ActionStatusError},
+		IncludeSummary: includeSummary,
 	}
 
 	// Get action from registry

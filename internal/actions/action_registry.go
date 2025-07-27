@@ -82,6 +82,7 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	registry.Register("time", timeAction)
 	registry.Register("sleep", sleepAction)
 	registry.Register("ping", pingAction)
+	registry.Register("tcp_connect", tcpConnectAction)
 
 	// Security actions
 	registry.Register("ssl_cert_check", sslCertCheckAction)

@@ -15,6 +15,7 @@ type Step struct {
 	Continue bool           `yaml:"continue,omitempty"`
 	NoLog           bool     `yaml:"no_log,omitempty"`           // Suppress logging for sensitive steps
 	SensitiveFields []string `yaml:"sensitive_fields,omitempty"` // Custom fields to mask in logs and output
+	Summary         *bool    `yaml:"summary,omitempty"`          // Include step in summary table (default: true)
 }
 
 // ExtractConfig defines data extraction from action results

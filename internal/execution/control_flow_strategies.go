@@ -20,12 +20,19 @@ func NewConditionalExecutionStrategy(conditionEvaluator *BasicConditionEvaluator
 
 // Execute performs conditional execution
 func (s *ConditionalExecutionStrategy) Execute(step types.Step, stepNum int, loopCtx *types.LoopContext) *types.StepResult {
+	// Determine if step should be included in summary (default: true)
+	includeSummary := true
+	if step.Summary != nil {
+		includeSummary = *step.Summary
+	}
+
 	// Evaluate condition
 	condition, err := s.conditionEvaluator.Evaluate(step.If)
 	if err != nil {
 		return &types.StepResult{
-			Name:   step.Name,
-			Action: step.Action,
+			Name:           step.Name,
+			Action:         step.Action,
+			IncludeSummary: includeSummary,
 			Result: types.NewErrorBuilder(types.ErrorCategoryExecution, "CONDITION_EVALUATION_FAILED").
 				WithTemplate("Failed to evaluate condition: %s").
 				WithContext("condition", step.If).
@@ -37,9 +44,10 @@ func (s *ConditionalExecutionStrategy) Execute(step types.Step, stepNum int, loo
 	// If condition is false, skip execution
 	if !condition {
 		return &types.StepResult{
-			Name:   step.Name,
-			Action: step.Action,
-			Result: types.ActionResult{Status: "SKIPPED"},
+			Name:           step.Name,
+			Action:         step.Action,
+			IncludeSummary: includeSummary,
+			Result:         types.ActionResult{Status: "SKIPPED"},
 		}
 	}
 	

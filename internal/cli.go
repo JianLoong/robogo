@@ -204,22 +204,28 @@ func printTestSummary(result *types.TestResult) {
 
 	stepNum := 1
 
-	// Print setup steps
+	// Print setup steps (only those included in summary)
 	for _, step := range result.SetupSteps {
-		printStepRow(stepNum, step, "[SETUP] ")
-		stepNum++
+		if step.IncludeSummary {
+			printStepRow(stepNum, step, "[SETUP] ")
+			stepNum++
+		}
 	}
 
-	// Print main test steps
+	// Print main test steps (only those included in summary)
 	for _, step := range result.Steps {
-		printStepRow(stepNum, step, "")
-		stepNum++
+		if step.IncludeSummary {
+			printStepRow(stepNum, step, "")
+			stepNum++
+		}
 	}
 
-	// Print teardown steps
+	// Print teardown steps (only those included in summary)
 	for _, step := range result.TeardownSteps {
-		printStepRow(stepNum, step, "[TEARDOWN] ")
-		stepNum++
+		if step.IncludeSummary {
+			printStepRow(stepNum, step, "[TEARDOWN] ")
+			stepNum++
+		}
 	}
 }
 

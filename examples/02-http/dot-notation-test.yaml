@@ -1,0 +1,79 @@
+testcase: "Dot Notation Feature Test"
+description: "Comprehensive test of dot notation support in variable substitution"
+
+variables:
+  vars:
+    test_data:
+      user:
+        name: "Alice"
+        profile:
+          age: 30
+          city: "New York"
+        preferences: ["coffee", "books", "travel"]
+      status: "active"
+    simple_value: "hello world"
+
+steps:
+  # Test simple field access
+  - name: "Test simple dot notation"
+    action: log
+    args: ["User status: ${test_data.status}"]
+
+  # Test nested field access
+  - name: "Test nested dot notation"
+    action: log
+    args: ["User name: ${test_data.user.name}"]
+
+  # Test deeply nested field access
+  - name: "Test deeply nested dot notation"
+    action: log
+    args: ["User age: ${test_data.user.profile.age}"]
+
+  - name: "Test deeply nested city"
+    action: log
+    args: ["User city: ${test_data.user.profile.city}"]
+
+  # Test array indexing
+  - name: "Test array indexing with dot notation"
+    action: log
+    args: ["First preference: ${test_data.user.preferences.0}"]
+
+  - name: "Test second array element"
+    action: log
+    args: ["Second preference: ${test_data.user.preferences.1}"]
+
+  # Test assertions with dot notation
+  - name: "Assert user status"
+    action: assert
+    args: ["${test_data.status}", "==", "active"]
+
+  - name: "Assert user name"
+    action: assert
+    args: ["${test_data.user.name}", "==", "Alice"]
+
+  - name: "Assert user age"
+    action: assert
+    args: ["${test_data.user.profile.age}", "==", "30"]
+
+  # Test non-existent fields (should show unresolved)
+  - name: "Test non-existent field"
+    action: log
+    args: ["Non-existent: ${test_data.nonexistent}"]
+
+  - name: "Test non-existent nested field"
+    action: log
+    args: ["Non-existent nested: ${test_data.user.nonexistent}"]
+
+  # Test HTTP response with dot notation
+  - name: "Make HTTP request for dot notation test"
+    action: http
+    args: ["GET", "https://httpbin.org/json"]
+    result: json_response
+
+  - name: "Test HTTP response dot notation"
+    action: log
+    args: ["HTTP Status: ${json_response.status_code}"]
+
+  - name: "Assert HTTP status with dot notation"
+    action: assert
+    args: ["${json_response.status_code}", "==", "200"]

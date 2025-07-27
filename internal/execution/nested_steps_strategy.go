@@ -44,11 +44,18 @@ func (s *NestedStepsExecutionStrategy) Execute(step types.Step, stepNum int, loo
 		}
 	}
 	
+	// Determine if step should be included in summary (default: true)
+	includeSummary := true
+	if step.Summary != nil {
+		includeSummary = *step.Summary
+	}
+
 	// Create aggregate result
 	aggregateResult := &types.StepResult{
-		Name:     step.Name,
-		Action:   "nested_steps",
-		Duration: 0, // Could sum durations from allResults if needed
+		Name:           step.Name,
+		Action:         "nested_steps",
+		Duration:       0, // Could sum durations from allResults if needed
+		IncludeSummary: includeSummary,
 	}
 	
 	// Set overall status based on nested results

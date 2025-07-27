@@ -254,7 +254,7 @@ Test Summary:
 
 ### Example Tests
 
-Robogo includes 52 comprehensive test examples organized into 12 categories. Here are the key examples:
+Robogo includes 54 comprehensive test examples organized into 12 categories. Here are the key examples:
 
 | Category | Example | Features Demonstrated | Command |
 |----------|---------|----------------------|---------|
@@ -395,7 +395,7 @@ SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
 
 ## Example Tests
 
-The **[examples/](examples/)** directory contains 52 comprehensive test examples organized into 12 categories by feature and complexity:
+The **[examples/](examples/)** directory contains 54 comprehensive test examples organized into 12 categories by feature and complexity:
 
 ### Quick Examples
 ```bash
