@@ -114,6 +114,7 @@ func (registry *ActionRegistry) registerBuiltinActions() {
 	// Database actions
 	registry.Register("postgres", postgresAction)
 	registry.Register("spanner", spannerAction)
+	registry.Register("mongodb", mongodbAction)
 
 	// Messaging actions
 	registry.Register("kafka", kafkaAction)

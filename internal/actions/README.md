@@ -22,6 +22,10 @@ This directory contains all action implementations and the action registry syste
 - **`spanner`** - Google Cloud Spanner operations
   - Distributed database queries
   - Cloud-native SQL support
+- **`mongodb`** - MongoDB database operations
+  - Document operations: find, insert, update, delete
+  - Aggregation pipelines and complex queries
+  - BSON document handling with native MongoDB protocol
 
 ### Messaging Actions
 - **`kafka`** - Apache Kafka producer/consumer

@@ -1,0 +1,273 @@
+testcase: "TC-MONGODB-001"
+description: "Basic MongoDB operations - insert, find, update, delete"
+
+variables:
+  vars:
+    # MongoDB connection (using default test database)
+    mongo_url: "mongodb://robogo_user:robogo_pass@localhost:27017"
+    
+    # Test data
+    test_user:
+      name: "Alice Johnson"
+      email: "alice@example.com"
+      age: 30
+      department: "Engineering"
+      skills: ["Go", "MongoDB", "Testing"]
+      created_at: "2024-01-15T10:30:00Z"
+    
+    updated_user:
+      name: "Alice Johnson-Smith"
+      age: 31
+      department: "Senior Engineering"
+
+setup:
+  - name: "Clean up test data before starting"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "testdb.users"]
+    options:
+      filter: {}
+      many: true
+    continue: true
+
+steps:
+  # Insert a single document
+  - name: "Insert test user"
+    action: mongodb
+    args: ["insert", "${mongo_url}", "testdb.users"]
+    options:
+      document:
+        name: "Alice Johnson"
+        email: "alice@example.com"
+        age: 30
+        department: "Engineering"
+        skills: ["Go", "MongoDB", "Testing"]
+        created_at: "2024-01-15T10:30:00Z"
+    result: insert_result
+
+  - name: "Verify insert result"
+    action: log
+    args: ["Insert result:", "${insert_result}"]
+
+  - name: "Extract inserted ID"
+    action: jq
+    args: ["${insert_result}", ".inserted_id"]
+    result: user_id
+
+  # Find documents
+  - name: "Find user by email"
+    action: mongodb
+    args: ["find", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        email: "alice@example.com"
+    result: found_users
+
+  - name: "Verify user found"
+    action: jq
+    args: ["${found_users}", ".count"]
+    result: found_count
+
+  - name: "Assert user was found"
+    action: assert
+    args: ["${found_count}", "==", "1"]
+
+  - name: "Extract found user"
+    action: jq
+    args: ["${found_users}", ".documents[0]"]
+    result: found_user
+
+  - name: "Verify user name"
+    action: assert
+    args: ["${found_user.name}", "==", "Alice Johnson"]
+
+  # Find with projection (only specific fields)
+  - name: "Find user with projection"
+    action: mongodb
+    args: ["find", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        email: "alice@example.com"
+      projection:
+        name: 1
+        department: 1
+        _id: 0
+    result: projected_user
+
+  - name: "Log projected user"
+    action: log
+    args: ["Projected user:", "${projected_user}"]
+
+  # Update document
+  - name: "Update user information"
+    action: mongodb
+    args: ["update", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        email: "alice@example.com"
+      update:
+        $set:
+          name: "Alice Johnson-Smith"
+          age: 31
+          department: "Senior Engineering"
+        $push:
+          skills: "Leadership"
+    result: update_result
+
+  - name: "Verify update result"
+    action: jq
+    args: ["${update_result}", ".modified_count"]
+    result: modified_count
+
+  - name: "Assert document was updated"
+    action: assert
+    args: ["${modified_count}", "==", "1"]
+
+  # Verify the update
+  - name: "Find updated user"
+    action: mongodb
+    args: ["find", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        email: "alice@example.com"
+    result: updated_user_result
+
+  - name: "Extract updated user"
+    action: jq
+    args: ["${updated_user_result}", ".documents[0]"]
+    result: updated_user
+
+  - name: "Verify updated name"
+    action: assert
+    args: ["${updated_user.name}", "==", "Alice Johnson-Smith"]
+
+  - name: "Verify updated age"
+    action: assert
+    args: ["${updated_user.age}", "==", "31"]
+
+  # Count documents
+  - name: "Count all users"
+    action: mongodb
+    args: ["count", "${mongo_url}", "testdb.users"]
+    result: total_count
+
+  - name: "Log total user count"
+    action: log
+    args: ["Total users:", "${total_count.count}"]
+
+  # Count with filter
+  - name: "Count senior engineers"
+    action: mongodb
+    args: ["count", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        department: "Senior Engineering"
+    result: senior_count
+
+  - name: "Assert senior engineer count"
+    action: assert
+    args: ["${senior_count.count}", ">=", "1"]
+
+  # Insert multiple documents for aggregation test
+  - name: "Insert additional test users"
+    action: mongodb
+    args: ["insert", "${mongo_url}", "testdb.users"]
+    options:
+      documents:
+        - name: "Bob Wilson"
+          email: "bob@example.com"
+          age: 28
+          department: "Engineering"
+          skills: ["Python", "Docker"]
+        - name: "Carol Davis"
+          email: "carol@example.com"
+          age: 35
+          department: "Product"
+          skills: ["Product Management", "Analytics"]
+    result: bulk_insert_result
+
+  - name: "Verify bulk insert"
+    action: jq
+    args: ["${bulk_insert_result}", ".inserted_count"]
+    result: bulk_count
+
+  - name: "Assert bulk insert count"
+    action: assert
+    args: ["${bulk_count}", "==", "2"]
+
+  # Aggregation pipeline
+  - name: "Aggregate user statistics by department"
+    action: mongodb
+    args: ["aggregate", "${mongo_url}", "testdb.users"]
+    options:
+      pipeline:
+        - $group:
+            _id: "$department"
+            count: { $sum: 1 }
+            avg_age: { $avg: "$age" }
+            users: { $push: "$name" }
+        - $sort:
+            count: -1
+    result: dept_stats
+
+  - name: "Log department statistics"
+    action: log
+    args: ["Department stats:", "${dept_stats}"]
+
+  - name: "Verify aggregation results"
+    action: jq
+    args: ["${dept_stats}", ".count"]
+    result: dept_count
+
+  - name: "Assert departments found"
+    action: assert
+    args: ["${dept_count}", ">=", "2"]
+
+  # Find with sorting and limiting
+  - name: "Find users sorted by age (youngest first)"
+    action: mongodb
+    args: ["find", "${mongo_url}", "testdb.users"]
+    options:
+      sort:
+        age: 1
+      limit: 2
+      projection:
+        name: 1
+        age: 1
+        _id: 0
+    result: youngest_users
+
+  - name: "Log youngest users"
+    action: log
+    args: ["Youngest users:", "${youngest_users}"]
+
+  # Cleanup - Delete test documents
+  - name: "Delete all test users"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "testdb.users"]
+    options:
+      filter:
+        email: { $in: ["alice@example.com", "bob@example.com", "carol@example.com"] }
+      many: true
+    result: delete_result
+
+  - name: "Verify cleanup"
+    action: jq
+    args: ["${delete_result}", ".deleted_count"]
+    result: deleted_count
+
+  - name: "Log cleanup result"
+    action: log
+    args: ["Deleted ${deleted_count} test users"]
+
+  - name: "Assert cleanup successful"
+    action: assert
+    args: ["${deleted_count}", ">=", "3"]
+
+teardown:
+  - name: "Final cleanup - ensure test collection is empty"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "testdb.users"]
+    options:
+      filter: {}
+      many: true
+    continue: true

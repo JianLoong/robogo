@@ -126,6 +126,53 @@ SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
 ./robogo run examples/03-database/29-database-extraction.yaml
 ```
 
+### 40-mongodb-basic.yaml - Basic MongoDB Operations
+**Complexity:** Intermediate  
+**Prerequisites:** MongoDB service running  
+**Description:** Basic MongoDB document operations including insert, find, update, delete, and count.
+
+**What you'll learn:**
+- MongoDB connection and authentication
+- Document insertion (single and multiple)
+- Finding documents with filters and projections
+- Updating documents with operators
+- Deleting documents
+- Counting documents
+- Basic aggregation pipelines
+
+**Setup:**
+```bash
+# Start MongoDB (using Docker)
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+
+# Or if you have MongoDB installed locally
+mongod --dbpath /path/to/data
+```
+
+**Run it:**
+```bash
+./robogo run examples/03-database/40-mongodb-basic.yaml
+```
+
+### 41-mongodb-advanced.yaml - Advanced MongoDB Operations
+**Complexity:** Advanced  
+**Prerequisites:** MongoDB service running  
+**Description:** Advanced MongoDB operations including complex queries, aggregation pipelines, and error handling.
+
+**What you'll learn:**
+- Complex query filters with operators
+- Array and nested field queries
+- Advanced aggregation pipelines
+- Data transformation and analytics
+- Upsert operations
+- Performance considerations
+- Error handling patterns
+
+**Run it:**
+```bash
+./robogo run examples/03-database/41-mongodb-advanced.yaml
+```
+
 ## Key Concepts
 
 ### PostgreSQL Connection

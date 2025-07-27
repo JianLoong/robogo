@@ -2,9 +2,9 @@
 
 <div align="center">
 
-**A simple, modern test automation framework written in Go**
+**A multi-service automation tool written in Go**
 
-*Clean YAML-based DSL for HTTP APIs, databases, messaging systems, file operations, and more*
+*Clean YAML-based workflows for HTTP APIs, databases, messaging systems, file operations, and more*
 
 ---
 
@@ -20,22 +20,22 @@
 
 </div>
 
-**Shift-Left Testing**: Robogo enables developers to run comprehensive end-to-end tests early in the development cycle with clear, readable test definitions that improve collaboration between development and testing teams.
+**Multi-Service Automation**: Robogo enables developers to automate workflows across HTTP APIs, databases, messaging systems, and file operations with clear, readable YAML definitions that improve productivity and reduce manual work.
 
 ## Features
 
 ### Core Capabilities
-- **Developer-Friendly**: Clear, readable YAML tests that developers can easily understand and maintain
-- **Shift-Left Ready**: Run full end-to-end tests in development environments
-- **Simple YAML Tests**: Write tests in clean, readable YAML format with powerful features
+- **Developer-Friendly**: Clear, readable YAML workflows that developers can easily understand and maintain
+- **Multi-Service Integration**: Automate workflows across HTTP APIs, databases, messaging systems, and file operations
+- **Simple YAML Workflows**: Write automation in clean, readable YAML format with powerful features
 - **KISS Architecture**: Keep It Simple and Straightforward - no over-engineering or complex abstractions
 
 ### Actions & Integrations
-- **HTTP Testing**: Full HTTP client with all methods, authentication, and response validation
-- **Database Support**: PostgreSQL and Google Cloud Spanner with secure credential management
+- **HTTP Automation**: Full HTTP client with all methods, authentication, and response processing
+- **Database Operations**: PostgreSQL, MongoDB, and Google Cloud Spanner with secure credential management
 - **Messaging Systems**: Kafka and RabbitMQ operations with producer/consumer support
 - **File Operations**: Local file reading and secure SCP file transfers via SSH/SFTP
-- **Financial Messaging**: SWIFT message generation for banking and financial testing
+- **Financial Messaging**: SWIFT message generation for banking and financial workflows
 - **Data Processing**: JSON/XML parsing, construction, and extraction with jq/xpath support
 - **String Operations**: Random generation, formatting, encoding/decoding, and manipulation
 - **Utility Actions**: UUID generation, time operations, sleep/timing, assertions, and logging
@@ -80,19 +80,19 @@ go build -o robogo ./cmd/robogo
 ./robogo version
 ```
 
-### Your First Test
+### Your First Workflow
 
 The quickest way to get started is with our showcase HTTP example:
 
 ```bash
-# Run the main showcase test (no setup needed)
+# Run the main showcase workflow (no setup needed)
 ./robogo run examples/02-http/01-http-get.yaml
 ```
 
 **Main Showcase Example:**
 ```yaml
 testcase: "TC-HTTP-001"
-description: "Test to understand HTTP response format"
+description: "Workflow to demonstrate HTTP response processing"
 
 variables:
   vars:
@@ -127,7 +127,7 @@ steps:
 **Expected output:**
 ```
 Running test case: TC-HTTP-001
-Description: Test to understand HTTP response format
+Description: Workflow to demonstrate HTTP response processing
 Setup: 0, Steps: 7, Teardown: 0
 
 Step 1: Make HTTP request
@@ -185,7 +185,7 @@ Test Summary:
 - JSON data extraction using `jq` action (`.status_code`, `.body`)
 - Variable substitution and storage (`${http_response}`, `${status_code}`)
 - Assertions for validation (`assert` action)
-- Clean test structure with clear step-by-step execution
+- Clean workflow structure with clear step-by-step execution
 - Performance timing for each step
 
 ## Documentation
@@ -254,7 +254,7 @@ Test Summary:
 
 ### Example Tests
 
-Robogo includes 54 comprehensive test examples organized into 12 categories. Here are the key examples:
+Robogo includes 56 comprehensive test examples organized into 12 categories. Here are the key examples:
 
 | Category | Example | Features Demonstrated | Command |
 |----------|---------|----------------------|---------|
@@ -264,6 +264,7 @@ Robogo includes 54 comprehensive test examples organized into 12 categories. Her
 | **Environment Variables** | [17-env-var-test.yaml](examples/10-security/17-env-var-test.yaml) | ${ENV:VAR} syntax, credential management | `./robogo run examples/10-security/17-env-var-test.yaml` |
 | **Security** | [19-no-log-security.yaml](examples/10-security/19-no-log-security.yaml) | no_log, sensitive_fields, data masking | `./robogo run examples/10-security/19-no-log-security.yaml` |
 | **Database** | [03-postgres-basic.yaml](examples/03-database/03-postgres-basic.yaml) | PostgreSQL operations, queries | `./robogo run examples/03-database/03-postgres-basic.yaml` |
+| **MongoDB** | [40-mongodb-basic.yaml](examples/03-database/40-mongodb-basic.yaml) | MongoDB document operations, aggregations | `./robogo run examples/03-database/40-mongodb-basic.yaml` |
 | **Conditional Logic** | [08-control-flow.yaml](examples/09-advanced/08-control-flow.yaml) | Conditional execution with if statements | `./robogo run examples/09-advanced/08-control-flow.yaml` |
 | **Retry Logic** | [13-retry-demo.yaml](examples/09-advanced/13-retry-demo.yaml) | Retry with backoff, error handling | `./robogo run examples/09-advanced/13-retry-demo.yaml` |
 | **Nested Steps** | [21-simple-nested-test.yaml](examples/09-advanced/21-simple-nested-test.yaml) | Grouped operations, continue-on-error | `./robogo run examples/09-advanced/21-simple-nested-test.yaml` |
@@ -395,7 +396,7 @@ SPANNER_EMULATOR_HOST=localhost:9010 ./setup-spanner.sh
 
 ## Example Tests
 
-The **[examples/](examples/)** directory contains 54 comprehensive test examples organized into 12 categories by feature and complexity:
+The **[examples/](examples/)** directory contains 56 comprehensive test examples organized into 12 categories by feature and complexity:
 
 ### Quick Examples
 ```bash

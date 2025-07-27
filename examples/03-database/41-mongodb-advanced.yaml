@@ -1,0 +1,366 @@
+testcase: "TC-MONGODB-002"
+description: "Advanced MongoDB operations - complex queries, aggregations, and error handling"
+
+variables:
+  vars:
+    mongo_url: "mongodb://robogo_user:robogo_pass@localhost:27017"
+    
+    # Sample e-commerce data
+    products:
+      - name: "Laptop Pro"
+        category: "Electronics"
+        price: 1299.99
+        stock: 15
+        tags: ["computer", "portable", "work"]
+        specs:
+          cpu: "Intel i7"
+          ram: "16GB"
+          storage: "512GB SSD"
+        created_at: "2024-01-01T00:00:00Z"
+      
+      - name: "Wireless Mouse"
+        category: "Electronics"
+        price: 29.99
+        stock: 50
+        tags: ["computer", "wireless", "accessory"]
+        specs:
+          type: "optical"
+          connectivity: "bluetooth"
+        created_at: "2024-01-02T00:00:00Z"
+      
+      - name: "Office Chair"
+        category: "Furniture"
+        price: 199.99
+        stock: 8
+        tags: ["office", "ergonomic", "furniture"]
+        specs:
+          material: "mesh"
+          adjustable: true
+        created_at: "2024-01-03T00:00:00Z"
+
+setup:
+  - name: "Clean up test data before starting"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter: {}
+      many: true
+    continue: true
+
+steps:
+  # Setup test data
+  - name: "Insert sample products"
+    action: mongodb
+    args: ["insert", "${mongo_url}", "ecommerce.products"]
+    options:
+      documents:
+        - name: "Laptop Pro"
+          category: "Electronics"
+          price: 1299.99
+          stock: 15
+          tags: ["computer", "portable", "work"]
+          specs:
+            cpu: "Intel i7"
+            ram: "16GB"
+            storage: "512GB SSD"
+          created_at: "2024-01-01T00:00:00Z"
+        - name: "Wireless Mouse"
+          category: "Electronics"
+          price: 29.99
+          stock: 50
+          tags: ["computer", "wireless", "accessory"]
+          specs:
+            type: "optical"
+            connectivity: "bluetooth"
+          created_at: "2024-01-02T00:00:00Z"
+        - name: "Office Chair"
+          category: "Furniture"
+          price: 199.99
+          stock: 8
+          tags: ["office", "ergonomic", "furniture"]
+          specs:
+            material: "mesh"
+            adjustable: true
+          created_at: "2024-01-03T00:00:00Z"
+    result: products_insert
+
+  - name: "Verify products inserted"
+    action: jq
+    args: ["${products_insert}", ".inserted_count"]
+    result: inserted_count
+
+  - name: "Assert all products inserted"
+    action: assert
+    args: ["${inserted_count}", "==", "3"]
+
+  # Complex find queries
+  - name: "Find electronics under $100"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        category: "Electronics"
+        price: { $lt: 100 }
+      sort:
+        price: 1
+    result: cheap_electronics
+
+  - name: "Log cheap electronics"
+    action: log
+    args: ["Cheap electronics:", "${cheap_electronics}"]
+
+  # Text search simulation (using regex)
+  - name: "Search products by name pattern"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        name: { $regex: ".*Pro.*", $options: "i" }
+    result: pro_products
+
+  - name: "Verify Pro products found"
+    action: jq
+    args: ["${pro_products}", ".count"]
+    result: pro_count
+
+  - name: "Assert Pro products found"
+    action: assert
+    args: ["${pro_count}", ">=", "1"]
+
+  # Array field queries
+  - name: "Find products with 'computer' tag"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        tags: "computer"
+      projection:
+        name: 1
+        tags: 1
+        _id: 0
+    result: computer_products
+
+  - name: "Log computer products"
+    action: log
+    args: ["Computer products:", "${computer_products}"]
+
+  # Nested field queries
+  - name: "Find products with Intel CPU"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        "specs.cpu": { $regex: "Intel.*" }
+    result: intel_products
+
+  - name: "Verify Intel products"
+    action: jq
+    args: ["${intel_products}", ".count"]
+    result: intel_count
+
+  # Complex aggregation pipeline
+  - name: "Product analytics aggregation"
+    action: mongodb
+    args: ["aggregate", "${mongo_url}", "ecommerce.products"]
+    options:
+      pipeline:
+        # Stage 1: Add calculated fields
+        - $addFields:
+            total_value: { $multiply: ["$price", "$stock"] }
+            price_category: 
+              $switch:
+                branches:
+                  - case: { $lt: ["$price", 50] }
+                    then: "Budget"
+                  - case: { $lt: ["$price", 200] }
+                    then: "Mid-range"
+                default: "Premium"
+        
+        # Stage 2: Group by category
+        - $group:
+            _id: "$category"
+            product_count: { $sum: 1 }
+            avg_price: { $avg: "$price" }
+            total_stock: { $sum: "$stock" }
+            total_inventory_value: { $sum: "$total_value" }
+            price_categories: { $addToSet: "$price_category" }
+            products: 
+              $push:
+                name: "$name"
+                price: "$price"
+                stock: "$stock"
+        
+        # Stage 3: Sort by total inventory value
+        - $sort:
+            total_inventory_value: -1
+        
+        # Stage 4: Add overall statistics
+        - $group:
+            _id: null
+            categories: 
+              $push:
+                category: "$_id"
+                product_count: "$product_count"
+                avg_price: "$avg_price"
+                total_stock: "$total_stock"
+                total_inventory_value: "$total_inventory_value"
+                price_categories: "$price_categories"
+                products: "$products"
+            total_products: { $sum: "$product_count" }
+            grand_total_value: { $sum: "$total_inventory_value" }
+    result: analytics_result
+
+  - name: "Log analytics results"
+    action: log
+    args: ["Product analytics:", "${analytics_result}"]
+
+  - name: "Extract total products from analytics"
+    action: jq
+    args: ["${analytics_result}", ".results[0].total_products"]
+    result: analytics_total
+
+  - name: "Verify analytics total"
+    action: assert
+    args: ["${analytics_total}", "==", "3"]
+
+  # Update with complex operations
+  - name: "Update product with array operations"
+    action: mongodb
+    args: ["update", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        name: "Laptop Pro"
+      update:
+        $inc:
+          stock: -1  # Simulate sale
+        $push:
+          tags: "bestseller"
+        $set:
+          last_updated: "2024-01-15T10:30:00Z"
+          "specs.warranty": "2 years"
+    result: complex_update
+
+  - name: "Verify complex update"
+    action: jq
+    args: ["${complex_update}", ".modified_count"]
+    result: complex_modified
+
+  - name: "Assert complex update successful"
+    action: assert
+    args: ["${complex_modified}", "==", "1"]
+
+  # Verify the complex update
+  - name: "Find updated laptop"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        name: "Laptop Pro"
+    result: updated_laptop
+
+  - name: "Extract updated laptop data"
+    action: jq
+    args: ["${updated_laptop}", ".documents[0]"]
+    result: laptop_data
+
+  - name: "Verify stock decreased"
+    action: assert
+    args: ["${laptop_data.stock}", "==", "14"]
+
+  - name: "Verify tag added"
+    action: assert
+    args: ["${laptop_data.tags}", "contains", "bestseller"]
+
+  # Upsert operation (update or insert)
+  - name: "Upsert new product"
+    action: mongodb
+    args: ["update", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        name: "Gaming Keyboard"
+      update:
+        $set:
+          name: "Gaming Keyboard"
+          category: "Electronics"
+          price: 89.99
+          stock: 25
+          tags: ["gaming", "rgb", "mechanical"]
+          specs:
+            switches: "mechanical"
+            backlight: "RGB"
+      upsert: true
+    result: upsert_result
+
+  - name: "Log upsert result"
+    action: log
+    args: ["Upsert result:", "${upsert_result}"]
+
+  # Error handling test - invalid operation
+  - name: "Test invalid aggregation pipeline"
+    action: mongodb
+    args: ["aggregate", "${mongo_url}", "ecommerce.products"]
+    options:
+      pipeline:
+        - $invalidStage:
+            field: "value"
+    result: invalid_agg
+    continue: true
+
+  - name: "Verify error occurred"
+    action: log
+    args: ["Expected error for invalid aggregation"]
+
+  # Performance test - find with explain (if supported)
+  - name: "Find products with multiple conditions"
+    action: mongodb
+    args: ["find", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter:
+        $and:
+          - category: "Electronics"
+          - price: { $gte: 25, $lte: 1500 }
+          - stock: { $gt: 10 }
+      sort:
+        price: -1
+      limit: 10
+    result: filtered_products
+
+  - name: "Log filtered products count"
+    action: jq
+    args: ["${filtered_products}", ".count"]
+    result: filtered_count
+
+  - name: "Log performance test result"
+    action: log
+    args: ["Found ${filtered_count} products matching complex criteria"]
+
+  # Cleanup
+  - name: "Clean up test data"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter: {}  # Delete all documents in collection
+      many: true
+    result: cleanup_result
+
+  - name: "Verify cleanup"
+    action: jq
+    args: ["${cleanup_result}", ".deleted_count"]
+    result: cleanup_count
+
+  - name: "Log cleanup result"
+    action: log
+    args: ["Cleaned up ${cleanup_count} test documents"]
+
+  - name: "Assert cleanup successful"
+    action: assert
+    args: ["${cleanup_count}", ">=", "3"]
+
+teardown:
+  - name: "Final cleanup - ensure test collection is empty"
+    action: mongodb
+    args: ["delete", "${mongo_url}", "ecommerce.products"]
+    options:
+      filter: {}
+      many: true
+    continue: true

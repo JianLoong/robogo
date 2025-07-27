@@ -8,7 +8,7 @@ This directory contains comprehensive test case examples demonstrating all featu
 |----------|-----------|-------------|----------------|
 | **Basics** | [`01-basics/`](01-basics/) | Fundamental operations and utilities | 1 |
 | **HTTP** | [`02-http/`](02-http/) | HTTP requests, REST APIs, TLS handling | 5 |
-| **Database** | [`03-database/`](03-database/) | PostgreSQL, Spanner, data extraction | 5 |
+| **Database** | [`03-database/`](03-database/) | PostgreSQL, MongoDB, Spanner, data extraction | 7 |
 | **Messaging** | [`04-messaging/`](04-messaging/) | Kafka, SWIFT, message processing | 4 |
 | **Files** | [`05-files/`](05-files/) | File operations, SCP transfers | 3 |
 | **Data Processing** | [`06-data-processing/`](06-data-processing/) | JSON, XML, CSV parsing and extraction | 7 |
@@ -19,7 +19,7 @@ This directory contains comprehensive test case examples demonstrating all featu
 | **Network** | [`11-network/`](11-network/) | Network testing, SSL certificates, TCP connectivity | 3 |
 | **Integration** | [`12-integration/`](12-integration/) | End-to-end integration tests | 1 |
 
-**Total Examples: 54**
+**Total Examples: 56**
 
 ## 🚀 Quick Start Guide
 
@@ -123,6 +123,8 @@ PostgreSQL, Google Cloud Spanner, and data extraction.
 | `06-spanner-basic.yaml` | Google Cloud Spanner queries | Intermediate |
 | `07-spanner-advanced.yaml` | Advanced Spanner operations | Advanced |
 | `29-database-extraction.yaml` | Database result extraction patterns | Advanced |
+| `40-mongodb-basic.yaml` | Basic MongoDB operations (insert, find, update, delete) | Intermediate |
+| `41-mongodb-advanced.yaml` | Advanced MongoDB queries, aggregations, complex operations | Advanced |
 
 ### 04-messaging/ - Messaging Systems
 Kafka, SWIFT, and message processing.

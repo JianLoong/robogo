@@ -71,6 +71,24 @@ services:
       retries: 3
       start_period: 30s
 
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=robogo_user
+      - MONGO_INITDB_ROOT_PASSWORD=robogo_pass
+      - MONGO_INITDB_DATABASE=robogo_testdb
+    volumes:
+      - ./data/mongodb:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   # rabbitmq:
   #   image: rabbitmq:3-management
   #   container_name: rabbitmq
