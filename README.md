@@ -331,6 +331,38 @@ Robogo provides comprehensive security features for sensitive data handling:
 - **No-log mode**: Use `no_log: true` to suppress all step logging
 - **Environment variables**: Use `${ENV:VARIABLE}` for secure credential access
 
+### Secret Management Philosophy
+
+**Robogo follows the principle of external secret management:**
+
+- **🔐 Pipeline Responsibility**: CI/CD pipelines and deployment systems should retrieve secrets from proper secret stores (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, etc.)
+- **📋 Environment Variable Injection**: Secrets are injected as environment variables using `${ENV:SECRET}` syntax
+- **🚫 No Built-in Secret Stores**: Robogo intentionally doesn't implement secret management to avoid reinventing security infrastructure
+- **🔌 Integration via Standards**: Uses standard environment variable patterns that work with any secret management system
+- **🏗️ Infrastructure Separation**: Secret management is an infrastructure concern, not an automation tool concern
+
+**Example Integration Patterns:**
+```bash
+# HashiCorp Vault
+export API_TOKEN="$(vault kv get -field=token secret/api)"
+
+# AWS Secrets Manager  
+export DB_PASSWORD="$(aws secretsmanager get-secret-value --secret-id prod/db/password --query SecretString --output text)"
+
+# Kubernetes Secrets (in pod)
+export API_KEY="$(cat /var/secrets/api-key)"
+
+# CI/CD Pipeline (GitHub Actions)
+export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+```
+
+**Why This Approach:**
+- ✅ **Security Best Practice**: Leverages proven, audited secret management systems
+- ✅ **Flexibility**: Works with any secret store or deployment pattern  
+- ✅ **Separation of Concerns**: Automation logic separate from credential management
+- ✅ **Compliance Ready**: Integrates with enterprise security policies
+- ✅ **No Vendor Lock-in**: Not tied to specific secret management solutions
+
 ## Development Environment
 
 ### Prerequisites

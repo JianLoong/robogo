@@ -216,15 +216,93 @@ KAFKA_BROKERS=localhost:9092
 REDIS_URL=redis://localhost:6379
 ```
 
-## Security Checklist
+## Secret Management Philosophy
 
-- ✅ Use environment variables for all secrets
+**Robogo's Approach: External Secret Management**
+
+Robogo intentionally **does not implement built-in secret management** and follows the principle that **secret management is an infrastructure responsibility**, not an automation tool responsibility.
+
+### Why External Secret Management?
+
+- **🔐 Security Best Practice**: Use proven, audited systems (Vault, AWS Secrets Manager, etc.)
+- **🏗️ Infrastructure Separation**: Secret management belongs in deployment/infrastructure layer
+- **🔌 Standards Compliance**: Works with enterprise security policies and audit requirements
+- **🚫 No Reinvention**: Avoid building custom security infrastructure
+- **📈 Scalability**: Integrates with existing organizational secret management
+
+### Integration Patterns
+
+**Development Environment:**
+```bash
+# Use .env files (never commit)
+echo "API_TOKEN=dev-token-123" >> .env
+./robogo run workflow.yaml
+```
+
+**Production Environments:**
+```bash
+# HashiCorp Vault
+export API_TOKEN="$(vault kv get -field=token secret/myapp/api)"
+
+# AWS Secrets Manager
+export DB_PASSWORD="$(aws secretsmanager get-secret-value --secret-id prod/db --query SecretString --output text | jq -r .password)"
+
+# Azure Key Vault
+export CERT_PASSWORD="$(az keyvault secret show --vault-name MyVault --name cert-password --query value -o tsv)"
+
+# Kubernetes Secrets (mounted as files)
+export DATABASE_URL="$(cat /var/secrets/database-url)"
+```
+
+**CI/CD Pipeline Examples:**
+```yaml
+# GitHub Actions
+- name: Run Robogo Workflow
+  env:
+    API_TOKEN: ${{ secrets.API_TOKEN }}
+    DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  run: ./robogo run production-workflow.yaml
+
+# GitLab CI
+script:
+  - export API_TOKEN="$VAULT_API_TOKEN"
+  - ./robogo run deployment-workflow.yaml
+
+# Jenkins with Vault
+script:
+  - export DATABASE_URL=$(vault kv get -field=url secret/database)
+  - ./robogo run integration-tests.yaml
+```
+
+### What Robogo Provides
+
+**✅ Secure Consumption:**
+- Environment variable injection (`${ENV:SECRET}`)
+- Automatic sensitive field masking
+- No-log mode for sensitive operations
+- Custom masking configuration
+
+**❌ What Robogo Doesn't Do:**
+- Secret storage or retrieval
+- Credential rotation
+- Secret encryption/decryption
+- Integration with specific secret stores
+
+### Security Checklist
+
+**Development:**
+- ✅ Use environment variables for all secrets (`${ENV:SECRET}`)
 - ✅ Never hardcode credentials in YAML files
+- ✅ Use `.env` files for development (add to `.gitignore`)
 - ✅ Use `no_log: true` for sensitive operations
 - ✅ Configure `sensitive_fields` for custom data
 - ✅ Validate environment variables exist before use
-- ✅ Use `.env` files for development (don't commit them)
+
+**Production:**
+- ✅ Integrate with proper secret management system (Vault, AWS, Azure, etc.)
+- ✅ Use pipeline/infrastructure to inject secrets as environment variables
+- ✅ Implement secret rotation at infrastructure level
 - ✅ Test both success and failure scenarios
 - ✅ Document required environment variables
-- ✅ Use proper secret management in production
-- ✅ Regularly rotate credentials and tokens
+- ✅ Follow organizational security policies
+- ✅ Regular security audits of secret access patterns

@@ -151,6 +151,12 @@ func exampleAction(args []any, options map[string]any, vars *common.Variables) t
 - Secure credential management without hardcoding secrets
 - Integration with .env file loading
 
+**Secret Management Philosophy:**
+- **External Responsibility**: Robogo doesn't implement secret storage/retrieval
+- **Pipeline Integration**: Secrets should be injected by CI/CD pipelines or infrastructure
+- **Environment Variable Pattern**: Use `${ENV:SECRET}` for all sensitive data
+- **Standards Compliance**: Works with any secret management system (Vault, AWS, Azure, etc.)
+
 ## Error Handling
 
 ### Error Types
